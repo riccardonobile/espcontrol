@@ -49,8 +49,8 @@ struct AlarmDriverEnvironment {
   int slot_count = 0;
   int grid_cols = 1;
   uint32_t on_color = DEFAULT_SLIDER_COLOR;
-  uint32_t off_color = SECONDARY_GREY;
-  uint32_t tertiary_color = TERTIARY_GREY;
+  uint32_t off_color = theme_color(ThemeColorRole::SURFACE);
+  uint32_t tertiary_color = theme_color(ThemeColorRole::SURFACE_SECONDARY);
   const lv_font_t *icon_font = nullptr;
   const lv_font_t *arming_title_font = nullptr;
   const lv_font_t *value_font = nullptr;

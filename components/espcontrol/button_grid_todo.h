@@ -258,7 +258,7 @@ inline void todo_lite_modal_set_status(const char *text) {
     ui.status_lbl = lv_label_create(ui.list);
     lv_label_set_long_mode(ui.status_lbl, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(ui.status_lbl, lv_pct(100));
-    lv_obj_set_style_text_color(ui.status_lbl, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+    theme_style_text(ui.status_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
     lv_obj_set_style_text_align(ui.status_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     if (ui.active && ui.active->label_font)
       lv_obj_set_style_text_font(ui.status_lbl, ui.active->label_font, LV_PART_MAIN);
@@ -299,7 +299,7 @@ inline lv_obj_t *todo_lite_create_row(TodoCardCtx *ctx, TodoLiteItem *item,
   lv_obj_set_size(box, checkbox_size, checkbox_size);
   lv_obj_set_style_radius(box, checkbox_size / 4, LV_PART_MAIN);
   lv_obj_set_style_bg_opa(box, LV_OPA_TRANSP, LV_PART_MAIN);
-  lv_obj_set_style_border_color(box, lv_color_hex(DARK_BORDER), LV_PART_MAIN);
+  theme_style_border(box, ThemeColorRole::BORDER, LV_PART_MAIN);
   lv_obj_set_style_border_width(box, 2, LV_PART_MAIN);
   lv_obj_set_style_shadow_width(box, 0, LV_PART_MAIN);
   lv_obj_clear_flag(box, LV_OBJ_FLAG_SCROLLABLE);
@@ -312,7 +312,7 @@ inline lv_obj_t *todo_lite_create_row(TodoCardCtx *ctx, TodoLiteItem *item,
   lv_label_set_text(label, item && item->summary[0] ? item->summary : espcontrol_i18n("(untitled)"));
   lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
   lv_obj_set_width(label, label_w);
-  lv_obj_set_style_text_color(label, lv_color_hex(DARK_TEXT_SOFT), LV_PART_MAIN);
+  theme_style_text(label, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
   if (ctx && ctx->label_font) lv_obj_set_style_text_font(label, ctx->label_font, LV_PART_MAIN);
   apply_width_compensation(label, ctx ? ctx->width_compensation_percent : 100);
@@ -337,7 +337,7 @@ inline lv_obj_t *todo_lite_create_note_row(TodoCardCtx *ctx, const char *text,
   lv_label_set_text(label, text ? text : "");
   lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
   lv_obj_set_width(label, content_w);
-  lv_obj_set_style_text_color(label, lv_color_hex(DARK_TEXT_MUTED), LV_PART_MAIN);
+  theme_style_text(label, ThemeColorRole::TEXT_SECONDARY, LV_PART_MAIN);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   if (ctx && ctx->label_font) lv_obj_set_style_text_font(label, ctx->label_font, LV_PART_MAIN);
   apply_width_compensation(label, ctx ? ctx->width_compensation_percent : 100);
@@ -605,7 +605,7 @@ inline void todo_card_open_modal(TodoCardCtx *ctx) {
   ui.title_lbl = control_modal_create_title(
     ui.panel, todo_lite_card_label(ctx), content_w - layout.back_size - gap,
     ctx->list_font, ctx->width_compensation_percent);
-  lv_obj_set_style_text_color(ui.title_lbl, lv_color_hex(DARK_TEXT_MUTED), LV_PART_MAIN);
+  theme_style_text(ui.title_lbl, ThemeColorRole::TEXT_SECONDARY, LV_PART_MAIN);
   lv_obj_update_layout(ui.title_lbl);
   lv_obj_align(ui.title_lbl, LV_ALIGN_TOP_MID, 0,
     title_y - lv_obj_get_height(ui.title_lbl) / 2);
@@ -715,7 +715,7 @@ struct TodoCardCtx {
   const lv_font_t *label_font = nullptr;
   const lv_font_t *list_font = nullptr;
   const lv_font_t *icon_font = nullptr;
-  uint32_t secondary_color = SECONDARY_GREY;
+  uint32_t secondary_color = theme_color(ThemeColorRole::SURFACE);
   int width_compensation_percent = 100;
   bool available = false;
 };
@@ -947,7 +947,7 @@ inline void todo_modal_set_status(const char *text) {
     ui.status_lbl = lv_label_create(ui.list);
     lv_label_set_long_mode(ui.status_lbl, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(ui.status_lbl, lv_pct(100));
-    lv_obj_set_style_text_color(ui.status_lbl, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+    theme_style_text(ui.status_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
     lv_obj_set_style_text_align(ui.status_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     if (ui.active && ui.active->label_font)
       lv_obj_set_style_text_font(ui.status_lbl, ui.active->label_font, LV_PART_MAIN);
@@ -1024,7 +1024,7 @@ inline lv_obj_t *todo_modal_create_list_item_row(
   lv_coord_t label_x = 0;
   lv_coord_t label_w = content_width;
   if (show_checkbox) {
-    uint32_t checkbox_color = checked ? DARK_TEXT_PRIMARY : DARK_BORDER;
+    uint32_t checkbox_color = checked ? theme_color(ThemeColorRole::TEXT_PRIMARY) : theme_color(ThemeColorRole::BORDER);
     lv_obj_t *box = lv_obj_create(row);
     lv_obj_set_size(box, checkbox_size, checkbox_size);
     lv_obj_set_style_radius(box, checkbox_size / 4, LV_PART_MAIN);
@@ -1063,7 +1063,7 @@ inline lv_obj_t *todo_modal_create_list_item_row(
   lv_label_set_long_mode(value, LV_LABEL_LONG_DOT);
   lv_obj_set_width(value, label_w);
   lv_obj_set_style_text_color(value,
-    lv_color_hex(show_checkbox ? DARK_TEXT_SOFT : DARK_TEXT_MUTED), LV_PART_MAIN);
+    lv_color_hex(show_checkbox ? theme_color(ThemeColorRole::TEXT_PRIMARY) : theme_color(ThemeColorRole::TEXT_SECONDARY)), LV_PART_MAIN);
   lv_obj_set_style_text_align(value, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
   if (font) lv_obj_set_style_text_font(value, font, LV_PART_MAIN);
   apply_width_compensation(value, width_compensation_percent);
@@ -1325,7 +1325,7 @@ inline void todo_card_open_modal(TodoCardCtx *ctx) {
   ui.title_lbl = control_modal_create_title(
     ui.panel, todo_card_label(ctx), content_w - layout.back_size - gap,
     ctx->list_font, ctx->width_compensation_percent);
-  lv_obj_set_style_text_color(ui.title_lbl, lv_color_hex(DARK_TEXT_MUTED), LV_PART_MAIN);
+  theme_style_text(ui.title_lbl, ThemeColorRole::TEXT_SECONDARY, LV_PART_MAIN);
   lv_obj_update_layout(ui.title_lbl);
   lv_obj_align(ui.title_lbl, LV_ALIGN_TOP_MID, 0,
     title_y - lv_obj_get_height(ui.title_lbl) / 2);

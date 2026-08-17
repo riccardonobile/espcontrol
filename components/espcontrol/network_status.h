@@ -175,7 +175,7 @@ inline void network_status_open_modal(const std::string &device_name,
   ControlModalLayout &layout = shell.layout;
   lv_coord_t content_w = shell.content_w;
   lv_obj_t *close_label = lv_obj_get_child(ui.close_btn, 0);
-  if (close_label) lv_obj_set_style_text_color(close_label, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  if (close_label) theme_style_text(close_label, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
 
   ui.content = lv_obj_create(ui.panel);
   network_status_clean_obj(ui.content);
@@ -192,20 +192,20 @@ inline void network_status_open_modal(const std::string &device_name,
     device_name.empty() ? espcontrol_i18n("Not available") : device_name.c_str(),
     text_font,
     content_w,
-    DARK_TEXT_PRIMARY);
+    theme_color(ThemeColorRole::TEXT_PRIMARY));
   ui.ip_lbl = network_status_add_center_label(
     ui.content,
     ip_address.empty() ? espcontrol_i18n("Not available") : ip_address.c_str(),
     text_font,
     content_w,
-    DARK_TEXT_MUTED);
+    theme_color(ThemeColorRole::TEXT_SECONDARY));
   std::string firmware_label = network_status_firmware_label(firmware_version);
   ui.firmware_lbl = network_status_add_center_label(
     ui.content,
     firmware_label.c_str(),
     text_font,
     content_w,
-    DARK_TEXT_MUTED);
+    theme_color(ThemeColorRole::TEXT_SECONDARY));
   lv_obj_update_layout(ui.content);
   lv_obj_align(ui.content, LV_ALIGN_CENTER, 0, 0);
 

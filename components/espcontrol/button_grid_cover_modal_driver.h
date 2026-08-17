@@ -65,7 +65,7 @@ inline CoverControlCtx *cover_modal_driver_track(
 
 struct CoverModalDriverEnvironment {
   uint32_t accent_color = DEFAULT_SLIDER_COLOR;
-  uint32_t secondary_color = SECONDARY_GREY;
+  uint32_t secondary_color = theme_color(ThemeColorRole::SURFACE);
   const lv_font_t *option_title_font = nullptr;
   const lv_font_t *option_value_font = nullptr;
   const lv_font_t *option_menu_font = nullptr;

@@ -127,8 +127,8 @@ struct CardPalette {
   bool has_off = false;
   bool has_sensor_color = false;
   uint32_t on_val = DEFAULT_SLIDER_COLOR;
-  uint32_t off_val = SECONDARY_GREY;
-  uint32_t sensor_val = TERTIARY_GREY;
+  uint32_t off_val = theme_color(ThemeColorRole::SURFACE);
+  uint32_t sensor_val = theme_color(ThemeColorRole::SURFACE_SECONDARY);
 };
 
 template<typename T>

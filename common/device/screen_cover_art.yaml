@@ -138,6 +138,10 @@ esphome:
   on_boot:
     priority: 250
     then:
+      - lambda: |-
+          // Cover art deliberately owns its black backdrop, extracted accent,
+          // and white overlay text independently of the display UI theme.
+          lv_obj_add_flag(id(cover_art_screensaver), LV_OBJ_FLAG_USER_1);
       - script.execute: cover_art_resubscribe
 
 image:

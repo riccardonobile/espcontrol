@@ -1168,7 +1168,7 @@ inline void setup_image_card(BtnSlot &s) {
 
   lv_obj_t *loading = lv_obj_create(s.btn);
   lv_obj_set_size(loading, lv_pct(100), lv_pct(100));
-  lv_obj_set_style_bg_color(loading, lv_color_hex(TERTIARY_GREY), LV_PART_MAIN);
+  theme_style_background(loading, ThemeColorRole::SURFACE_SECONDARY, LV_PART_MAIN);
   lv_obj_set_style_bg_opa(loading, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_set_style_border_width(loading, 0, LV_PART_MAIN);
   lv_obj_set_style_shadow_width(loading, 0, LV_PART_MAIN);
@@ -1181,13 +1181,13 @@ inline void setup_image_card(BtnSlot &s) {
   const lv_font_t *loading_icon_font = image_card_icon_font_for_slot(s);
   const lv_font_t *loading_label_font = image_card_label_font_for_slot(s);
   image_card_apply_loading_fonts(loading, loading_icon_font, loading_label_font);
-  lv_obj_set_style_text_color(loading_icon, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(loading_icon, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_opa(loading_icon, LV_OPA_COVER, LV_PART_MAIN);
   lv_label_set_text(loading_icon, IMAGE_CARD_LOADING_ICON);
 
   lv_obj_t *loading_label = lv_label_create(loading);
   image_card_apply_loading_fonts(loading, loading_icon_font, loading_label_font);
-  lv_obj_set_style_text_color(loading_label, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(loading_label, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_opa(loading_label, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_set_style_text_align(loading_label, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
   lv_label_set_text(loading_label, espcontrol_i18n("Loading"));
@@ -1950,7 +1950,7 @@ inline void image_card_open_modal(ImageCardCtx *ctx) {
   image_card_log_diagnostics(ctx, "modal-display-takeover-began");
   image_card_style_modal_back_button(ui.back_btn, shell.layout);
 
-  lv_obj_set_style_bg_color(ui.panel, lv_color_hex(DARK_OVERLAY), LV_PART_MAIN);
+  theme_style_background(ui.panel, ThemeColorRole::OVERLAY, LV_PART_MAIN);
   lv_obj_set_style_bg_opa(ui.panel, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_set_style_clip_corner(ui.panel, true, LV_PART_MAIN);
 
@@ -1974,9 +1974,9 @@ inline void image_card_open_modal(ImageCardCtx *ctx) {
     image_card_abort_modal_open(ctx, "loading widget setup failed");
     return;
   }
-  lv_obj_set_style_bg_color(ui.loading_widget, lv_color_hex(SECONDARY_GREY), LV_PART_MAIN);
+  theme_style_background(ui.loading_widget, ThemeColorRole::SURFACE, LV_PART_MAIN);
   lv_obj_set_style_bg_opa(ui.loading_widget, LV_OPA_70, LV_PART_MAIN);
-  lv_obj_set_style_border_color(ui.loading_widget, lv_color_hex(DARK_BORDER), LV_PART_MAIN);
+  theme_style_border(ui.loading_widget, ThemeColorRole::BORDER, LV_PART_MAIN);
   lv_obj_set_style_border_width(ui.loading_widget, 1, LV_PART_MAIN);
   lv_obj_set_style_shadow_width(ui.loading_widget, 0, LV_PART_MAIN);
   lv_obj_set_style_pad_all(ui.loading_widget, 0, LV_PART_MAIN);
@@ -1990,7 +1990,7 @@ inline void image_card_open_modal(ImageCardCtx *ctx) {
     return;
   }
   if (ctx->icon_font) lv_obj_set_style_text_font(loading_icon, ctx->icon_font, LV_PART_MAIN);
-  lv_obj_set_style_text_color(loading_icon, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(loading_icon, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_opa(loading_icon, LV_OPA_COVER, LV_PART_MAIN);
   lv_label_set_text(loading_icon, IMAGE_CARD_LOADING_ICON);
 
@@ -2000,7 +2000,7 @@ inline void image_card_open_modal(ImageCardCtx *ctx) {
     return;
   }
   if (ctx->label_font) lv_obj_set_style_text_font(loading_label, ctx->label_font, LV_PART_MAIN);
-  lv_obj_set_style_text_color(loading_label, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(loading_label, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_opa(loading_label, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_set_style_text_align(loading_label, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
   lv_label_set_long_mode(loading_label, LV_LABEL_LONG_DOT);

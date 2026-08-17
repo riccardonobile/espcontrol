@@ -329,8 +329,16 @@ inline void apply_button_colors(lv_obj_t *btn, bool has_on, uint32_t on_val,
       static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_PRESSED));
   }
   if (has_off) {
-    lv_obj_set_style_bg_color(btn, lv_color_hex(off_val),
-      static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_DEFAULT));
+    const lv_style_selector_t selector =
+      static_cast<lv_style_selector_t>(LV_PART_MAIN) |
+      static_cast<lv_style_selector_t>(LV_STATE_DEFAULT);
+    if (off_val == theme_color(ThemeColorRole::SURFACE)) {
+      theme_style_background(btn, ThemeColorRole::SURFACE, selector);
+    } else if (off_val == theme_color(ThemeColorRole::SURFACE_SECONDARY)) {
+      theme_style_background(btn, ThemeColorRole::SURFACE_SECONDARY, selector);
+    } else {
+      lv_obj_set_style_bg_color(btn, lv_color_hex(off_val), selector);
+    }
   }
 }
 
@@ -363,21 +371,30 @@ inline void apply_button_on_pattern(lv_obj_t *btn, const std::string &options,
   lv_obj_set_style_bg_grad_dir(btn, LV_GRAD_DIR_HOR, pressed);
 }
 
-inline void apply_card_descendant_text_color(lv_obj_t *obj, lv_color_t color) {
+inline void apply_card_descendant_text_color(lv_obj_t *obj, lv_color_t color,
+                                             bool semantic_primary) {
   if (!obj) return;
   int32_t count = static_cast<int32_t>(lv_obj_get_child_cnt(obj));
   for (int32_t i = 0; i < count; i++) {
     lv_obj_t *child = lv_obj_get_child(obj, i);
     if (!child) continue;
-    lv_obj_set_style_text_color(child, color, LV_PART_MAIN);
-    apply_card_descendant_text_color(child, color);
+    if (semantic_primary) {
+      theme_style_text(child, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
+    } else {
+      lv_obj_remove_style(child, theme_lvgl_styles().text(ThemeColorRole::TEXT_PRIMARY),
+                          LV_PART_MAIN);
+      lv_obj_set_style_text_color(child, color, LV_PART_MAIN);
+    }
+    apply_card_descendant_text_color(child, color, semantic_primary);
   }
 }
 
 inline void sync_card_checked_text_color(lv_obj_t *btn) {
   if (!btn) return;
-  apply_card_descendant_text_color(
-    btn, lv_obj_get_style_text_color(btn, LV_PART_MAIN));
+  const bool checked = lv_obj_has_state(btn, LV_STATE_CHECKED);
+  apply_card_descendant_text_color(btn,
+                                   lv_obj_get_style_text_color(btn, LV_PART_MAIN),
+                                   !checked);
 }
 
 inline void set_card_checked_state(lv_obj_t *btn, bool checked) {

@@ -58,6 +58,26 @@ inline std::vector<NavigationSubpageEntry> &navigation_subpages() {
   return grid_navigation_service().subpages();
 }
 
+inline void apply_runtime_theme(espcontrol::theme::ActiveTheme theme,
+                                lv_obj_t *main_page_obj) {
+  const ActiveTheme previous = applied_theme_ref();
+  apply_active_theme(theme);
+  const ActiveTheme transition_from = previous == theme
+      ? (theme == ActiveTheme::LIGHT ? ActiveTheme::DARK : ActiveTheme::LIGHT)
+      : previous;
+
+  // Shared semantic styles update in place. The transition pass only handles
+  // legacy local styles and state-dependent colors that cannot inherit a
+  // shared style yet; no objects or subscriptions are recreated.
+  theme_transition_tree(main_page_obj, transition_from, theme);
+  for (auto &entry : navigation_subpages()) {
+    theme_transition_tree(entry.screen, transition_from, theme);
+  }
+  lv_obj_t *active = lv_scr_act();
+  if (active != main_page_obj) theme_transition_tree(active, transition_from, theme);
+  control_modal_transition_theme(transition_from, theme);
+}
+
 inline std::string navigation_trim(const std::string &value) {
   size_t start = 0;
   while (start < value.size() &&

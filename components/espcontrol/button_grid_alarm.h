@@ -37,8 +37,8 @@ struct AlarmCardCtx {
   const lv_font_t *icon_font = nullptr;
   const lv_font_t *arming_title_font = nullptr;
   uint32_t on_color = DEFAULT_SLIDER_COLOR;
-  uint32_t off_color = SECONDARY_GREY;
-  uint32_t tertiary_color = TERTIARY_GREY;
+  uint32_t off_color = theme_color(ThemeColorRole::SURFACE);
+  uint32_t tertiary_color = theme_color(ThemeColorRole::SURFACE_SECONDARY);
   int width_compensation_percent = 100;
   int grid_cols = 3;
   bool available = false;
@@ -951,7 +951,7 @@ inline void alarm_show_failure(AlarmCardCtx *ctx, const std::string &message) {
   lv_obj_t *label = lv_label_create(ui.box);
   lv_label_set_text(label, message.empty() ? espcontrol_i18n("Alarm action failed") : espcontrol_i18n(message).c_str());
   if (ctx && ctx->label_font) lv_obj_set_style_text_font(label, ctx->label_font, LV_PART_MAIN);
-  lv_obj_set_style_text_color(label, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(label, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
   lv_obj_set_width(label, width - 24);
@@ -1012,7 +1012,7 @@ inline uint32_t alarm_control_active_color(AlarmCardCtx *ctx, const std::string 
 }
 
 inline uint32_t alarm_control_inactive_color(AlarmCardCtx *ctx) {
-  return ctx ? ctx->off_color : SECONDARY_GREY;
+  return ctx ? ctx->off_color : theme_color(ThemeColorRole::SURFACE);
 }
 
 inline lv_coord_t alarm_control_mode_button_radius(const ControlModalLayout &layout,
@@ -1196,7 +1196,7 @@ inline lv_obj_t *alarm_create_key_button(lv_obj_t *parent, lv_coord_t width,
                                          uint16_t label_zoom = 256) {
   lv_coord_t radius = width < height ? width / 2 : height / 2;
   lv_obj_t *btn = control_modal_create_round_button(
-    parent, width, text, font, DARK_BORDER, SECONDARY_GREY,
+    parent, width, text, font, theme_color(ThemeColorRole::BORDER), theme_color(ThemeColorRole::SURFACE),
     width_compensation_percent);
   lv_obj_set_size(btn, width, height);
   lv_obj_set_style_radius(btn, radius, LV_PART_MAIN);
@@ -1296,7 +1296,7 @@ inline void alarm_pin_open_modal(AlarmActionCtx *action) {
   ControlModalLayout &layout = shell.layout;
 
   ui.pin_lbl = lv_label_create(ui.panel);
-  lv_obj_set_style_text_color(ui.pin_lbl, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(ui.pin_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_align(ui.pin_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   if (pin_label_font) lv_obj_set_style_text_font(ui.pin_lbl, pin_label_font, LV_PART_MAIN);
   apply_width_compensation(ui.pin_lbl, action->card->width_compensation_percent);
@@ -1351,7 +1351,7 @@ inline void alarm_pin_open_modal(AlarmActionCtx *action) {
       lv_obj_set_style_bg_color(key_btn, lv_color_hex(DEFAULT_SLIDER_COLOR), LV_PART_MAIN);
       lv_obj_set_style_border_color(key_btn, lv_color_hex(DEFAULT_SLIDER_COLOR), LV_PART_MAIN);
       lv_obj_t *key_lbl = lv_obj_get_child(key_btn, 0);
-      if (key_lbl) lv_obj_set_style_text_color(key_lbl, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+      if (key_lbl) theme_style_text(key_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
     }
     int row = i / 3;
     int col = i % 3;
@@ -1408,7 +1408,7 @@ inline lv_obj_t *alarm_control_create_mode_button(
 
   lv_obj_t *icon = lv_label_create(content);
   lv_label_set_text(icon, alarm_action_icon(mode ? std::string(mode) : ""));
-  lv_obj_set_style_text_color(icon, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(icon, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_align(icon, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   if (icon_font) lv_obj_set_style_text_font(icon, icon_font, LV_PART_MAIN);
   apply_width_compensation(icon, ctx ? ctx->width_compensation_percent : 100);
@@ -1417,7 +1417,7 @@ inline lv_obj_t *alarm_control_create_mode_button(
 
   lv_obj_t *label = lv_label_create(content);
   lv_label_set_text(label, alarm_control_button_label(mode ? std::string(mode) : ""));
-  lv_obj_set_style_text_color(label, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(label, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   if (label_font) lv_obj_set_style_text_font(label, label_font, LV_PART_MAIN);
   apply_width_compensation(label, ctx ? ctx->width_compensation_percent : 100);
@@ -1458,7 +1458,7 @@ inline void alarm_control_create_arming_view(AlarmControlModalUi &ui,
 
   ui.arming_title = lv_label_create(ui.arming_view);
   lv_label_set_text(ui.arming_title, espcontrol_i18n("Arming"));
-  lv_obj_set_style_text_color(ui.arming_title, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(ui.arming_title, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_align(ui.arming_title, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   if (title_font) lv_obj_set_style_text_font(ui.arming_title, title_font, LV_PART_MAIN);
   apply_width_compensation(ui.arming_title, ctx ? ctx->width_compensation_percent : 100);
@@ -1469,7 +1469,7 @@ inline void alarm_control_create_arming_view(AlarmControlModalUi &ui,
 
   ui.arming_countdown = lv_label_create(ui.arming_view);
   lv_label_set_text(ui.arming_countdown, "");
-  lv_obj_set_style_text_color(ui.arming_countdown, lv_color_hex(DARK_TEXT_MUTED), LV_PART_MAIN);
+  theme_style_text(ui.arming_countdown, ThemeColorRole::TEXT_SECONDARY, LV_PART_MAIN);
   lv_obj_set_style_text_align(ui.arming_countdown, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   if (countdown_font) lv_obj_set_style_text_font(ui.arming_countdown, countdown_font, LV_PART_MAIN);
   apply_width_compensation(ui.arming_countdown, ctx ? ctx->width_compensation_percent : 100);
@@ -1696,7 +1696,7 @@ inline AlarmCardCtx *create_alarm_card_context(
   int COLS = cols > 0 ? cols : 1;
   ctx->page = lv_obj_create(NULL);
   ctx->grid_page = ctx->page;
-  lv_obj_set_style_bg_color(ctx->page, lv_color_hex(DARK_OVERLAY), LV_PART_MAIN);
+  theme_style_background(ctx->page, ThemeColorRole::OVERLAY, LV_PART_MAIN);
   lv_obj_set_style_bg_opa(ctx->page, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_set_layout(ctx->page, LV_LAYOUT_GRID);
   alarm_configure_page_grid(ctx->page, NS, COLS);

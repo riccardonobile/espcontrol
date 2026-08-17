@@ -46,8 +46,8 @@ struct MediaControlCtx {
   int pending_pct = -1;
   uint32_t pending_until_ms = 0;
   uint32_t accent_color = DEFAULT_SLIDER_COLOR;
-  uint32_t secondary_color = SECONDARY_GREY;
-  uint32_t tertiary_color = TERTIARY_GREY;
+  uint32_t secondary_color = theme_color(ThemeColorRole::SURFACE);
+  uint32_t tertiary_color = theme_color(ThemeColorRole::SURFACE_SECONDARY);
   lv_obj_t *btn = nullptr;
   lv_obj_t *icon_lbl = nullptr;
   lv_obj_t *label_lbl = nullptr;
@@ -2226,7 +2226,7 @@ inline lv_obj_t *media_control_create_progress_handle(lv_obj_t *slider) {
   lv_obj_t *handle = lv_obj_create(slider);
   if (!handle) return nullptr;
   lv_obj_set_size(handle, 0, 0);
-  lv_obj_set_style_bg_color(handle, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_background(handle, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_bg_opa(handle, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_set_style_border_width(handle, 0, LV_PART_MAIN);
   lv_obj_set_style_shadow_width(handle, 0, LV_PART_MAIN);
@@ -2408,12 +2408,11 @@ inline void media_control_refresh_power(MediaControlCtx *ctx) {
                   ctx->state_text != "unknown" && ctx->state_text != "unavailable";
   lv_obj_set_style_bg_color(
     ui.power_btn,
-    lv_color_hex(on ? ctx->accent_color : SECONDARY_GREY), LV_PART_MAIN);
+    lv_color_hex(on ? ctx->accent_color : theme_color(ThemeColorRole::SURFACE)), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(ui.power_btn, LV_OPA_COVER, LV_PART_MAIN);
   if (ui.power_icon_lbl) {
     lv_label_set_text(ui.power_icon_lbl, find_icon("Power"));
-    lv_obj_set_style_text_color(
-      ui.power_icon_lbl, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+    theme_style_text(ui.power_icon_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   }
   if (ui.power_status_lbl) {
     const std::string status = !ctx->state_known
@@ -2479,13 +2478,13 @@ inline void media_control_apply_volume_percent(MediaControlCtx *ctx, int pct,
 inline void media_control_style_tab(lv_obj_t *btn, bool active) {
   if (!btn) return;
   lv_obj_set_style_bg_color(
-    btn, lv_color_hex(active ? DARK_TEXT_PRIMARY : SECONDARY_GREY), LV_PART_MAIN);
+    btn, lv_color_hex(active ? theme_color(ThemeColorRole::TEXT_PRIMARY) : theme_color(ThemeColorRole::SURFACE)), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(btn, active ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
   lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
   lv_obj_t *label = lv_obj_get_child(btn, 0);
   if (label) {
     lv_obj_set_style_text_color(
-      label, lv_color_hex(active ? TERTIARY_GREY : DARK_TEXT_PRIMARY), LV_PART_MAIN);
+      label, lv_color_hex(active ? theme_color(ThemeColorRole::SURFACE_SECONDARY) : theme_color(ThemeColorRole::TEXT_PRIMARY)), LV_PART_MAIN);
   }
 }
 
@@ -2527,7 +2526,7 @@ inline lv_obj_t *media_control_create_tab_button(lv_obj_t *parent, const char *i
                                                  MediaControlTab tab,
                                                  int width_compensation_percent) {
   lv_obj_t *btn = control_modal_create_flat_icon_button(
-    parent, icon, font, SECONDARY_GREY, LV_OPA_TRANSP,
+    parent, icon, font, theme_color(ThemeColorRole::SURFACE), LV_OPA_TRANSP,
     width_compensation_percent, 180);
   if (!btn) return nullptr;
   light_control_center_icon_label(control_modal_icon_label(btn));
@@ -2635,7 +2634,7 @@ inline lv_obj_t *media_control_create_icon_button(lv_obj_t *parent, const char *
                                                   const lv_font_t *font,
                                                   uint32_t pressed_color) {
   lv_obj_t *btn = control_modal_create_flat_icon_button(
-    parent, icon, font, SECONDARY_GREY, LV_OPA_COVER);
+    parent, icon, font, theme_color(ThemeColorRole::SURFACE), LV_OPA_COVER);
   if (!btn) return nullptr;
   control_modal_apply_pressed_fill_color(btn, pressed_color);
   return btn;
@@ -2666,7 +2665,7 @@ inline void media_control_create_controls_tab_content(MediaControlCtx *ctx) {
 
   ui.title_lbl = lv_label_create(ui.content_box);
   if (!ui.title_lbl) return;
-  lv_obj_set_style_text_color(ui.title_lbl, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(ui.title_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_text_align(ui.title_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   lv_obj_set_style_text_line_space(ui.title_lbl, 0, LV_PART_MAIN);
   if (ctx->title_font) lv_obj_set_style_text_font(ui.title_lbl, ctx->title_font, LV_PART_MAIN);
@@ -2675,7 +2674,7 @@ inline void media_control_create_controls_tab_content(MediaControlCtx *ctx) {
 
   ui.artist_lbl = lv_label_create(ui.content_box);
   if (ui.artist_lbl) {
-    lv_obj_set_style_text_color(ui.artist_lbl, lv_color_hex(DARK_TEXT_MUTED), LV_PART_MAIN);
+    theme_style_text(ui.artist_lbl, ThemeColorRole::TEXT_SECONDARY, LV_PART_MAIN);
     lv_obj_set_style_text_align(ui.artist_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     if (ctx->label_font) lv_obj_set_style_text_font(ui.artist_lbl, ctx->label_font, LV_PART_MAIN);
     lv_label_set_long_mode(ui.artist_lbl, LV_LABEL_LONG_DOT);
@@ -2719,7 +2718,7 @@ inline void media_control_create_progress_tab_content(MediaControlCtx *ctx) {
   ui.progress_refresh_pending = true;
   lv_obj_add_flag(ui.progress_slider, LV_OBJ_FLAG_HIDDEN);
   media_control_style_progress_slider(
-    ui.progress_slider, SECONDARY_GREY, ctx->accent_color);
+    ui.progress_slider, theme_color(ThemeColorRole::SURFACE), ctx->accent_color);
   ui.progress_fill = media_control_create_progress_fill(
     ui.progress_slider, lv_color_hex(ctx->accent_color));
   ui.progress_handle = media_control_create_progress_handle(ui.progress_slider);
@@ -2729,7 +2728,7 @@ inline void media_control_create_progress_tab_content(MediaControlCtx *ctx) {
   if (ui.progress_time_lbl) {
     lv_obj_add_flag(ui.progress_time_lbl, LV_OBJ_FLAG_HIDDEN);
     lv_label_set_text(ui.progress_time_lbl, "0:00");
-    lv_obj_set_style_text_color(ui.progress_time_lbl, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+    theme_style_text(ui.progress_time_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
     lv_obj_set_style_text_align(ui.progress_time_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     if (ctx->title_font) lv_obj_set_style_text_font(ui.progress_time_lbl, ctx->title_font, LV_PART_MAIN);
     apply_width_compensation(ui.progress_time_lbl, ctx->width_compensation_percent);
@@ -2802,11 +2801,11 @@ inline void media_control_create_volume_tab_content(MediaControlCtx *ctx) {
              : media_clamp_percent(ctx->current_pct));
   lv_obj_set_style_bg_opa(ui.volume_arc, LV_OPA_TRANSP, LV_PART_MAIN);
   lv_obj_set_style_border_width(ui.volume_arc, 0, LV_PART_MAIN);
-  lv_obj_set_style_arc_color(ui.volume_arc, lv_color_hex(DARK_TRACK_BACKGROUND), LV_PART_MAIN);
+  theme_style_arc(ui.volume_arc, ThemeColorRole::TRACK, LV_PART_MAIN);
   lv_obj_set_style_arc_color(ui.volume_arc, lv_color_hex(ctx->accent_color), LV_PART_INDICATOR);
   lv_obj_set_style_arc_rounded(ui.volume_arc, true, LV_PART_MAIN);
   lv_obj_set_style_arc_rounded(ui.volume_arc, true, LV_PART_INDICATOR);
-  lv_obj_set_style_bg_color(ui.volume_arc, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_KNOB);
+  theme_style_background(ui.volume_arc, ThemeColorRole::TEXT_PRIMARY, LV_PART_KNOB);
   lv_obj_set_style_border_width(ui.volume_arc, 0, LV_PART_KNOB);
   lv_obj_set_style_shadow_width(ui.volume_arc, 0, LV_PART_KNOB);
   lv_obj_add_flag(ui.volume_arc, LV_OBJ_FLAG_ADV_HITTEST);
@@ -2848,7 +2847,7 @@ inline void media_control_create_volume_tab_content(MediaControlCtx *ctx) {
   ui.volume_group_lbl = lv_label_create(ui.content_box);
   if (ui.volume_group_lbl) {
     lv_label_set_text(ui.volume_group_lbl, espcontrol_i18n("Group"));
-    lv_obj_set_style_text_color(ui.volume_group_lbl, lv_color_hex(DARK_TEXT_MUTED), LV_PART_MAIN);
+    theme_style_text(ui.volume_group_lbl, ThemeColorRole::TEXT_SECONDARY, LV_PART_MAIN);
     lv_obj_set_style_text_align(ui.volume_group_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     if (ctx->label_font) lv_obj_set_style_text_font(ui.volume_group_lbl, ctx->label_font, LV_PART_MAIN);
     apply_width_compensation(ui.volume_group_lbl, ctx->width_compensation_percent);
@@ -2858,7 +2857,7 @@ inline void media_control_create_volume_tab_content(MediaControlCtx *ctx) {
   ui.volume_pct_lbl = lv_label_create(ui.content_box);
   if (ui.volume_pct_lbl) {
     lv_label_set_text(ui.volume_pct_lbl, "0");
-    lv_obj_set_style_text_color(ui.volume_pct_lbl, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+    theme_style_text(ui.volume_pct_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
     lv_obj_set_style_text_align(ui.volume_pct_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     if (ctx->number_font) lv_obj_set_style_text_font(ui.volume_pct_lbl, ctx->number_font, LV_PART_MAIN);
     apply_width_compensation(ui.volume_pct_lbl, ctx->width_compensation_percent);
@@ -2866,10 +2865,10 @@ inline void media_control_create_volume_tab_content(MediaControlCtx *ctx) {
 
   ui.volume_minus_btn = control_modal_create_round_button(
     ui.content_box, 56, find_icon("Minus"), ctx->icon_font,
-    DARK_BORDER, SECONDARY_GREY, ctx->width_compensation_percent);
+    theme_color(ThemeColorRole::BORDER), theme_color(ThemeColorRole::SURFACE), ctx->width_compensation_percent);
   ui.volume_plus_btn = control_modal_create_round_button(
     ui.content_box, 56, find_icon("Plus"), ctx->icon_font,
-    DARK_BORDER, SECONDARY_GREY, ctx->width_compensation_percent);
+    theme_color(ThemeColorRole::BORDER), theme_color(ThemeColorRole::SURFACE), ctx->width_compensation_percent);
   control_modal_apply_pressed_fill_color(ui.volume_minus_btn, ctx->accent_color);
   control_modal_apply_pressed_fill_color(ui.volume_plus_btn, ctx->accent_color);
   if (ui.volume_minus_btn) {
@@ -2938,7 +2937,7 @@ inline void media_control_set_speaker_status(const char *text, bool error = fals
   lv_label_set_text(ui.speakers_status_lbl, text ? text : "");
   lv_obj_set_style_text_color(
     ui.speakers_status_lbl,
-    lv_color_hex(error ? 0xFF6B6B : DARK_TEXT_MUTED), LV_PART_MAIN);
+    lv_color_hex(error ? 0xFF6B6B : theme_color(ThemeColorRole::TEXT_SECONDARY)), LV_PART_MAIN);
 }
 
 inline std::string media_control_speaker_fallback_name(const std::string &entity_id) {
@@ -2981,7 +2980,7 @@ inline void media_control_refresh_speaker_row(MediaControlCtx *ctx,
   const bool visible = true;
   const uint32_t bg_color = row->selected ? ctx->accent_color : ctx->secondary_color;
   const uint32_t text_color = row->selected
-    ? DARK_TEXT_PRIMARY : readable_text_color_for_bg(bg_color);
+    ? theme_color(ThemeColorRole::TEXT_PRIMARY) : readable_text_color_for_bg(bg_color);
   if (row->row) {
     if (visible) lv_obj_clear_flag(row->row, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(row->row, LV_OBJ_FLAG_HIDDEN);
@@ -3259,7 +3258,7 @@ inline lv_obj_t *media_control_create_speaker_volume_button(
   lv_obj_t *btn = lv_btn_create(parent);
   lv_obj_set_size(btn, size, size);
   lv_obj_set_style_radius(btn, size / 2, LV_PART_MAIN);
-  lv_obj_set_style_bg_color(btn, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_background(btn, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
   lv_obj_set_style_shadow_width(btn, 0, LV_PART_MAIN);
@@ -3473,7 +3472,7 @@ inline void media_control_add_speaker_candidate(MediaControlCtx *ctx,
   lv_obj_set_height(row->name_label, speaker_text_h);
   lv_label_set_long_mode(row->name_label, LV_LABEL_LONG_DOT);
   lv_obj_set_style_text_align(row->name_label, LV_TEXT_ALIGN_LEFT, LV_PART_MAIN);
-  lv_obj_set_style_text_color(row->name_label, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+  theme_style_text(row->name_label, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
   if (ctx->label_font) lv_obj_set_style_text_font(row->name_label, ctx->label_font, LV_PART_MAIN);
 
   row->volume_label = lv_label_create(row->text_box);
@@ -3586,7 +3585,7 @@ inline void media_control_create_speakers_tab_content(MediaControlCtx *ctx) {
   ui.speakers_status_lbl = lv_label_create(ui.speakers_box);
   lv_obj_set_width(ui.speakers_status_lbl, LV_PCT(100));
   lv_obj_set_style_text_align(ui.speakers_status_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-  lv_obj_set_style_text_color(ui.speakers_status_lbl, lv_color_hex(DARK_TEXT_MUTED), LV_PART_MAIN);
+  theme_style_text(ui.speakers_status_lbl, ThemeColorRole::TEXT_SECONDARY, LV_PART_MAIN);
   lv_obj_add_flag(ui.speakers_status_lbl, LV_OBJ_FLAG_HIDDEN);
   ui.speaker_list = lv_obj_create(ui.speakers_box);
   lv_obj_set_width(ui.speaker_list, LV_PCT(100));
@@ -3638,8 +3637,7 @@ inline void media_control_create_power_tab_content(MediaControlCtx *ctx) {
   ui.power_status_lbl = lv_label_create(ui.content_box);
   if (ui.power_status_lbl) {
     lv_label_set_text(ui.power_status_lbl, espcontrol_i18n("Unknown"));
-    lv_obj_set_style_text_color(
-      ui.power_status_lbl, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+    theme_style_text(ui.power_status_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
     lv_obj_set_style_text_align(ui.power_status_lbl, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     if (ctx->label_font) {
       lv_obj_set_style_text_font(ui.power_status_lbl, ctx->label_font, LV_PART_MAIN);
@@ -4421,8 +4419,8 @@ inline void open_device_volume_modal(lv_obj_t *anchor,
     ctx = new MediaVolumeCtx();
     ctx->max_pct = 100;
     ctx->accent_color = DEFAULT_SLIDER_COLOR;
-    ctx->secondary_color = SECONDARY_GREY;
-    ctx->tertiary_color = TERTIARY_GREY;
+    ctx->secondary_color = theme_color(ThemeColorRole::SURFACE);
+    ctx->tertiary_color = theme_color(ThemeColorRole::SURFACE_SECONDARY);
   }
   if (subscribed_player != player) {
     subscribed_player = player;
