@@ -151,6 +151,12 @@ target_compile_options(espcontrol_app_core_test PRIVATE -Wall -Wextra -Werror)
 target_include_directories(espcontrol_app_core_test PRIVATE ../../components/espcontrol)
 add_test(NAME espcontrol_app_core_test COMMAND espcontrol_app_core_test)
 
+add_executable(theme_service_test theme_service_test.cpp)
+target_compile_features(theme_service_test PRIVATE cxx_std_17)
+target_compile_options(theme_service_test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(theme_service_test PRIVATE ../../components/espcontrol)
+add_test(NAME theme_service_test COMMAND theme_service_test)
+
 add_executable(ha_read_coordinator_test
   ha_read_coordinator_test.cpp
   ../../components/espcontrol/espcontrol_app_core.cpp

@@ -13,6 +13,7 @@
 #include "configuration_service.h"
 #include "display_lifecycle_service.h"
 #include "home_assistant_binding_service.h"
+#include "theme_service.h"
 
 namespace espcontrol {
 
@@ -140,6 +141,9 @@ class EspControlAppCore {
     return home_assistant_callback_owner_;
   }
 
+  theme::ThemeService &theme() { return theme_service_; }
+  const theme::ThemeService &theme() const { return theme_service_; }
+
   // The ESPHome transport type stays in the UI/wiring layer, but its binding
   // and callback state receive one core-owned lifetime.
   template<typename BindingService>
@@ -173,6 +177,7 @@ class EspControlAppCore {
   cards::CardRuntimeRegistryService card_runtime_registry_{};
   std::optional<configuration::ConfigurationService> configuration_service_;
   HomeAssistantCallbackOwnerService home_assistant_callback_owner_{};
+  theme::ThemeService theme_service_{};
   // The binding service is 200 bytes: coordinator metadata and vector handles
   // are fixed here, while pointed-to request data remains demand-allocated.
   FixedRuntimeServiceSlot<224> home_assistant_binding_service_{};
