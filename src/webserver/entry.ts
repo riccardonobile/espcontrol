@@ -800,6 +800,7 @@ function composeApplicationContext(): ApplicationContext {
     settingsHelpers,
     preview,
     buttonSettings,
+    appearance,
   });
   const reconnect = createReconnectController<unknown>({
     eventStreamEnabled: stateLoader.eventStreamEnabled,

@@ -2412,7 +2412,15 @@ inline void media_control_refresh_power(MediaControlCtx *ctx) {
   lv_obj_set_style_bg_opa(ui.power_btn, LV_OPA_COVER, LV_PART_MAIN);
   if (ui.power_icon_lbl) {
     lv_label_set_text(ui.power_icon_lbl, find_icon("Power"));
-    theme_style_text(ui.power_icon_lbl, ThemeColorRole::TEXT_PRIMARY, LV_PART_MAIN);
+    if (on) {
+      theme_lvgl_styles().remove_text_styles(ui.power_icon_lbl, LV_PART_MAIN);
+      lv_obj_set_style_text_color(ui.power_icon_lbl,
+                                  lv_color_hex(FUNCTIONAL_ACTIVE_TEXT),
+                                  LV_PART_MAIN);
+    } else {
+      theme_style_text(ui.power_icon_lbl, ThemeColorRole::TEXT_PRIMARY,
+                       LV_PART_MAIN);
+    }
   }
   if (ui.power_status_lbl) {
     const std::string status = !ctx->state_known
@@ -2477,14 +2485,18 @@ inline void media_control_apply_volume_percent(MediaControlCtx *ctx, int pct,
 
 inline void media_control_style_tab(lv_obj_t *btn, bool active) {
   if (!btn) return;
-  lv_obj_set_style_bg_color(
-    btn, lv_color_hex(active ? theme_color(ThemeColorRole::TEXT_PRIMARY) : theme_color(ThemeColorRole::SURFACE)), LV_PART_MAIN);
+  theme_style_background(btn,
+                         active ? ThemeColorRole::TEXT_PRIMARY
+                                : ThemeColorRole::SURFACE,
+                         LV_PART_MAIN);
   lv_obj_set_style_bg_opa(btn, active ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
   lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
   lv_obj_t *label = lv_obj_get_child(btn, 0);
   if (label) {
-    lv_obj_set_style_text_color(
-      label, lv_color_hex(active ? theme_color(ThemeColorRole::SURFACE_SECONDARY) : theme_color(ThemeColorRole::TEXT_PRIMARY)), LV_PART_MAIN);
+    theme_style_text(label,
+                     active ? ThemeColorRole::SURFACE_SECONDARY
+                            : ThemeColorRole::TEXT_PRIMARY,
+                     LV_PART_MAIN);
   }
 }
 
@@ -2978,9 +2990,12 @@ inline void media_control_refresh_speaker_row(MediaControlCtx *ctx,
   if (!row->pending) row->selected = media_control_group_contains(ctx, row->entity_id);
   const bool show_volume = media_control_speaker_row_shows_volume(ctx, row);
   const bool visible = true;
-  const uint32_t bg_color = row->selected ? ctx->accent_color : ctx->secondary_color;
+  const uint32_t bg_color = row->selected
+    ? ctx->accent_color
+    : resolve_semantic_theme_color(
+        ctx->secondary_color, ThemeColorRole::SURFACE);
   const uint32_t text_color = row->selected
-    ? theme_color(ThemeColorRole::TEXT_PRIMARY) : readable_text_color_for_bg(bg_color);
+    ? FUNCTIONAL_ACTIVE_TEXT : readable_text_color_for_bg(bg_color);
   if (row->row) {
     if (visible) lv_obj_clear_flag(row->row, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(row->row, LV_OBJ_FLAG_HIDDEN);
@@ -4158,9 +4173,11 @@ inline void setup_media_card(BtnSlot &s, const ParsedCfg &p, uint32_t on_color,
       if (s.unit_lbl) lv_obj_add_flag(s.unit_lbl, LV_OBJ_FLAG_HIDDEN);
       lv_obj_t *title_lbl = lv_label_create(s.btn);
       lv_obj_set_style_text_color(title_lbl, lv_color_white(), LV_PART_MAIN);
+      lv_obj_add_flag(title_lbl, LV_OBJ_FLAG_USER_1);
       apply_width_compensation(title_lbl, width_compensation_percent);
       lv_obj_t *artist_lbl = lv_label_create(s.btn);
       lv_obj_set_style_text_color(artist_lbl, lv_color_white(), LV_PART_MAIN);
+      lv_obj_add_flag(artist_lbl, LV_OBJ_FLAG_USER_1);
       if (media_artist_font) {
         lv_obj_set_style_text_font(artist_lbl, media_artist_font, LV_PART_MAIN);
       }

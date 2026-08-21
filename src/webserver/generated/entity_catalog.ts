@@ -205,6 +205,46 @@ export const ENTITY_CATALOG = {
       "domain": "select",
       "name": "Screen: Temperature Unit"
     },
+    "screen_theme_mode": {
+      "domain": "select",
+      "name": "Screen: Theme Mode",
+      "objectIds": [
+        "screen__theme_mode",
+        "screen_theme_mode"
+      ]
+    },
+    "screen_theme_auto_strategy": {
+      "domain": "select",
+      "name": "Screen: Theme Auto Strategy",
+      "objectIds": [
+        "screen__theme_auto_strategy",
+        "screen_theme_auto_strategy"
+      ]
+    },
+    "screen_theme_light_start": {
+      "domain": "text",
+      "name": "Screen: Theme Light Start",
+      "objectIds": [
+        "screen__theme_light_start",
+        "screen_theme_light_start"
+      ]
+    },
+    "screen_theme_dark_start": {
+      "domain": "text",
+      "name": "Screen: Theme Dark Start",
+      "objectIds": [
+        "screen__theme_dark_start",
+        "screen_theme_dark_start"
+      ]
+    },
+    "screen_active_theme": {
+      "domain": "text_sensor",
+      "name": "Screen: Active Theme",
+      "objectIds": [
+        "screen__active_theme",
+        "screen_active_theme"
+      ]
+    },
     "indoor_temp_entity": {
       "domain": "text",
       "name": "Indoor Temp Entity"
@@ -724,6 +764,11 @@ export const ENTITY_CATALOG = {
       "screen_temperature_degree_symbol",
       "screen_subpage_chevron",
       "screen_temperature_unit",
+      "screen_theme_mode",
+      "screen_theme_auto_strategy",
+      "screen_theme_light_start",
+      "screen_theme_dark_start",
+      "screen_active_theme",
       "indoor_temp_entity",
       "outdoor_temp_entity",
       "screensaver_mode",

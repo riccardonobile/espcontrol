@@ -1328,6 +1328,7 @@ inline void image_card_configure_label(BtnSlot &s, const ParsedCfg &p) {
     return;
   }
   lv_obj_clear_flag(s.text_lbl, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(s.text_lbl, LV_OBJ_FLAG_USER_1);
   lv_obj_set_style_bg_opa(s.text_lbl, LV_OPA_TRANSP, LV_PART_MAIN);
   lv_obj_set_style_radius(s.text_lbl, 0, LV_PART_MAIN);
   lv_label_set_long_mode(s.text_lbl, LV_LABEL_LONG_WRAP);
@@ -1337,6 +1338,7 @@ inline void image_card_configure_label(BtnSlot &s, const ParsedCfg &p) {
     shadow = lv_label_create(s.btn);
     lv_obj_set_user_data(shadow, s.text_lbl);
   }
+  lv_obj_add_flag(shadow, LV_OBJ_FLAG_USER_1);
   const lv_font_t *font = lv_obj_get_style_text_font(s.text_lbl, LV_PART_MAIN);
   if (font) lv_obj_set_style_text_font(shadow, font, LV_PART_MAIN);
   lv_obj_set_style_text_color(shadow, lv_color_hex(0x000000), LV_PART_MAIN);
@@ -1360,6 +1362,7 @@ inline void image_card_configure_icon(BtnSlot &s, const ParsedCfg &p) {
   lv_label_set_text(s.icon_lbl, find_icon(
     p.icon.empty() || p.icon == "Auto" ? "Camera" : p.icon.c_str()));
   lv_obj_clear_flag(s.icon_lbl, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_flag(s.icon_lbl, LV_OBJ_FLAG_USER_1);
   image_card_align_icon(s.icon_lbl, s.btn);
 }
 

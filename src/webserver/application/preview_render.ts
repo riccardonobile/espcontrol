@@ -1,5 +1,6 @@
 import { state } from "../state/app_instance";
 import { WEB_UI_COLORS } from "../state/ui_tokens";
+import { previewThemeColors } from "../state/ui_tokens";
 import { escHtml } from "./ui_primitives";
 import {
     buttonConfigDisabledForDevice as isButtonConfigDisabledForDevice,
@@ -90,6 +91,12 @@ export function createPreviewRenderFeature(dependencies: PreviewRenderDependenci
     }
     function renderPreview(this: any) {
         var main: any = els.previewMain;
+        var themeColors: any = previewThemeColors(state.activeTheme);
+        var screen: any = main && main.parentElement;
+        if (screen && screen.classList) {
+            screen.classList.toggle("sp-theme-light", state.activeTheme === "light");
+            screen.classList.toggle("sp-theme-dark", state.activeTheme !== "light");
+        }
         main.innerHTML = "";
         main.className = "sp-main" + (state.subpageChevronsOn ? "" : " sp-hide-subpage-chevrons");
         if (gridPreviewBlockedByRotationStartup()) {
@@ -113,7 +120,7 @@ export function createPreviewRenderFeature(dependencies: PreviewRenderDependenci
                 backBtn.innerHTML =
                     '<span class="sp-btn-icon sp-back-hit mdi mdi-chevron-left"></span>' +
                         '<span class="sp-btn-label">' + escHtml(backLabel) + '</span>';
-                backBtn.style.backgroundColor = "#" + WEB_UI_COLORS.secondary;
+                backBtn.style.backgroundColor = "#" + themeColors.surface;
                 backBtn.style.cursor = "pointer";
                 backBtn.setAttribute("data-pos", pos);
                 backBtn.draggable = !isConfigLocked();
@@ -140,7 +147,7 @@ export function createPreviewRenderFeature(dependencies: PreviewRenderDependenci
                 var iconName: any = resolveIcon(b);
                 var label: any = b.label || b.entity || "Configure";
                 var color: any = (b.type === "sensor" || b.type === "local_sensor" || b.type === "door_window" || b.type === "presence" || b.type === "weather" || b.type === "weather_forecast" || b.type === "calendar" || b.type === "clock" || b.type === "timezone")
-                    ? WEB_UI_COLORS.tertiary : WEB_UI_COLORS.secondary;
+                    ? themeColors.secondary : themeColors.surface;
                 var previewTypeDef: any = dependencies.cards.definitions[b.type || ""] || null;
                 if (previewTypeDef && c.isSub && !buttonTypeRegistryValue(previewTypeDef, "allowInSubpage", false)) {
                     previewTypeDef = null;

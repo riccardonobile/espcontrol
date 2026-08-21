@@ -29,6 +29,7 @@ wifi:
               then:
                 - script.execute: clock_bar_hide
                 - lvgl.page.show: ha_setup_page
+                - script.execute: theme_apply_active_page
                 - script.execute: setup_screen_dim
               else:
                 - script.execute: navigate_after_api
@@ -59,6 +60,7 @@ script:
                         - script.execute: setup_screen_dim_cancel
                         - script.execute: clock_bar_hide
                         - lvgl.page.show: ha_actions_page
+                        - script.execute: theme_apply_active_page
                       else:
                         - script.execute: navigate_after_api
 
@@ -72,6 +74,7 @@ script:
               id(wifi_setup_instructions),
               espcontrol_i18n("Trying to reconnect\nto your saved network"));
       - lvgl.page.show: wifi_setup_page
+      - script.execute: theme_apply_active_page
       - script.execute: setup_screen_dim
 
   - id: wifi_show_hotspot_setup
@@ -84,6 +87,7 @@ script:
               id(wifi_setup_instructions),
               espcontrol_i18n("No saved WiFi connection\nReinstall by USB to reconfigure"));
       - lvgl.page.show: wifi_setup_page
+      - script.execute: theme_apply_active_page
       - script.execute: setup_screen_dim
 
   - id: wifi_reconnect_flow
@@ -111,6 +115,7 @@ script:
                     return id(espcontrol_app).display().target_mode_is(
                         espcontrol::DisplayMode::ACTIVE);
             - lvgl.page.show: main_page
+            - script.execute: theme_apply_active_page
             - script.execute: clock_bar_apply
             - script.execute: screensaver_idle_check
           else:
@@ -124,4 +129,5 @@ script:
                 }
             - script.execute: clock_bar_hide
             - lvgl.page.show: button_setup_page
+            - script.execute: theme_apply_active_page
             - script.execute: setup_screen_dim

@@ -15,16 +15,10 @@ constexpr uint32_t DEFAULT_SLIDER_COLOR = correct_display_color(DEFAULT_PRIMARY_
 constexpr uint32_t DEFAULT_OFF_COLOR = correct_display_color(DEFAULT_SECONDARY_COLOR_RAW);
 constexpr uint32_t DEFAULT_TERTIARY_COLOR = correct_display_color(DEFAULT_TERTIARY_COLOR_RAW);
 
-constexpr uint32_t SECONDARY_GREY = DEFAULT_OFF_COLOR;
-constexpr uint32_t TERTIARY_GREY = DEFAULT_TERTIARY_COLOR;
-constexpr uint32_t DARK_TEXT_PRIMARY = 0xFFFFFF;
-constexpr uint32_t DARK_TEXT_INVERTED = 0x000000;
-constexpr uint32_t DARK_TEXT_MUTED = 0xB0B0B0;
-constexpr uint32_t DARK_TEXT_SOFT = DARK_TEXT_PRIMARY;
-constexpr uint32_t DARK_BORDER = SECONDARY_GREY;
-constexpr uint32_t DARK_CONTROL_NEUTRAL = SECONDARY_GREY;
-constexpr uint32_t DARK_OVERLAY = 0x000000;
-constexpr uint32_t DARK_TRACK_BACKGROUND = SECONDARY_GREY;
+// Functional text drawn over user/state accent colors is intentionally stable
+// across themes. It is not a semantic foreground token.
+constexpr uint32_t FUNCTIONAL_ACTIVE_TEXT = 0xFFFFFF;
+constexpr uint32_t FUNCTIONAL_DARK_TEXT = DEFAULT_TERTIARY_COLOR;
 
 using ThemeColorRole = espcontrol::theme::ColorRole;
 using ActiveTheme = espcontrol::theme::ActiveTheme;
@@ -45,21 +39,25 @@ inline uint32_t theme_color(ThemeColorRole role) {
   }
 }
 
+inline uint32_t resolve_semantic_theme_color(uint32_t stored,
+                                             ThemeColorRole role) {
+  const uint32_t dark = espcontrol::theme::palette_for(ActiveTheme::DARK).color(role);
+  const uint32_t light = espcontrol::theme::palette_for(ActiveTheme::LIGHT).color(role);
+  if (stored == dark || stored == light ||
+      stored == correct_display_color(dark) ||
+      stored == correct_display_color(light)) {
+    return theme_color(role);
+  }
+  return stored;
+}
+
 class ThemeLvglStyles {
  public:
   static constexpr size_t ROLE_COUNT =
       static_cast<size_t>(ThemeColorRole::TRACK) + 1;
 
   void ensure_initialized() {
-    if (initialized_) return;
-    for (size_t index = 0; index < ROLE_COUNT; ++index) {
-      lv_style_init(&background_[index]);
-      lv_style_init(&text_[index]);
-      lv_style_init(&border_[index]);
-      lv_style_init(&arc_[index]);
-    }
     initialized_ = true;
-    update(applied_theme_ref(), false);
   }
 
   void update(ActiveTheme theme, bool report = true) {
@@ -68,42 +66,101 @@ class ThemeLvglStyles {
     for (size_t index = 0; index < ROLE_COUNT; ++index) {
       const auto role = static_cast<ThemeColorRole>(index);
       const lv_color_t color = lv_color_hex(theme_color(role));
-      lv_style_set_bg_color(&background_[index], color);
-      lv_style_set_text_color(&text_[index], color);
-      lv_style_set_border_color(&border_[index], color);
-      lv_style_set_arc_color(&arc_[index], color);
-      if (report) {
-        lv_obj_report_style_change(&background_[index]);
-        lv_obj_report_style_change(&text_[index]);
-        lv_obj_report_style_change(&border_[index]);
-        lv_obj_report_style_change(&arc_[index]);
+      if (background_initialized_[index]) {
+        lv_style_set_bg_color(&background_[index], color);
+        if (report) lv_obj_report_style_change(&background_[index]);
+      }
+      if (text_initialized_[index]) {
+        lv_style_set_text_color(&text_[index], color);
+        if (report) lv_obj_report_style_change(&text_[index]);
+      }
+      if (border_initialized_[index]) {
+        lv_style_set_border_color(&border_[index], color);
+        if (report) lv_obj_report_style_change(&border_[index]);
+      }
+      if (arc_initialized_[index]) {
+        lv_style_set_arc_color(&arc_[index], color);
+        if (report) lv_obj_report_style_change(&arc_[index]);
       }
     }
   }
 
   lv_style_t *background(ThemeColorRole role) {
     ensure_initialized();
-    return &background_[static_cast<size_t>(role)];
+    const size_t index = static_cast<size_t>(role);
+    if (!background_initialized_[index]) {
+      lv_style_init(&background_[index]);
+      background_initialized_[index] = true;
+      lv_style_set_bg_color(&background_[index],
+                            lv_color_hex(theme_color(role)));
+    }
+    return &background_[index];
   }
   lv_style_t *text(ThemeColorRole role) {
     ensure_initialized();
-    return &text_[static_cast<size_t>(role)];
+    const size_t index = static_cast<size_t>(role);
+    if (!text_initialized_[index]) {
+      lv_style_init(&text_[index]);
+      text_initialized_[index] = true;
+      lv_style_set_text_color(&text_[index], lv_color_hex(theme_color(role)));
+    }
+    return &text_[index];
   }
   lv_style_t *border(ThemeColorRole role) {
     ensure_initialized();
-    return &border_[static_cast<size_t>(role)];
+    const size_t index = static_cast<size_t>(role);
+    if (!border_initialized_[index]) {
+      lv_style_init(&border_[index]);
+      border_initialized_[index] = true;
+      lv_style_set_border_color(&border_[index],
+                                lv_color_hex(theme_color(role)));
+    }
+    return &border_[index];
   }
   lv_style_t *arc(ThemeColorRole role) {
     ensure_initialized();
-    return &arc_[static_cast<size_t>(role)];
+    const size_t index = static_cast<size_t>(role);
+    if (!arc_initialized_[index]) {
+      lv_style_init(&arc_[index]);
+      arc_initialized_[index] = true;
+      lv_style_set_arc_color(&arc_[index], lv_color_hex(theme_color(role)));
+    }
+    return &arc_[index];
+  }
+
+  void remove_background_styles(lv_obj_t *obj, lv_style_selector_t selector) {
+    remove_initialized_styles(obj, background_, background_initialized_, selector);
+  }
+  void remove_text_styles(lv_obj_t *obj, lv_style_selector_t selector) {
+    remove_initialized_styles(obj, text_, text_initialized_, selector);
+  }
+  void remove_border_styles(lv_obj_t *obj, lv_style_selector_t selector) {
+    remove_initialized_styles(obj, border_, border_initialized_, selector);
+  }
+  void remove_arc_styles(lv_obj_t *obj, lv_style_selector_t selector) {
+    remove_initialized_styles(obj, arc_, arc_initialized_, selector);
   }
 
  private:
+  static void remove_initialized_styles(
+      lv_obj_t *obj, std::array<lv_style_t, ROLE_COUNT> &styles,
+      const std::array<bool, ROLE_COUNT> &initialized,
+      lv_style_selector_t selector) {
+    if (!obj) return;
+    for (size_t index = 0; index < ROLE_COUNT; ++index) {
+      if (initialized[index]) lv_obj_remove_style(obj, &styles[index], selector);
+    }
+  }
+
   bool initialized_{false};
   std::array<lv_style_t, ROLE_COUNT> background_{};
   std::array<lv_style_t, ROLE_COUNT> text_{};
   std::array<lv_style_t, ROLE_COUNT> border_{};
   std::array<lv_style_t, ROLE_COUNT> arc_{};
+  std::array<bool, ROLE_COUNT> background_initialized_{};
+  std::array<bool, ROLE_COUNT> text_initialized_{};
+  std::array<bool, ROLE_COUNT> border_initialized_{};
+  std::array<bool, ROLE_COUNT> arc_initialized_{};
 };
 
 inline ThemeLvglStyles &theme_lvgl_styles() {
@@ -118,6 +175,32 @@ inline void apply_active_theme(ActiveTheme theme) {
 
 inline bool theme_color_matches(lv_color_t color, uint32_t expected) {
   return lv_color_eq(color, lv_color_hex(expected));
+}
+
+inline bool theme_palette_background_matches(lv_color_t color,
+                                             const espcontrol::theme::ThemePalette &palette) {
+  return theme_color_matches(color, correct_display_color(palette.background)) ||
+         theme_color_matches(color, correct_display_color(palette.surface)) ||
+         theme_color_matches(color, correct_display_color(palette.surface_secondary)) ||
+         theme_color_matches(color, correct_display_color(palette.control_background)) ||
+         theme_color_matches(color, correct_display_color(palette.modal_background)) ||
+         theme_color_matches(color, correct_display_color(palette.overlay)) ||
+         theme_color_matches(color, correct_display_color(palette.track));
+}
+
+inline bool theme_text_has_functional_background(lv_obj_t *obj,
+                                                 const espcontrol::theme::ThemePalette &from,
+                                                 const espcontrol::theme::ThemePalette &to) {
+  for (lv_obj_t *current = obj; current != nullptr; current = lv_obj_get_parent(current)) {
+    if (lv_obj_has_state(current, LV_STATE_CHECKED)) return true;
+    if (lv_obj_get_style_bg_opa(current, LV_PART_MAIN) != LV_OPA_COVER) continue;
+    const lv_color_t color = lv_obj_get_style_bg_color(current, LV_PART_MAIN);
+    if (!theme_palette_background_matches(color, from) &&
+        !theme_palette_background_matches(color, to)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 inline void theme_transition_tree(lv_obj_t *obj, ActiveTheme previous,
@@ -143,9 +226,10 @@ inline void theme_transition_tree(lv_obj_t *obj, ActiveTheme previous,
   }
 
   const lv_color_t text = lv_obj_get_style_text_color(obj, LV_PART_MAIN);
-  if (theme_color_matches(text, from.text_primary)) {
+  const bool functional_text = theme_text_has_functional_background(obj, from, to);
+  if (!functional_text && theme_color_matches(text, from.text_primary)) {
     lv_obj_set_style_text_color(obj, lv_color_hex(to.text_primary), LV_PART_MAIN);
-  } else if (theme_color_matches(text, from.text_secondary)) {
+  } else if (!functional_text && theme_color_matches(text, from.text_secondary)) {
     lv_obj_set_style_text_color(obj, lv_color_hex(to.text_secondary), LV_PART_MAIN);
   }
 
@@ -167,19 +251,10 @@ inline void theme_transition_tree(lv_obj_t *obj, ActiveTheme previous,
   }
 }
 
-inline void theme_remove_role_styles(lv_obj_t *obj, lv_style_t *(ThemeLvglStyles::*style_getter)(ThemeColorRole),
-                                     lv_style_selector_t selector) {
-  if (!obj) return;
-  auto &styles = theme_lvgl_styles();
-  for (size_t index = 0; index < ThemeLvglStyles::ROLE_COUNT; ++index) {
-    lv_obj_remove_style(obj, (styles.*style_getter)(static_cast<ThemeColorRole>(index)), selector);
-  }
-}
-
 inline void theme_style_background(lv_obj_t *obj, ThemeColorRole role,
                                    lv_style_selector_t selector = LV_PART_MAIN) {
   if (!obj) return;
-  theme_remove_role_styles(obj, &ThemeLvglStyles::background, selector);
+  theme_lvgl_styles().remove_background_styles(obj, selector);
   lv_obj_remove_local_style_prop(obj, LV_STYLE_BG_COLOR, selector);
   lv_obj_add_style(obj, theme_lvgl_styles().background(role), selector);
 }
@@ -187,7 +262,7 @@ inline void theme_style_background(lv_obj_t *obj, ThemeColorRole role,
 inline void theme_style_text(lv_obj_t *obj, ThemeColorRole role,
                              lv_style_selector_t selector = LV_PART_MAIN) {
   if (!obj) return;
-  theme_remove_role_styles(obj, &ThemeLvglStyles::text, selector);
+  theme_lvgl_styles().remove_text_styles(obj, selector);
   lv_obj_remove_local_style_prop(obj, LV_STYLE_TEXT_COLOR, selector);
   lv_obj_add_style(obj, theme_lvgl_styles().text(role), selector);
 }
@@ -195,7 +270,7 @@ inline void theme_style_text(lv_obj_t *obj, ThemeColorRole role,
 inline void theme_style_border(lv_obj_t *obj, ThemeColorRole role,
                                lv_style_selector_t selector = LV_PART_MAIN) {
   if (!obj) return;
-  theme_remove_role_styles(obj, &ThemeLvglStyles::border, selector);
+  theme_lvgl_styles().remove_border_styles(obj, selector);
   lv_obj_remove_local_style_prop(obj, LV_STYLE_BORDER_COLOR, selector);
   lv_obj_add_style(obj, theme_lvgl_styles().border(role), selector);
 }
@@ -203,7 +278,7 @@ inline void theme_style_border(lv_obj_t *obj, ThemeColorRole role,
 inline void theme_style_arc(lv_obj_t *obj, ThemeColorRole role,
                             lv_style_selector_t selector = LV_PART_MAIN) {
   if (!obj) return;
-  theme_remove_role_styles(obj, &ThemeLvglStyles::arc, selector);
+  theme_lvgl_styles().remove_arc_styles(obj, selector);
   lv_obj_remove_local_style_prop(obj, LV_STYLE_ARC_COLOR, selector);
   lv_obj_add_style(obj, theme_lvgl_styles().arc(role), selector);
 }
@@ -213,12 +288,12 @@ constexpr uint32_t readable_text_color_for_bg(uint32_t bg_color) {
   uint32_t green = (bg_color >> 8) & 0xFF;
   uint32_t blue = bg_color & 0xFF;
   uint32_t brightness = (red * 299 + green * 587 + blue * 114) / 1000;
-  return brightness > 186 ? TERTIARY_GREY : DARK_TEXT_PRIMARY;
+  return brightness > 186 ? FUNCTIONAL_DARK_TEXT : FUNCTIONAL_ACTIVE_TEXT;
 }
 
-static_assert(readable_text_color_for_bg(0xFFFFFF) == TERTIARY_GREY,
+static_assert(readable_text_color_for_bg(0xFFFFFF) == FUNCTIONAL_DARK_TEXT,
               "light backgrounds need dark text");
-static_assert(readable_text_color_for_bg(0x000000) == DARK_TEXT_PRIMARY,
+static_assert(readable_text_color_for_bg(0x000000) == FUNCTIONAL_ACTIVE_TEXT,
               "dark backgrounds need light text");
 
 inline uint32_t &current_button_primary_color_ref() {

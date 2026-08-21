@@ -910,6 +910,7 @@ script:
             id(sunset_time_sensor).publish_state(r.sunset_str);
           }
           id(backlight_apply_brightness).execute();
+      - script.execute: theme_refresh
 
 # =============================================================================
 # PERIODIC CHECK (60 seconds)

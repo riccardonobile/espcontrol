@@ -34,6 +34,8 @@ class EspControlApp : public esphome::Component {
 
   DisplayModeController &display() { return core_.display(); }
   const DisplayModeController &display() const { return core_.display(); }
+  theme::ThemeService &theme() { return core_.theme(); }
+  const theme::ThemeService &theme() const { return core_.theme(); }
   AppLifecycleState lifecycle_state() const { return core_.lifecycle_state(); }
 
   void set_panel_config_device_profile(const char *device_profile);

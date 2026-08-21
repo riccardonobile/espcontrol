@@ -44,7 +44,9 @@ inline void apply_sensor_active_color(lv_obj_t *btn, bool active_color,
   if (!btn || !active_color) return;
   uint32_t next_color =
     (!unavailable && sensor_active_color_state_ref(state, numeric_mode))
-      ? on_color : sensor_color;
+      ? on_color
+      : resolve_semantic_theme_color(
+          sensor_color, ThemeColorRole::SURFACE_SECONDARY);
   lv_obj_set_style_bg_color(btn, lv_color_hex(next_color),
     static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_DEFAULT));
 }

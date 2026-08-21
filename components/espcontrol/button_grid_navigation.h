@@ -61,21 +61,28 @@ inline std::vector<NavigationSubpageEntry> &navigation_subpages() {
 inline void apply_runtime_theme(espcontrol::theme::ActiveTheme theme,
                                 lv_obj_t *main_page_obj) {
   const ActiveTheme previous = applied_theme_ref();
+  if (previous == theme) return;
   apply_active_theme(theme);
-  const ActiveTheme transition_from = previous == theme
-      ? (theme == ActiveTheme::LIGHT ? ActiveTheme::DARK : ActiveTheme::LIGHT)
-      : previous;
 
   // Shared semantic styles update in place. The transition pass only handles
   // legacy local styles and state-dependent colors that cannot inherit a
   // shared style yet; no objects or subscriptions are recreated.
-  theme_transition_tree(main_page_obj, transition_from, theme);
+  theme_transition_tree(main_page_obj, previous, theme);
   for (auto &entry : navigation_subpages()) {
-    theme_transition_tree(entry.screen, transition_from, theme);
+    theme_transition_tree(entry.screen, previous, theme);
   }
   lv_obj_t *active = lv_scr_act();
-  if (active != main_page_obj) theme_transition_tree(active, transition_from, theme);
-  control_modal_transition_theme(transition_from, theme);
+  if (active != main_page_obj) theme_transition_tree(active, previous, theme);
+  control_modal_transition_theme(previous, theme);
+}
+
+inline void apply_runtime_theme_to_active_page(
+    espcontrol::theme::ActiveTheme theme) {
+  const ActiveTheme authored_theme = theme == ActiveTheme::LIGHT
+      ? ActiveTheme::DARK
+      : ActiveTheme::LIGHT;
+  theme_transition_tree(lv_scr_act(), authored_theme, theme);
+  control_modal_transition_theme(authored_theme, theme);
 }
 
 inline std::string navigation_trim(const std::string &value) {

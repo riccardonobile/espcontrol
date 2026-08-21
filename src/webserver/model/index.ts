@@ -134,10 +134,15 @@ export {
   normalizeScreensaverAction,
   normalizeScreensaverDimmedBrightness,
   normalizeTemperatureUnit,
+  normalizeActiveTheme,
+  normalizeThemeAutoStrategy,
+  normalizeThemeMode,
   normalizeTimeOfDay,
   scheduleModeOption,
   scheduleSensorActivationOption,
   screensaverActionOption,
+  themeAutoStrategyOption,
+  themeModeOption,
 } from "./settings";
 
 export type {

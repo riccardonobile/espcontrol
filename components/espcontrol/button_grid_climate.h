@@ -1501,7 +1501,7 @@ inline void climate_style_range_target_button(lv_obj_t *btn, bool selected,
   lv_obj_t *label = lv_obj_get_child(btn, 0);
   if (label) {
     lv_obj_set_style_text_color(label, lv_color_hex(
-      selected ? theme_color(ThemeColorRole::TEXT_PRIMARY) : theme_color(ThemeColorRole::TEXT_SECONDARY)), LV_PART_MAIN);
+      selected ? FUNCTIONAL_ACTIVE_TEXT : theme_color(ThemeColorRole::TEXT_SECONDARY)), LV_PART_MAIN);
   }
 }
 
@@ -1564,14 +1564,18 @@ inline void climate_set_step_button_enabled(lv_obj_t *btn, bool enabled) {
 inline void climate_control_style_tab(lv_obj_t *btn, bool active, uint32_t accent_color) {
   if (!btn) return;
   (void) accent_color;
-  lv_obj_set_style_bg_color(
-    btn, lv_color_hex(active ? theme_color(ThemeColorRole::TEXT_PRIMARY) : theme_color(ThemeColorRole::SURFACE)), LV_PART_MAIN);
+  theme_style_background(btn,
+                         active ? ThemeColorRole::TEXT_PRIMARY
+                                : ThemeColorRole::SURFACE,
+                         LV_PART_MAIN);
   lv_obj_set_style_bg_opa(btn, active ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
   lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
   lv_obj_t *label = lv_obj_get_child(btn, 0);
   if (label) {
-    lv_obj_set_style_text_color(
-      label, lv_color_hex(active ? theme_color(ThemeColorRole::SURFACE_SECONDARY) : theme_color(ThemeColorRole::TEXT_PRIMARY)), LV_PART_MAIN);
+    theme_style_text(label,
+                     active ? ThemeColorRole::SURFACE_SECONDARY
+                            : ThemeColorRole::TEXT_PRIMARY,
+                     LV_PART_MAIN);
   }
 }
 
@@ -1688,8 +1692,11 @@ inline void climate_open_inline_option_list(ClimateControlCtx *ctx, const std::s
       ClimateOptionClick *click = climate_next_option_click(ui, ctx, section_kind, option);
       if (!click) break;
       bool selected = climate_option_selected(ctx, section_kind, option);
-      uint32_t bg_color = selected ? ctx->accent_color : ctx->secondary_color;
-      uint32_t text_color = selected ? theme_color(ThemeColorRole::TEXT_PRIMARY) : readable_text_color_for_bg(bg_color);
+      uint32_t bg_color = selected
+        ? ctx->accent_color
+        : resolve_semantic_theme_color(
+            ctx->secondary_color, ThemeColorRole::SURFACE);
+      uint32_t text_color = selected ? FUNCTIONAL_ACTIVE_TEXT : readable_text_color_for_bg(bg_color);
       lv_obj_t *btn = lv_btn_create(parent);
       lv_obj_set_size(btn, 118, 118);
       lv_obj_set_style_radius(btn, control_modal_card_radius(ctx->btn), LV_PART_MAIN);

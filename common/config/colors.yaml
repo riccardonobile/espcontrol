@@ -8,6 +8,108 @@
 
 substitutions:
   button_on_color_initial: "FF8C00"
+  theme_mode_initial: "Dark"
+  theme_auto_strategy_initial: "Time"
+  theme_light_start_initial: "06:00"
+  theme_dark_start_initial: "18:00"
+
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - script.execute: theme_refresh
+
+interval:
+  - interval: 60s
+    then:
+      - script.execute: theme_refresh
+
+script:
+  - id: theme_apply_active_page
+    mode: restart
+    then:
+      - lambda: |-
+          apply_runtime_theme_to_active_page(
+              id(espcontrol_app).theme().active_theme());
+
+  - id: theme_refresh
+    mode: restart
+    then:
+      - lambda: |-
+          auto &theme = id(espcontrol_app).theme();
+          const std::string mode = id(theme_mode).current_option();
+          const std::string strategy = id(theme_auto_strategy).current_option();
+          theme.set_mode(mode == "Light"
+                             ? espcontrol::theme::ThemeMode::LIGHT
+                             : mode == "Auto"
+                                   ? espcontrol::theme::ThemeMode::AUTO
+                                   : espcontrol::theme::ThemeMode::DARK);
+          theme.set_auto_strategy(
+              strategy == "Sunrise / Sunset"
+                  ? espcontrol::theme::AutoStrategy::SUNRISE_SUNSET
+                  : espcontrol::theme::AutoStrategy::TIME);
+
+          uint16_t light_start = espcontrol::theme::ThemeService::MINUTES_PER_DAY;
+          uint16_t dark_start = espcontrol::theme::ThemeService::MINUTES_PER_DAY;
+          espcontrol::theme::ThemeService::parse_time_of_day(
+              id(theme_light_start).state.c_str(), light_start);
+          espcontrol::theme::ThemeService::parse_time_of_day(
+              id(theme_dark_start).state.c_str(), dark_start);
+          theme.set_time_schedule(light_start, dark_start);
+
+          auto now = panel_time_or_fallback(id(panel_time).now(),
+                                            id(homeassistant_time).now());
+          theme.update_clock(now.is_valid(),
+                             now.is_valid() ? now.hour * 60 + now.minute : 0);
+          theme.update_solar(
+              id(sunrise_sunset_valid),
+              id(sunrise_hour) * 60 + id(sunrise_minute),
+              id(sunset_hour) * 60 + id(sunset_minute));
+
+          const auto active = theme.active_theme();
+          id(screen_active_theme_sensor).publish_state(
+              active == espcontrol::theme::ActiveTheme::LIGHT ? "Light" : "Dark");
+          if (id(main_page)->obj != nullptr) {
+            apply_runtime_theme(active, id(main_page)->obj);
+          }
+
+select:
+  - platform: template
+    name: "${entity_screen_theme_mode}"
+    id: theme_mode
+    internal: true
+    entity_category: config
+    icon: "mdi:theme-light-dark"
+    optimistic: true
+    restore_value: true
+    initial_option: "${theme_mode_initial}"
+    options:
+      - "Dark"
+      - "Light"
+      - "Auto"
+    on_value:
+      then:
+        - script.execute: theme_refresh
+    web_server:
+      sorting_group_id: sg_display
+
+  - platform: template
+    name: "${entity_screen_theme_auto_strategy}"
+    id: theme_auto_strategy
+    internal: true
+    entity_category: config
+    icon: "mdi:weather-sunset"
+    optimistic: true
+    restore_value: true
+    initial_option: "${theme_auto_strategy_initial}"
+    options:
+      - "Time"
+      - "Sunrise / Sunset"
+    on_value:
+      then:
+        - script.execute: theme_refresh
+    web_server:
+      sorting_group_id: sg_display
 
 text:
   - platform: template
@@ -22,6 +124,55 @@ text:
     mode: text
     entity_category: config
     icon: "mdi:palette"
+    update_interval: never
+    web_server:
+      sorting_group_id: sg_display
+
+  - platform: template
+    name: "${entity_screen_theme_light_start}"
+    id: theme_light_start
+    internal: true
+    optimistic: true
+    restore_value: true
+    initial_value: "${theme_light_start_initial}"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    icon: "mdi:weather-sunset-up"
+    update_interval: never
+    on_value:
+      then:
+        - script.execute: theme_refresh
+    web_server:
+      sorting_group_id: sg_display
+
+  - platform: template
+    name: "${entity_screen_theme_dark_start}"
+    id: theme_dark_start
+    internal: true
+    optimistic: true
+    restore_value: true
+    initial_value: "${theme_dark_start_initial}"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    icon: "mdi:weather-sunset-down"
+    update_interval: never
+    on_value:
+      then:
+        - script.execute: theme_refresh
+    web_server:
+      sorting_group_id: sg_display
+
+text_sensor:
+  - platform: template
+    name: "${entity_screen_active_theme}"
+    id: screen_active_theme_sensor
+    internal: true
+    entity_category: diagnostic
+    icon: "mdi:theme-light-dark"
     update_interval: never
     web_server:
       sorting_group_id: sg_display

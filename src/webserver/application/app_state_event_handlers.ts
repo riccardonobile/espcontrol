@@ -26,6 +26,9 @@ import {
     normalizeScreensaverAction,
     normalizeScreensaverDimmedBrightness,
     normalizeTemperatureUnit,
+    normalizeActiveTheme,
+    normalizeThemeAutoStrategy,
+    normalizeThemeMode,
     normalizeTimeOfDay,
 } from "../model/settings";
 import type { UiRuntimeState } from "./state";
@@ -128,6 +131,31 @@ export function createAppStateEventHandlersFeature(
             "text-button_on_color": function (this: any, val?: any) {
                 state.onColor = val;
                 syncColorUi();
+                renderPreview();
+            },
+            "select-screen__theme_mode": function (this: any, val?: any, d?: any) {
+                state.themeMode = normalizeThemeMode(d && d.value || val);
+                appearance.syncThemeUi();
+                if (state.themeMode !== "auto") {
+                    state.activeTheme = state.themeMode;
+                    renderPreview();
+                }
+            },
+            "select-screen__theme_auto_strategy": function (this: any, val?: any, d?: any) {
+                state.themeAutoStrategy = normalizeThemeAutoStrategy(d && d.value || val);
+                appearance.syncThemeUi();
+            },
+            "text-screen__theme_light_start": function (this: any, val?: any) {
+                state.themeLightStart = normalizeTimeOfDay(val, "06:00");
+                appearance.syncThemeUi();
+            },
+            "text-screen__theme_dark_start": function (this: any, val?: any) {
+                state.themeDarkStart = normalizeTimeOfDay(val, "18:00");
+                appearance.syncThemeUi();
+            },
+            "text_sensor-screen__active_theme": function (this: any, val?: any) {
+                state.activeTheme = normalizeActiveTheme(val);
+                appearance.syncThemeUi();
                 renderPreview();
             },
             "text-button_off_color": function (this: any) { },
@@ -518,10 +546,12 @@ export function createAppStateEventHandlersFeature(
             "text_sensor-screen__sunrise": function (this: any, val?: any) {
                 state.sunrise = val;
                 updateSunInfo();
+                appearance.syncThemeUi();
             },
             "text_sensor-screen__sunset": function (this: any, val?: any) {
                 state.sunset = val;
                 updateSunInfo();
+                appearance.syncThemeUi();
             },
             "text_sensor-network_transport": function (this: any, val?: any) {
                 state.networkTransport = normalizeNetworkTransport(val);

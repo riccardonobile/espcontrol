@@ -14,7 +14,7 @@ globals:
 lvgl:
   pages:
     - id: loading_page
-      bg_color: 0x000000
+      bg_color: ${theme_background_color}
       scrollable: false
       widgets:
         - obj:
@@ -36,20 +36,20 @@ lvgl:
                   id: loading_status_icon
                   text_font: $setup_icon_font_id
                   text: $icon_ethernet
-                  text_color: 0xFFFFFF
+                  text_color: ${theme_text_primary_color}
                   text_align: center
               - label:
                   id: loading_status_title
                   text: ""
                   text_font: $setup_title_font_id
-                  text_color: 0xFFFFFF
+                  text_color: ${theme_text_primary_color}
                   width: $content_width
                   text_align: center
               - label:
                   id: loading_status_label
                   text: ""
                   text_font: $setup_body_font_id
-                  text_color: 0xB0B0B0
+                  text_color: ${theme_text_secondary_color}
                   width: $content_width
                   text_align: center
               # Hidden slider ensures LVGL compiles lv_slider for dynamic use
@@ -73,9 +73,12 @@ esphome:
         - lvgl.resume:
         - script.execute: clock_bar_hide
         - lambda: |-
+            // Screen Off must remain a true black framebuffer in every theme.
+            lv_obj_add_flag(id(screen_off_page), LV_OBJ_FLAG_USER_1);
             lv_label_set_text(id(loading_status_title), espcontrol_i18n("Starting up"));
             lv_label_set_text(id(loading_status_label), espcontrol_i18n("Booting"));
         - lvgl.page.show: loading_page
+        - script.execute: theme_refresh
         - delay: 100ms
         - if:
             condition:
@@ -112,4 +115,5 @@ esphome:
             then:
               - script.execute: clock_bar_hide
               - lvgl.page.show: ethernet_setup_page
+              - script.execute: theme_apply_active_page
               - script.execute: setup_screen_dim

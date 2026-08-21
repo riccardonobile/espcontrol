@@ -9,6 +9,7 @@ import {
     cardContractHidden,
     cardContractPickerKey,
 } from "../generated/card_contract";
+import { previewThemeColors } from "../state/ui_tokens";
 import { WEB_UI_COLORS } from "../state/ui_tokens";
 import { escHtml, iconSlug } from "../application/ui_primitives";
 import type { CardRegistry, CardUiServices } from "../application/card_registry";
@@ -803,6 +804,7 @@ export function registerMediaCardTypes(
             var info: any = modeInfo(mediaEditorValidMode(b.sensor));
             var mode: any = info.mode;
             var label: any = (b.label && b.label.trim()) || info.label;
+            var themeColors: any = previewThemeColors(state.activeTheme);
             if (mode === "control_modal") {
                 var controlIcon: any = b.icon && b.icon !== "Auto" ? iconSlug(b.icon) : info.icon;
                 return {
@@ -827,8 +829,8 @@ export function registerMediaCardTypes(
                 };
             }
             if (mode === "position") {
-                var bgColor: any = WEB_UI_COLORS.secondary;
-                var progressColor: any = WEB_UI_COLORS.secondary;
+                var bgColor: any = themeColors.surface || WEB_UI_COLORS.secondary;
+                var progressColor: any = themeColors.surface;
                 var positionLabel: any = b.precision === "state" ? "Paused" : label;
                 var positionClass: any = "sp-sensor-preview sp-media-position-time" +
                     (cardLargeNumbersActiveForCardSize(b, helpers, MEDIA_CARD_METADATA) ? " sp-sensor-preview-large" : "");
@@ -842,7 +844,7 @@ export function registerMediaCardTypes(
                 };
             }
             if (mode === "cover_art") {
-                var coverArtColor: any = WEB_UI_COLORS.tertiary;
+                var coverArtColor: any = themeColors.secondary;
                 if (mediaCoverArtDetailsEnabled(b)) {
                     var controlFontClass: any = deviceId === "guition-esp32-p4-jc4880p443"
                         ? " sp-media-cover-control-fonts"
@@ -869,14 +871,14 @@ export function registerMediaCardTypes(
             if (mode === "now_playing") {
                 var progressBg: any = "";
                 if (mediaNowPlayingProgressEnabled(b)) {
-                    var nowBgColor: any = WEB_UI_COLORS.secondary;
+                    var nowBgColor: any = themeColors.surface;
                     progressBg =
                         '<span class="sp-slider-preview" style="inset:-2px;background:#' + helpers.escHtml(nowBgColor) + '">' +
-                            '<span class="sp-slider-track"><span class="sp-slider-fill" style="width:50%;height:100%;background:#' + WEB_UI_COLORS.secondary + '">' +
+                            '<span class="sp-slider-track"><span class="sp-slider-fill" style="width:50%;height:100%;background:#' + themeColors.surface + '">' +
                             '</span></span></span>';
                 }
                 else if (mediaNowPlayingPlayPauseEnabled(b)) {
-                    var playBgColor: any = WEB_UI_COLORS.secondary;
+                    var playBgColor: any = themeColors.surface;
                     progressBg =
                         '<span class="sp-slider-preview" style="inset:-2px;background:#' + helpers.escHtml(playBgColor) + '">' +
                             '</span>';

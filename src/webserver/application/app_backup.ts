@@ -17,6 +17,8 @@ import {
     normalizeScreensaverAction,
     normalizeScreensaverDimmedBrightness,
     normalizeTemperatureUnit,
+    normalizeThemeAutoStrategy,
+    normalizeThemeMode,
     normalizeTimeOfDay,
 } from "../model/settings";
 import type { BackupImportController } from "../features/backup_import_controller";
@@ -51,6 +53,7 @@ import type { SettingsPageHelpersFeature } from "./settings_page_helpers";
 import type { PreviewRenderFeature } from "./preview_render";
 import type { ButtonSettingsFeature } from "./button_settings";
 import { legacyRestoreFailureMessage, restoreLegacyLayoutDocument } from "../features/legacy_layout_restore";
+import type { AppearanceFeature } from "./appearance_state";
 
 export interface AppBackupControllers {
     readonly layout: ApplicationLayoutState;
@@ -81,6 +84,7 @@ export interface AppBackupControllers {
     readonly settingsHelpers: Pick<SettingsPageHelpersFeature, "syncAlarmDelayAudioUi" | "syncClockScreensaverControls" | "syncCoverArtScreensaverUi" | "syncMediaPlayerSleepPreventionUi">;
     readonly preview: Pick<PreviewRenderFeature, "render">;
     readonly buttonSettings: Pick<ButtonSettingsFeature, "render">;
+    readonly appearance: Pick<AppearanceFeature, "syncThemeUi">;
 }
 
 export interface AppBackupFeature {
@@ -95,6 +99,7 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
     const { syncAlarmDelayAudioUi, syncClockScreensaverControls, syncCoverArtScreensaverUi, syncMediaPlayerSleepPreventionUi } = controllers.settingsHelpers;
     const { render: renderPreview } = controllers.preview;
     const { render: renderButtonSettings } = controllers.buttonSettings;
+    const { syncThemeUi } = controllers.appearance;
     const { subpageEntityKeys } = controllers.configPersistence;
     const { createBackupConfig, normalizeButtonConfig: backupNormalizeButtonConfig } = controllers.backupContract;
     const { entityName, entityNameForSlot } = controllers.entityState;
@@ -249,6 +254,10 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                 alarm_delay_final_countdown: state.alarmDelayFinalCountdown,
                 temperature_degree_symbol: state.temperatureDegreeSymbolOn,
                 subpage_chevron: state.subpageChevronsOn,
+                theme_mode: normalizeThemeMode(state.themeMode),
+                theme_auto_strategy: normalizeThemeAutoStrategy(state.themeAutoStrategy),
+                theme_light_start: normalizeTimeOfDay(state.themeLightStart, "06:00"),
+                theme_dark_start: normalizeTimeOfDay(state.themeDarkStart, "18:00"),
                 timezone: state.timezone,
                 language: normalizeLanguage(state.language),
                 clock_format: state.clockFormat,
@@ -433,6 +442,14 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     }
                     postTemperatureDegreeSymbol(importedSettings.temperatureDegreeSymbol);
                     postSubpageChevron(importedSettings.subpageChevron);
+                    postSelect(entityName("screen_theme_mode"),
+                        importedSettings.themeMode === "light" ? "Light" :
+                            importedSettings.themeMode === "auto" ? "Auto" : "Dark");
+                    postSelect(entityName("screen_theme_auto_strategy"),
+                        importedSettings.themeAutoStrategy === "sunrise_sunset"
+                            ? "Sunrise / Sunset" : "Time");
+                    postText(entityName("screen_theme_light_start"), importedSettings.themeLightStart);
+                    postText(entityName("screen_theme_dark_start"), importedSettings.themeDarkStart);
                     var importedTimezone: any = importedSettings.timezone;
                     var importedTemperatureUnit: any = importedSettings.temperatureUnit;
                     var importedLanguage: any = importedSettings.language;
@@ -515,6 +532,11 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     state.alarmDelayFinalCountdown = importedSettings.alarmDelayFinalCountdown;
                     state.temperatureDegreeSymbolOn = importedSettings.temperatureDegreeSymbol;
                     state.subpageChevronsOn = importedSettings.subpageChevron;
+                    state.themeMode = importedSettings.themeMode;
+                    state.themeAutoStrategy = importedSettings.themeAutoStrategy;
+                    state.themeLightStart = importedSettings.themeLightStart;
+                    state.themeDarkStart = importedSettings.themeDarkStart;
+                    if (state.themeMode !== "auto") state.activeTheme = state.themeMode;
                     state.timezone = importedTimezone;
                     state.language = importedLanguage;
                     state.clockFormat = importedClockFormat;
@@ -551,6 +573,7 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     state.screenRotation = importedScreenRotation;
                     syncTemperatureUi();
                     syncClockBarUi();
+                    syncThemeUi();
                     syncAlarmDelayAudioUi();
                     if (els.setTemperatureUnit)
                         els.setTemperatureUnit.value = state.temperatureUnit;

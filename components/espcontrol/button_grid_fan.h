@@ -545,15 +545,19 @@ inline void send_fan_step_action(FanCardCtx *ctx, bool increase) {
 inline void fan_control_style_tab(lv_obj_t *btn, bool active, uint32_t accent_color) {
   if (!btn) return;
   (void) accent_color;
-  lv_obj_set_style_bg_color(
-    btn, lv_color_hex(active ? theme_color(ThemeColorRole::TEXT_PRIMARY) : theme_color(ThemeColorRole::SURFACE)), LV_PART_MAIN);
+  theme_style_background(btn,
+                         active ? ThemeColorRole::TEXT_PRIMARY
+                                : ThemeColorRole::SURFACE,
+                         LV_PART_MAIN);
   lv_obj_set_style_bg_opa(btn, active ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
   lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
   lv_obj_set_style_shadow_width(btn, 0, LV_PART_MAIN);
   lv_obj_t *label = lv_obj_get_child(btn, 0);
   if (label) {
-    lv_obj_set_style_text_color(
-      label, lv_color_hex(active ? theme_color(ThemeColorRole::SURFACE_SECONDARY) : theme_color(ThemeColorRole::TEXT_PRIMARY)), LV_PART_MAIN);
+    theme_style_text(label,
+                     active ? ThemeColorRole::SURFACE_SECONDARY
+                            : ThemeColorRole::TEXT_PRIMARY,
+                     LV_PART_MAIN);
   }
 }
 
@@ -625,7 +629,7 @@ inline void fan_control_style_binary_button(lv_obj_t *btn, bool active,
   lv_obj_set_style_shadow_width(btn, 0, LV_PART_MAIN);
   if (label) {
     lv_obj_set_style_text_color(
-      label, lv_color_hex(active ? 0xFFFFFF : theme_color(ThemeColorRole::TEXT_PRIMARY)), LV_PART_MAIN);
+      label, lv_color_hex(active ? FUNCTIONAL_ACTIVE_TEXT : theme_color(ThemeColorRole::TEXT_PRIMARY)), LV_PART_MAIN);
   }
 }
 

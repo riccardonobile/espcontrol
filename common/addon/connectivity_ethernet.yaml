@@ -34,6 +34,7 @@ ethernet:
               then:
                 - script.execute: clock_bar_hide
                 - lvgl.page.show: ha_setup_page
+                - script.execute: theme_apply_active_page
                 - script.execute: setup_screen_dim
               else:
                 - script.execute: navigate_after_api
@@ -44,6 +45,7 @@ ethernet:
         then:
           - script.execute: clock_bar_hide
           - lvgl.page.show: ethernet_setup_page
+          - script.execute: theme_apply_active_page
           - script.execute: setup_screen_dim
 
 script:
@@ -65,6 +67,7 @@ script:
                         - script.execute: setup_screen_dim_cancel
                         - script.execute: clock_bar_hide
                         - lvgl.page.show: ha_actions_page
+                        - script.execute: theme_apply_active_page
                       else:
                         - script.execute: navigate_after_api
 
@@ -82,6 +85,7 @@ script:
                     return id(espcontrol_app).display().target_mode_is(
                         espcontrol::DisplayMode::ACTIVE);
             - lvgl.page.show: main_page
+            - script.execute: theme_apply_active_page
             - script.execute: clock_bar_apply
             - script.execute: screensaver_idle_check
           else:
@@ -95,4 +99,5 @@ script:
                 }
             - script.execute: clock_bar_hide
             - lvgl.page.show: button_setup_page
+            - script.execute: theme_apply_active_page
             - script.execute: setup_screen_dim

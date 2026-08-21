@@ -175,6 +175,11 @@ export interface AppState {
   manualBrightnessVal: number;
   brightnessDawnTime: string;
   brightnessDuskTime: string;
+  themeMode: "dark" | "light" | "auto";
+  themeAutoStrategy: "time" | "sunrise_sunset";
+  themeLightStart: string;
+  themeDarkStart: string;
+  activeTheme: "dark" | "light";
   scheduleTrigger: string;
   _scheduleTriggerReceived: boolean;
   scheduleEnabled: boolean;

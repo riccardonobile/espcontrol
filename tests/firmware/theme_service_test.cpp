@@ -16,6 +16,14 @@ bool expect(bool condition) { return condition; }
 
 int main() {
   ThemeService service;
+  uint16_t parsed_minute = 0;
+  if (!expect(ThemeService::parse_time_of_day("06:30", parsed_minute) &&
+              parsed_minute == 390 &&
+              !ThemeService::parse_time_of_day("24:00", parsed_minute) &&
+              !ThemeService::parse_time_of_day("6:30", parsed_minute) &&
+              !ThemeService::parse_time_of_day("noon", parsed_minute))) {
+    return EXIT_FAILURE;
+  }
   if (!expect(service.mode() == ThemeMode::DARK &&
               service.auto_strategy() == AutoStrategy::TIME &&
               service.active_theme() == ActiveTheme::DARK)) {
@@ -63,6 +71,10 @@ int main() {
   service.update_clock(true, 12 * 60);
   if (!expect(service.active_theme() == ActiveTheme::LIGHT)) return EXIT_FAILURE;
   service.update_clock(true, 17 * 60);
+  if (!expect(service.active_theme() == ActiveTheme::DARK)) return EXIT_FAILURE;
+
+  service.update_clock(true, 12 * 60);
+  service.update_solar(true, 7 * 60, 7 * 60);
   if (!expect(service.active_theme() == ActiveTheme::DARK)) return EXIT_FAILURE;
 
   service.update_solar(false, 0, 0);

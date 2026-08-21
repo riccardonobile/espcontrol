@@ -748,7 +748,10 @@ inline void alarm_clear_pending_action_if_progressed(AlarmCardCtx *ctx) {
 
 inline void alarm_set_card_state_colors(AlarmCardCtx *ctx, uint32_t checked_color) {
   if (!ctx || !ctx->btn) return;
-  lv_obj_set_style_bg_color(ctx->btn, lv_color_hex(ctx->off_color),
+  lv_obj_set_style_bg_color(
+    ctx->btn,
+    lv_color_hex(resolve_semantic_theme_color(
+      ctx->off_color, ThemeColorRole::SURFACE)),
     static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_DEFAULT));
   lv_obj_set_style_bg_color(ctx->btn, lv_color_hex(checked_color),
     static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_CHECKED));
@@ -1012,7 +1015,9 @@ inline uint32_t alarm_control_active_color(AlarmCardCtx *ctx, const std::string 
 }
 
 inline uint32_t alarm_control_inactive_color(AlarmCardCtx *ctx) {
-  return ctx ? ctx->off_color : theme_color(ThemeColorRole::SURFACE);
+  return ctx ? resolve_semantic_theme_color(
+                   ctx->off_color, ThemeColorRole::SURFACE)
+             : theme_color(ThemeColorRole::SURFACE);
 }
 
 inline lv_coord_t alarm_control_mode_button_radius(const ControlModalLayout &layout,

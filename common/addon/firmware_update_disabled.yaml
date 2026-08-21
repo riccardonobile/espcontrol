@@ -68,6 +68,7 @@ script:
       - lvgl.resume:
       - script.execute: clock_bar_hide
       - lvgl.page.show: loading_page
+      - script.execute: theme_apply_active_page
       - script.execute:
           id: backlight_note_internal_brightness
           brightness: 0.9
@@ -90,6 +91,7 @@ script:
       - lvgl.resume:
       - script.execute: clock_bar_hide
       - lvgl.page.show: loading_page
+      - script.execute: theme_apply_active_page
       - script.execute: backlight_force_display_off
       - script.wait: backlight_force_display_off
 
@@ -104,6 +106,7 @@ script:
       - lvgl.resume:
       - script.execute: clock_bar_hide
       - lvgl.page.show: loading_page
+      - script.execute: theme_apply_active_page
       - script.execute:
           id: backlight_note_internal_brightness
           brightness: 0.9
@@ -118,6 +121,7 @@ script:
       - lambda: 'global_preferences->sync();'
       - script.execute: clock_bar_hide
       - lvgl.page.show: loading_page
+      - script.execute: theme_apply_active_page
 
   - id: show_update_failed
     mode: restart
@@ -133,6 +137,7 @@ script:
       - lvgl.resume:
       - script.execute: clock_bar_hide
       - lvgl.page.show: loading_page
+      - script.execute: theme_apply_active_page
       - script.execute:
           id: backlight_note_internal_brightness
           brightness: 0.9

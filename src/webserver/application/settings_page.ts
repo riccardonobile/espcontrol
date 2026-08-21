@@ -5,7 +5,11 @@ import {
     normalizeBrightnessMode,
     normalizeLanguage,
     normalizeTemperatureUnit,
+    normalizeThemeAutoStrategy,
+    normalizeThemeMode,
     normalizeTimeOfDay,
+    themeAutoStrategyOption,
+    themeModeOption,
 } from "../model/settings";
 import type { ConfigCodecFeature } from "./config_codec";
 import type { UiRuntimeState } from "./state";
@@ -60,7 +64,7 @@ export function createSettingsPageFeature(codec: Pick<ConfigCodecFeature, "bindT
     const { syncUi: syncScreenScheduleUi } = schedule;
     const { syncUi: syncScreensaverTimeoutUi } = screensaverTimeout;
     const { normalize: normalizeScreenRotation, activeOptions: activeScreenRotationOptions, appendOption: appendScreenRotationOption } = screenRotation;
-    const { resetColors: resetAppearanceColors } = appearance;
+    const { resetColors: resetAppearanceColors, syncThemeUi } = appearance;
     const {
         controllerState: clockBarControllerState,
         applyControllerState: applyClockBarControllerState,
@@ -82,6 +86,79 @@ export function createSettingsPageFeature(codec: Pick<ConfigCodecFeature, "bindT
         });
         appearBody.appendChild(onColor);
         els.setOnColor = onColor;
+        var themeModeField: any = document.createElement("div");
+        themeModeField.className = "sp-field";
+        themeModeField.appendChild(fieldLabel("Theme", "sp-set-theme-mode"));
+        var themeModeSegment: any = segmentControl([
+            ["dark", "Dark"],
+            ["light", "Light"],
+            ["auto", "Auto"],
+        ], normalizeThemeMode(state.themeMode), function (this: any, mode?: any) {
+            state.themeMode = normalizeThemeMode(mode);
+            postSelect(entityName("screen_theme_mode"), themeModeOption(state.themeMode));
+            if (state.themeMode !== "auto") state.activeTheme = state.themeMode;
+            syncThemeUi();
+            renderPreview();
+        }, "sp-segment");
+        themeModeSegment.segment.id = "sp-set-theme-mode";
+        themeModeField.appendChild(themeModeSegment.segment);
+        appearBody.appendChild(themeModeField);
+        els.setThemeModeButtons = themeModeSegment.buttons;
+
+        var themeAutoFields: any = condField();
+        var themeStrategyField: any = document.createElement("div");
+        themeStrategyField.className = "sp-field";
+        themeStrategyField.appendChild(fieldLabel("Automatic switching", "sp-set-theme-strategy"));
+        var themeStrategySegment: any = segmentControl([
+            ["time", "Time"],
+            ["sunrise_sunset", "Sunrise / Sunset"],
+        ], normalizeThemeAutoStrategy(state.themeAutoStrategy), function (this: any, strategy?: any) {
+            state.themeAutoStrategy = normalizeThemeAutoStrategy(strategy);
+            postSelect(entityName("screen_theme_auto_strategy"),
+                themeAutoStrategyOption(state.themeAutoStrategy));
+            syncThemeUi();
+        }, "sp-segment sp-segment-scroll");
+        themeStrategySegment.segment.id = "sp-set-theme-strategy";
+        themeStrategyField.appendChild(themeStrategySegment.segment);
+        themeAutoFields.appendChild(themeStrategyField);
+        els.setThemeAutoStrategyButtons = themeStrategySegment.buttons;
+
+        var themeTimeFields: any = condField();
+        var themeLightStart: any = createTimeInput(
+            "Light theme starts", "sp-set-theme-light-start", state.themeLightStart, "06:00",
+            function (this: any, value?: any) {
+                state.themeLightStart = normalizeTimeOfDay(value, "06:00");
+                postText(entityName("screen_theme_light_start"), state.themeLightStart);
+                syncThemeUi();
+            });
+        themeTimeFields.appendChild(themeLightStart.wrap);
+        els.setThemeLightStart = themeLightStart.input;
+        var themeDarkStart: any = createTimeInput(
+            "Dark theme starts", "sp-set-theme-dark-start", state.themeDarkStart, "18:00",
+            function (this: any, value?: any) {
+                state.themeDarkStart = normalizeTimeOfDay(value, "18:00");
+                postText(entityName("screen_theme_dark_start"), state.themeDarkStart);
+                syncThemeUi();
+            });
+        themeTimeFields.appendChild(themeDarkStart.wrap);
+        els.setThemeDarkStart = themeDarkStart.input;
+        themeAutoFields.appendChild(themeTimeFields);
+        els.setThemeTimeFields = themeTimeFields;
+
+        var themeSunFields: any = condField();
+        var themeSunInfo: any = document.createElement("div");
+        themeSunInfo.className = "sp-sun-info";
+        themeSunFields.appendChild(themeSunInfo);
+        themeAutoFields.appendChild(themeSunFields);
+        els.setThemeSunFields = themeSunFields;
+        els.setThemeSunInfo = themeSunInfo;
+        appearBody.appendChild(themeAutoFields);
+        els.setThemeAutoFields = themeAutoFields;
+        var activeThemeInfo: any = document.createElement("div");
+        activeThemeInfo.className = "sp-field-hint";
+        appearBody.appendChild(activeThemeInfo);
+        els.setActiveTheme = activeThemeInfo;
+        syncThemeUi();
         var appearanceResetButton: any = createActionButton("sp-icon-button sp-card-header-action", "", "restore", "Reset colours to defaults");
         appearanceResetButton.title = "Reset colours";
         appearanceResetButton.addEventListener("click", function (this: any, event?: any) {

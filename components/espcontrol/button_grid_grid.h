@@ -1018,8 +1018,8 @@ inline void grid_phase1(
 
   bool has_on;
   uint32_t on_val = parse_hex_color(on_hex, has_on);
-  uint32_t off_val = display_correct_color(DEFAULT_SECONDARY_COLOR_RAW, display);
-  uint32_t sensor_val = display_correct_color(DEFAULT_TERTIARY_COLOR_RAW, display);
+  uint32_t off_val = theme_color(ThemeColorRole::SURFACE);
+  uint32_t sensor_val = theme_color(ThemeColorRole::SURFACE_SECONDARY);
   if (has_on) on_val = display_correct_color(on_val, display);
 
   CardPalette palette;
@@ -1817,8 +1817,8 @@ inline void grid_phase2(
 
   bool has_on;
   uint32_t on_val = parse_hex_color(on_hex, has_on);
-  uint32_t off_val = display_correct_color(DEFAULT_SECONDARY_COLOR_RAW, display);
-  uint32_t sensor_val = display_correct_color(DEFAULT_TERTIARY_COLOR_RAW, display);
+  uint32_t off_val = theme_color(ThemeColorRole::SURFACE);
+  uint32_t sensor_val = theme_color(ThemeColorRole::SURFACE_SECONDARY);
   if (has_on) on_val = display_correct_color(on_val, display);
 
   CardPalette palette;

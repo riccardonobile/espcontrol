@@ -39,6 +39,33 @@ export function normalizeTimeOfDay(value: unknown, fallback: string): string {
   return String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
 }
 
+export function normalizeThemeMode(value: unknown): "dark" | "light" | "auto" {
+  const mode = String(value || "").trim().toLowerCase();
+  if (mode === "light") return "light";
+  if (mode === "auto" || mode === "automatic") return "auto";
+  return "dark";
+}
+
+export function themeModeOption(value: unknown): string {
+  const mode = normalizeThemeMode(value);
+  return mode === "light" ? "Light" : mode === "auto" ? "Auto" : "Dark";
+}
+
+export function normalizeThemeAutoStrategy(value: unknown): "time" | "sunrise_sunset" {
+  const strategy = String(value || "").trim().toLowerCase().replace(/[\s/-]+/g, "_");
+  return strategy === "sunrise_sunset" ? "sunrise_sunset" : "time";
+}
+
+export function themeAutoStrategyOption(value: unknown): string {
+  return normalizeThemeAutoStrategy(value) === "sunrise_sunset"
+    ? "Sunrise / Sunset"
+    : "Time";
+}
+
+export function normalizeActiveTheme(value: unknown): "dark" | "light" {
+  return String(value || "").trim().toLowerCase() === "light" ? "light" : "dark";
+}
+
 export function normalizeBrightnessMode(value: unknown): string {
   const mode = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (mode === "manual") return "manual";
@@ -328,6 +355,10 @@ export interface BackupPanelSettingsState {
   alarmDelayFinalCountdown: number;
   temperatureDegreeSymbol: boolean;
   subpageChevron: boolean;
+  themeMode: "dark" | "light" | "auto";
+  themeAutoStrategy: "time" | "sunrise_sunset";
+  themeLightStart: string;
+  themeDarkStart: string;
   timezone: string;
   temperatureUnit: string;
   language: string;
@@ -458,6 +489,10 @@ export function normalizeBackupPanelSettings(
     subpageChevron: objectValue(settings, "subpage_chevron") != null
       ? !!settings.subpage_chevron
       : true,
+    themeMode: normalizeThemeMode(settings.theme_mode),
+    themeAutoStrategy: normalizeThemeAutoStrategy(settings.theme_auto_strategy),
+    themeLightStart: normalizeTimeOfDay(settings.theme_light_start, "06:00"),
+    themeDarkStart: normalizeTimeOfDay(settings.theme_dark_start, "18:00"),
     timezone: String(settings.timezone || current.timezone),
     temperatureUnit: normalizeTemperatureUnit(settings.temperature_unit),
     language: normalizeLanguage(settings.language || current.language),

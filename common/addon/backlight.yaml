@@ -909,6 +909,7 @@ script:
       - script.execute: hide_clock_view
       - lvgl.widget.hide: dim_screensaver_touch_guard
       - lvgl.page.show: screen_off_page
+      - script.execute: theme_apply_active_page
       - script.execute: clock_bar_hide
       - delay: 50ms
       - lambda: |-

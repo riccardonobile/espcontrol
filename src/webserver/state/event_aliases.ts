@@ -19,6 +19,11 @@ export const SSE_ALIAS_GROUPS = {
   alarmDelayFinalCountdown: ["number-alarm_delay__final_countdown", "number-alarm_delay_final_countdown", "number-alarm_delay_final_countdown_seconds"],
   temperatureDegreeSymbol: ["switch-screen__temperature_degree_symbol", "switch-screen_temperature_degree_symbol", "switch-temperature_degree_symbol_enabled"],
   subpageChevron: ["switch-screen__subpage_chevron", "switch-screen_subpage_chevron", "switch-subpage_chevrons_enabled"],
+  themeMode: ["select-screen__theme_mode", "select-screen_theme_mode"],
+  themeAutoStrategy: ["select-screen__theme_auto_strategy", "select-screen_theme_auto_strategy"],
+  themeLightStart: ["text-screen__theme_light_start", "text-screen_theme_light_start"],
+  themeDarkStart: ["text-screen__theme_dark_start", "text-screen_theme_dark_start"],
+  activeTheme: ["text_sensor-screen__active_theme", "text_sensor-screen_active_theme", "text_sensor:Screen: Active Theme"],
   screensaverTimeout: ["number-screensaver_timeout", "number-screen_saver__timeout", "number-screen_saver_timeout"],
   clockScreensaver: ["switch-screen_saver__clock", "switch-screen_saver_clock", "switch-clock_screensaver_enabled"],
   mediaPlayerSleepPrevention: ["switch-screen_saver__media_player_sleep_prevention", "switch-screen_saver_media_player_sleep_prevention", "switch-media_player_sleep_prevention_enabled"],
@@ -71,6 +76,11 @@ export function applySseHandlerAliases(handlers: SseHandlers): void {
   addSseAliases(handlers, SSE_ALIAS_GROUPS.alarmDelayFinalCountdown, "number-alarm_delay__final_countdown");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.temperatureDegreeSymbol, "switch-screen__temperature_degree_symbol");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.subpageChevron, "switch-screen__subpage_chevron");
+  addSseAliases(handlers, SSE_ALIAS_GROUPS.themeMode, "select-screen__theme_mode");
+  addSseAliases(handlers, SSE_ALIAS_GROUPS.themeAutoStrategy, "select-screen__theme_auto_strategy");
+  addSseAliases(handlers, SSE_ALIAS_GROUPS.themeLightStart, "text-screen__theme_light_start");
+  addSseAliases(handlers, SSE_ALIAS_GROUPS.themeDarkStart, "text-screen__theme_dark_start");
+  addSseAliases(handlers, SSE_ALIAS_GROUPS.activeTheme, "text_sensor-screen__active_theme");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.screensaverTimeout, "number-screensaver_timeout");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.clockScreensaver, "switch-screen_saver__clock");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.mediaPlayerSleepPrevention, "switch-screen_saver__media_player_sleep_prevention");

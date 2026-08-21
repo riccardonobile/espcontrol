@@ -134,7 +134,10 @@ inline bool status_entity_driver_bind_data(
         lv_label_set_text(icon, active ? active_icon : inactive_icon);
         if (btn && active_color) {
           lv_obj_set_style_bg_color(
-            btn, lv_color_hex(active ? on_color : sensor_color),
+            btn, lv_color_hex(
+              active ? on_color
+                     : resolve_semantic_theme_color(
+                         sensor_color, ThemeColorRole::SURFACE_SECONDARY)),
             static_cast<lv_style_selector_t>(LV_PART_MAIN) |
               static_cast<lv_style_selector_t>(LV_STATE_DEFAULT));
         }

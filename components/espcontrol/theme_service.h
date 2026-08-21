@@ -202,6 +202,22 @@ class ThemeService {
     return minute >= start || minute < end;
   }
 
+  static bool parse_time_of_day(const char *value, uint16_t &minute) {
+    if (value == nullptr || value[0] < '0' || value[0] > '9' ||
+        value[1] < '0' || value[1] > '9' || value[2] != ':' ||
+        value[3] < '0' || value[3] > '9' || value[4] < '0' ||
+        value[4] > '9' || value[5] != '\0') {
+      return false;
+    }
+    const uint8_t hour = static_cast<uint8_t>((value[0] - '0') * 10 +
+                                               (value[1] - '0'));
+    const uint8_t minute_part = static_cast<uint8_t>((value[3] - '0') * 10 +
+                                                      (value[4] - '0'));
+    if (hour >= 24 || minute_part >= 60) return false;
+    minute = static_cast<uint16_t>(hour * 60 + minute_part);
+    return true;
+  }
+
  private:
   ThemeMode mode_{ThemeMode::DARK};
   AutoStrategy auto_strategy_{AutoStrategy::TIME};
