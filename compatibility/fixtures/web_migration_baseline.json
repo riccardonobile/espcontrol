@@ -46,6 +46,8 @@
       "alarmDelayExitAnnouncement": "Alarm arming, please leave the house",
       "alarmDelayBeepVolume": 0.45, "alarmDelayFinalCountdown": 10,
       "temperatureDegreeSymbol": true, "subpageChevron": true,
+      "themeMode": "dark", "themeAutoStrategy": "time",
+      "themeLightStart": "06:00", "themeDarkStart": "18:00",
       "timezone": "Europe/London (GMT+0)", "temperatureUnit": "°F", "language": "en", "clockFormat": "12h",
       "hasNtpServer1": false, "hasNtpServer2": false, "hasNtpServer3": false,
       "ntpServer1": "pool.ntp.org", "ntpServer2": "time.nist.gov", "ntpServer3": "time.google.com",
@@ -108,5 +110,5 @@
       "/number/Screen%20Saver%3A%20Cover%20Art%20Delay/set?value=30"
     ]
   },
-  "bundleSize": { "minified": 2557793, "gzip": 1079318, "gzipTolerance": 9216 }
+  "bundleSize": { "minified": 2565980, "gzip": 1081391, "gzipTolerance": 9216 }
 }

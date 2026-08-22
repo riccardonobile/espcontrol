@@ -101,6 +101,7 @@ struct BtnSlot {
 };
 struct lv_disp_t {};
 struct lv_font_t {};
+struct lv_style_t {};
 using lv_coord_t = int;
 using lv_style_selector_t = int;
 using lv_color_t = int;
@@ -181,6 +182,27 @@ inline void lv_label_set_text(lv_obj_t *obj, const char *text) { if (obj) obj->t
 inline void lv_obj_align(lv_obj_t *, int, int, int) {}
 inline void lv_obj_move_foreground(lv_obj_t *) {}
 inline void lv_obj_move_background(lv_obj_t *) { lv_obj_move_background_calls++; }
+inline void lv_obj_remove_style(lv_obj_t *, lv_style_t *, lv_style_selector_t) {}
+
+enum class ThemeColorRole { SURFACE, SURFACE_SECONDARY, TEXT_PRIMARY };
+inline uint32_t theme_color(ThemeColorRole role) {
+  switch (role) {
+    case ThemeColorRole::SURFACE: return 0x313131;
+    case ThemeColorRole::SURFACE_SECONDARY: return 0x212121;
+    case ThemeColorRole::TEXT_PRIMARY: return 0xFFFFFF;
+  }
+  return 0U;
+}
+struct ThemeLvglStyles {
+  lv_style_t *text(ThemeColorRole) { return &text_style; }
+  lv_style_t text_style{};
+};
+inline ThemeLvglStyles &theme_lvgl_styles() {
+  static ThemeLvglStyles styles;
+  return styles;
+}
+inline void theme_style_background(lv_obj_t *, ThemeColorRole, lv_style_selector_t) {}
+inline void theme_style_text(lv_obj_t *, ThemeColorRole, lv_style_selector_t) {}
 
 #include "temperature_unit.h"
 #include "button_grid_config_parser.h"

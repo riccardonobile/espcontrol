@@ -74,7 +74,9 @@ esphome:
         - script.execute: clock_bar_hide
         - lambda: |-
             // Screen Off must remain a true black framebuffer in every theme.
-            lv_obj_add_flag(id(screen_off_page), LV_OBJ_FLAG_USER_1);
+            if (id(screen_off_page)->obj != nullptr) {
+              lv_obj_add_flag(id(screen_off_page)->obj, LV_OBJ_FLAG_USER_1);
+            }
             lv_label_set_text(id(loading_status_title), espcontrol_i18n("Starting up"));
             lv_label_set_text(id(loading_status_label), espcontrol_i18n("Booting"));
         - lvgl.page.show: loading_page
