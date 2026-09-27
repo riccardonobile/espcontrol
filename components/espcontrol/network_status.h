@@ -215,7 +215,7 @@ inline void network_status_open_modal(const std::string &device_name,
   const lv_color_t text_color = reference
                                     ? lv_obj_get_style_text_color(reference,
                                                                   LV_PART_MAIN)
-                                    : lv_color_hex(DARK_TEXT_PRIMARY);
+                                    : lv_color_hex(THEME_TEXT_PRIMARY);
   const lv_coord_t radius = control_modal_card_radius(reference);
   const lv_coord_t card_pad = reference
                                   ? lv_obj_get_style_pad_top(reference,
@@ -266,8 +266,8 @@ inline void network_status_open_modal(const std::string &device_name,
     if (i == NETWORK_STATUS_WIFI_CARD_INDEX && !wifi_quality) continue;
     auto *button = create_grid_card_button(ui.overlay, radius, card_pad,
                                            label_font, text_color);
-    apply_button_colors(button, false, DEFAULT_SLIDER_COLOR, true,
-                        DEFAULT_OFF_COLOR);
+    apply_button_colors(button, false, DEFAULT_ACCENT_COLOR, true,
+                        THEME_SURFACE_PRIMARY);
     // Follow the device's normal card order and let its column count determine
     // where the next row begins.
     const NetworkStatusGridCell cell =

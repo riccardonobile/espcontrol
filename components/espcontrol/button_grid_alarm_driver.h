@@ -49,15 +49,15 @@ struct AlarmDriverEnvironment {
   lv_obj_t *grid_page = nullptr;
   int slot_count = 0;
   int grid_cols = 1;
-  uint32_t on_color = DEFAULT_SLIDER_COLOR;
-  uint32_t off_color = SECONDARY_GREY;
-  uint32_t tertiary_color = TERTIARY_GREY;
+  uint32_t on_color = DEFAULT_ACCENT_COLOR;
+  uint32_t off_color = THEME_SURFACE_PRIMARY;
+  uint32_t tertiary_color = THEME_SURFACE_SECONDARY;
   const lv_font_t *icon_font = nullptr;
   const lv_font_t *arming_title_font = nullptr;
   const lv_font_t *value_font = nullptr;
   const lv_font_t *key_font = nullptr;
   const lv_font_t *label_font = nullptr;
-  lv_color_t text_color = lv_color_hex(0xFFFFFF);
+  lv_color_t text_color = lv_color_hex(THEME_TEXT_PRIMARY);
   int width_compensation_percent = 100;
   std::function<void(espcontrol::DisplayTakeoverKind)> begin_display_takeover;
   std::function<void(espcontrol::DisplayTakeoverKind)> end_display_takeover;
@@ -73,7 +73,7 @@ inline AlarmDriverEnvironment alarm_driver_environment(
   environment.slot_count = slot_count;
   environment.grid_cols = grid_cols;
   environment.on_color = palette.has_on
-    ? palette.on_val : DEFAULT_SLIDER_COLOR;
+    ? palette.on_val : DEFAULT_ACCENT_COLOR;
   environment.off_color = palette.off_val;
   environment.tertiary_color = palette.sensor_val;
   environment.icon_font = display_icon_font(display);
@@ -85,7 +85,7 @@ inline AlarmDriverEnvironment alarm_driver_environment(
   environment.key_font = display_optional_media_title_font(display);
   environment.text_color = slot.text_lbl
     ? lv_obj_get_style_text_color(slot.text_lbl, LV_PART_MAIN)
-    : lv_color_hex(0xFFFFFF);
+    : lv_color_hex(THEME_TEXT_PRIMARY);
   environment.width_compensation_percent =
     display_main_width_percent(display);
   environment.begin_display_takeover = grid_config.begin_display_takeover;

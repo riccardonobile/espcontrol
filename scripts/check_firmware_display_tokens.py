@@ -51,6 +51,59 @@ RULES: tuple[tuple[re.Pattern[str], str, set[str]], ...] = (
     ),
 )
 
+# The YAML substitutions and C++ constants are authored independently. Guard
+# their dark RGB parity until the firmware has one shared theme source.
+THEME_RGB = {
+    "BACKGROUND": 0x000000,
+    "SURFACE_PRIMARY": 0x313131,
+    "SURFACE_SECONDARY": 0x212121,
+    "TEXT_PRIMARY": 0xFFFFFF,
+    "TEXT_MUTED": 0xB0B0B0,
+    "TEXT_INVERTED": 0x000000,
+    "TEXT_DISABLED": 0x707070,
+    "BORDER": 0x313131,
+    "CONTROL_NEUTRAL": 0x313131,
+    "TRACK_BACKGROUND": 0x313131,
+    "OVERLAY": 0x000000,
+}
+LEGACY_NEUTRAL_NAMES = re.compile(
+    r"\b(?:DARK_(?:TEXT_PRIMARY|TEXT_INVERTED|TEXT_MUTED|TEXT_SOFT|"
+    r"TEXT_DISABLED|BORDER|CONTROL_NEUTRAL|OVERLAY|TRACK_BACKGROUND)|"
+    r"SECONDARY_GREY|TERTIARY_GREY|DEFAULT_(?:SECONDARY|TERTIARY|OFF)_COLOR(?:_RAW)?)\b"
+)
+
+
+def check_theme_colors(root: Path) -> list[str]:
+    yaml_path = root / "common/theme/colors.yaml"
+    cpp_path = root / "components/espcontrol/button_grid_style.h"
+    if not yaml_path.exists() and not cpp_path.exists():
+        return []  # Isolated display-token self-test fixtures.
+    failures: list[str] = []
+    if not yaml_path.exists() or not cpp_path.exists():
+        return ["semantic theme colors need both YAML and C++ definitions"]
+    yaml_text = yaml_path.read_text(encoding="utf-8")
+    cpp_text = cpp_path.read_text(encoding="utf-8")
+    for role, rgb in THEME_RGB.items():
+        yaml_name = f"theme_{role.lower()}_color"
+        yaml_value = re.search(rf"^  {yaml_name}: [\"']?0x([0-9A-Fa-f]{{6}})[\"']?$", yaml_text, re.M)
+        if yaml_value is None or int(yaml_value.group(1), 16) != rgb:
+            failures.append(f"common/theme/colors.yaml: {yaml_name} must remain 0x{rgb:06X}")
+        cpp_name = f"THEME_{role}"
+        if role in {"SURFACE_PRIMARY", "SURFACE_SECONDARY"}:
+            cpp_name += "_RAW"
+        cpp_value = re.search(rf"\bconstexpr uint32_t {cpp_name} = 0x([0-9A-Fa-f]{{6}});", cpp_text)
+        if role in {"BORDER", "CONTROL_NEUTRAL", "TRACK_BACKGROUND"}:
+            if f"constexpr uint32_t {cpp_name} = THEME_SURFACE_PRIMARY;" not in cpp_text:
+                failures.append(f"button_grid_style.h: {cpp_name} must use the primary surface")
+        elif cpp_value is None or int(cpp_value.group(1), 16) != rgb:
+            failures.append(f"button_grid_style.h: {cpp_name} must remain 0x{rgb:06X}")
+    if "constexpr uint32_t DEFAULT_ACCENT_COLOR_RAW = 0xFF8C00;" not in cpp_text:
+        failures.append("button_grid_style.h: preserve the separate default user accent")
+    for path in (root / "components/espcontrol").glob("*.h"):
+        if LEGACY_NEUTRAL_NAMES.search(path.read_text(encoding="utf-8")):
+            failures.append(f"{path.relative_to(root)}: use semantic neutral color names")
+    return failures
+
 
 def firmware_headers(root: Path) -> list[Path]:
     firmware_dir = root / "components" / "espcontrol"
@@ -59,6 +112,7 @@ def firmware_headers(root: Path) -> list[Path]:
 
 def check_root(root: Path) -> list[str]:
     failures: list[str] = []
+    failures.extend(check_theme_colors(root))
     for path in firmware_headers(root):
         filename = path.name
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -238,6 +292,17 @@ def run_self_test() -> None:
                 assert any(text in failure for failure in failures), (files, failures, text)
             if not expected:
                 assert not failures, (files, failures)
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "common/theme").mkdir(parents=True)
+        (root / "components/espcontrol").mkdir(parents=True)
+        yaml_path = root / "common/theme/colors.yaml"
+        cpp_path = root / "components/espcontrol/button_grid_style.h"
+        yaml_path.write_text((ROOT / "common/theme/colors.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+        cpp_path.write_text((ROOT / "components/espcontrol/button_grid_style.h").read_text(encoding="utf-8"), encoding="utf-8")
+        assert not check_theme_colors(root)
+        yaml_path.write_text(yaml_path.read_text(encoding="utf-8").replace("0xB0B0B0", "0xB0B0B1"), encoding="utf-8")
+        assert any("theme_text_muted_color" in failure for failure in check_theme_colors(root))
     print("Firmware display token self-tests passed.")
 
 

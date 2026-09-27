@@ -140,9 +140,9 @@ struct CardPalette {
   bool has_on = false;
   bool has_off = false;
   bool has_sensor_color = false;
-  uint32_t on_val = DEFAULT_SLIDER_COLOR;
-  uint32_t off_val = SECONDARY_GREY;
-  uint32_t sensor_val = TERTIARY_GREY;
+  uint32_t on_val = DEFAULT_ACCENT_COLOR;
+  uint32_t off_val = THEME_SURFACE_PRIMARY;
+  uint32_t sensor_val = THEME_SURFACE_SECONDARY;
 };
 
 template<typename T>
@@ -1065,15 +1065,15 @@ inline void grid_phase1(
 
   bool has_on;
   uint32_t on_val = parse_hex_color(on_hex, has_on);
-  uint32_t off_val = display_correct_color(DEFAULT_SECONDARY_COLOR_RAW, display);
-  uint32_t sensor_val = display_correct_color(DEFAULT_TERTIARY_COLOR_RAW, display);
+  uint32_t off_val = display_correct_color(THEME_SURFACE_PRIMARY_RAW, display);
+  uint32_t sensor_val = display_correct_color(THEME_SURFACE_SECONDARY_RAW, display);
   if (has_on) on_val = display_correct_color(on_val, display);
 
   CardPalette palette;
   palette.has_on = has_on;
   palette.has_off = true;
   palette.has_sensor_color = true;
-  palette.on_val = has_on ? on_val : DEFAULT_SLIDER_COLOR;
+  palette.on_val = has_on ? on_val : DEFAULT_ACCENT_COLOR;
   palette.off_val = off_val;
   palette.sensor_val = sensor_val;
   set_current_button_primary_color(palette.on_val);
@@ -1868,15 +1868,15 @@ inline void grid_phase2(
 
   bool has_on;
   uint32_t on_val = parse_hex_color(on_hex, has_on);
-  uint32_t off_val = display_correct_color(DEFAULT_SECONDARY_COLOR_RAW, display);
-  uint32_t sensor_val = display_correct_color(DEFAULT_TERTIARY_COLOR_RAW, display);
+  uint32_t off_val = display_correct_color(THEME_SURFACE_PRIMARY_RAW, display);
+  uint32_t sensor_val = display_correct_color(THEME_SURFACE_SECONDARY_RAW, display);
   if (has_on) on_val = display_correct_color(on_val, display);
 
   CardPalette palette;
   palette.has_on = has_on;
   palette.has_off = true;
   palette.has_sensor_color = true;
-  palette.on_val = has_on ? on_val : DEFAULT_SLIDER_COLOR;
+  palette.on_val = has_on ? on_val : DEFAULT_ACCENT_COLOR;
   palette.off_val = off_val;
   palette.sensor_val = sensor_val;
   set_current_button_primary_color(palette.on_val);
@@ -2050,7 +2050,7 @@ inline void grid_phase2(
 
     lv_obj_t *back_btn = create_grid_card_button(
       sub_scr, sp_radius, sp_pad, sp_btn_fnt, sp_txt_color);
-    apply_button_colors(back_btn, false, DEFAULT_SLIDER_COLOR, true, off_val);
+    apply_button_colors(back_btn, false, DEFAULT_ACCENT_COLOR, true, off_val);
     set_grid_card_cell(
       back_btn, sub_scr,
       sp_ord.back_pos % COLS, sp_ord.back_pos / COLS,

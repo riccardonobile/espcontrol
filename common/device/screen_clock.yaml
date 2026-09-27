@@ -42,7 +42,7 @@ lvgl:
           y: 0
           width: 100%
           height: 100%
-          bg_color: 0x000000
+          bg_color: $theme_background_color
           bg_opa: 100%
           radius: 0
           border_width: 0
@@ -55,7 +55,7 @@ lvgl:
             - label:
                 id: clock_label
                 text_font: font_clock_display
-                text_color: 0xFFFFFF
+                text_color: $theme_text_primary_color
                 text: "00:00"
       - obj:
           id: clock_image_overlay

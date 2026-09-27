@@ -95,13 +95,13 @@ inline void wifi_qr_set_visible(lv_obj_t *obj, bool visible) {
 inline void wifi_qr_style_tab(lv_obj_t *btn, bool active) {
   if (!btn) return;
   lv_obj_set_style_bg_color(
-    btn, lv_color_hex(active ? DARK_TEXT_PRIMARY : SECONDARY_GREY), LV_PART_MAIN);
+    btn, lv_color_hex(active ? THEME_TEXT_PRIMARY : THEME_SURFACE_PRIMARY), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(btn, active ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
   lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
   lv_obj_t *label = lv_obj_get_child(btn, 0);
   if (label) {
     lv_obj_set_style_text_color(
-      label, lv_color_hex(active ? TERTIARY_GREY : DARK_TEXT_PRIMARY), LV_PART_MAIN);
+      label, lv_color_hex(active ? THEME_SURFACE_SECONDARY : THEME_TEXT_PRIMARY), LV_PART_MAIN);
   }
 }
 
@@ -256,7 +256,7 @@ inline lv_obj_t *wifi_qr_create_tab_button(lv_obj_t *parent, const char *icon,
   if (!parent) return nullptr;
   lv_obj_t *btn = lv_btn_create(parent);
   if (!btn) return nullptr;
-  lv_obj_set_style_bg_color(btn, lv_color_hex(SECONDARY_GREY), LV_PART_MAIN);
+  lv_obj_set_style_bg_color(btn, lv_color_hex(THEME_SURFACE_PRIMARY), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
   lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
   lv_obj_set_style_shadow_width(btn, 0, LV_PART_MAIN);
@@ -266,7 +266,7 @@ inline lv_obj_t *wifi_qr_create_tab_button(lv_obj_t *parent, const char *icon,
   lv_obj_t *label = lv_label_create(btn);
   if (label) {
     lv_label_set_display_text(label, icon);
-    lv_obj_set_style_text_color(label, lv_color_hex(DARK_TEXT_PRIMARY), LV_PART_MAIN);
+    lv_obj_set_style_text_color(label, lv_color_hex(THEME_TEXT_PRIMARY), LV_PART_MAIN);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     if (wifi_qr_icon_font_ref())
       lv_obj_set_style_text_font(label, wifi_qr_icon_font_ref(), LV_PART_MAIN);
@@ -352,9 +352,9 @@ inline void wifi_qr_open_modal(const ParsedCfg &config, lv_obj_t *owner) {
     lv_obj_set_style_flex_cross_place(ui.details_view, LV_FLEX_ALIGN_CENTER, LV_PART_MAIN);
     lv_obj_set_style_pad_row(ui.details_view, shell.layout.title_gap, LV_PART_MAIN);
     wifi_qr_create_detail_label(ui.details_view,
-      espcontrol_i18n_key("network"), DARK_TEXT_MUTED, wifi_qr_heading_font_ref());
+      espcontrol_i18n_key("network"), THEME_TEXT_MUTED, wifi_qr_heading_font_ref());
     wifi_qr_create_detail_label(
-      ui.details_view, ssid.c_str(), DARK_TEXT_PRIMARY, wifi_qr_heading_font_ref());
+      ui.details_view, ssid.c_str(), THEME_TEXT_PRIMARY, wifi_qr_heading_font_ref());
     lv_obj_t *spacer = lv_obj_create(ui.details_view);
     if (spacer) {
       lv_obj_set_size(spacer, 1, std::max<lv_coord_t>(16, shell.layout.title_gap * 2));
@@ -364,12 +364,12 @@ inline void wifi_qr_open_modal(const ParsedCfg &config, lv_obj_t *owner) {
       lv_obj_clear_flag(spacer, LV_OBJ_FLAG_SCROLLABLE);
     }
     wifi_qr_create_detail_label(
-      ui.details_view, espcontrol_i18n_key("password"), DARK_TEXT_MUTED,
+      ui.details_view, espcontrol_i18n_key("password"), THEME_TEXT_MUTED,
       wifi_qr_heading_font_ref());
     wifi_qr_create_detail_label(
       ui.details_view,
       password.empty() ? espcontrol_i18n_key("none") : password.c_str(),
-      DARK_TEXT_PRIMARY, wifi_qr_heading_font_ref());
+      THEME_TEXT_PRIMARY, wifi_qr_heading_font_ref());
   }
 
   if (std::find(ui.tabs.begin(), ui.tabs.end(), WifiQrTab::GUEST) != ui.tabs.end()) {
@@ -377,13 +377,13 @@ inline void wifi_qr_open_modal(const ParsedCfg &config, lv_obj_t *owner) {
     ui.guest_generation = ha_subscription_generation();
     ui.guest_view = wifi_qr_create_view(ui.panel);
     ui.guest_group = wifi_qr_create_view(ui.guest_view);
-    lv_obj_set_style_bg_color(ui.guest_group, lv_color_hex(SECONDARY_GREY), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(ui.guest_group, lv_color_hex(THEME_SURFACE_PRIMARY), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(ui.guest_group, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_pad_all(ui.guest_group, 0, LV_PART_MAIN);
     ui.guest_on = control_modal_create_flat_icon_button(ui.guest_group,
-      find_icon("Wifi"), wifi_qr_icon_font_ref(), SECONDARY_GREY, LV_OPA_TRANSP);
+      find_icon("Wifi"), wifi_qr_icon_font_ref(), THEME_SURFACE_PRIMARY, LV_OPA_TRANSP);
     ui.guest_off = control_modal_create_flat_icon_button(ui.guest_group,
-      find_icon("Wifi Off"), wifi_qr_icon_font_ref(), SECONDARY_GREY, LV_OPA_TRANSP);
+      find_icon("Wifi Off"), wifi_qr_icon_font_ref(), THEME_SURFACE_PRIMARY, LV_OPA_TRANSP);
     ui.guest_toggle.callback = wifi_qr_toggle_guest;
     control_modal_setup_binary_toggle(ui.guest_group, ui.guest_on, ui.guest_off, &ui.guest_toggle);
     ui.guest_timer = lv_timer_create([](lv_timer_t *) { wifi_qr_guest_tick(); }, 250, nullptr);
@@ -405,7 +405,7 @@ inline void wifi_qr_open_modal(const ParsedCfg &config, lv_obj_t *owner) {
 
   if (!ui.qr && ui.qr_view) {
     lv_obj_t *message = wifi_qr_create_detail_label(ui.qr_view,
-      espcontrol_i18n_key("unable_to_create_qr_code"), DARK_TEXT_PRIMARY);
+      espcontrol_i18n_key("unable_to_create_qr_code"), THEME_TEXT_PRIMARY);
     if (message) lv_obj_center(message);
   }
 }

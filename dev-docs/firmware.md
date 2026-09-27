@@ -30,6 +30,23 @@ header-only C++ under `components/espcontrol/`.
 
 Visual setup and runtime wiring are separate. A new card often needs both.
 
+## Device UI colors
+
+The firmware currently has one dark presentation. Semantic neutral colors are
+declared as ESPHome substitutions in `common/theme/colors.yaml` and as C++
+constants in `components/espcontrol/button_grid_style.h`. Device packages include
+the shared YAML file; `common/theme/button.yaml` applies the LVGL button defaults,
+then local C++ styles and state callbacks may override them. Keep that styling
+order when changing a card. The `check:firmware-display-tokens` task verifies
+the authored YAML and C++ dark RGB values remain in parity.
+
+`CardPalette` carries each card's user accent/on color and configured off/sensor
+colors; it is not a global theme. Functional alarm, media error, and climate
+colors, QR black/white, artwork and image colors, and user-selected clock text
+stay outside the neutral theme values. Display color correction still applies
+where the existing C++ card path uses it. There is no light palette or runtime
+theme selection yet.
+
 Media slider visuals own their runtime context as soon as visual setup creates
 them. Teardown must cancel both geometry and media-position timers, remove the
 parent resize callback, and clear LVGL user data before freeing the context.

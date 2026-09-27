@@ -45,9 +45,9 @@ inline FanCardCtx *fan_control_driver_track(
 }
 
 struct FanControlDriverEnvironment {
-  uint32_t on_color = DEFAULT_SLIDER_COLOR;
-  uint32_t off_color = SECONDARY_GREY;
-  uint32_t tertiary_color = TERTIARY_GREY;
+  uint32_t on_color = DEFAULT_ACCENT_COLOR;
+  uint32_t off_color = THEME_SURFACE_PRIMARY;
+  uint32_t tertiary_color = THEME_SURFACE_SECONDARY;
   const lv_font_t *label_font = nullptr;
   const lv_font_t *icon_font = nullptr;
   int width_compensation_percent = 100;
@@ -59,11 +59,11 @@ inline FanControlDriverEnvironment fan_control_driver_environment(
     const BtnSlot &slot) {
   FanControlDriverEnvironment environment;
   environment.on_color = palette.has_on
-    ? palette.on_val : DEFAULT_SLIDER_COLOR;
+    ? palette.on_val : DEFAULT_ACCENT_COLOR;
   environment.off_color = palette.has_off
-    ? palette.off_val : SECONDARY_GREY;
+    ? palette.off_val : THEME_SURFACE_PRIMARY;
   environment.tertiary_color = palette.has_sensor_color
-    ? palette.sensor_val : TERTIARY_GREY;
+    ? palette.sensor_val : THEME_SURFACE_SECONDARY;
   environment.label_font = slot.text_lbl
     ? lv_obj_get_style_text_font(slot.text_lbl, LV_PART_MAIN) : nullptr;
   environment.icon_font = display_icon_font(display);

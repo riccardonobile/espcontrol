@@ -61,7 +61,7 @@ inline bool media_driver_setup_visual(
     : nullptr;
   setup_media_card(
     slot, config,
-    palette.has_on ? palette.on_val : DEFAULT_SLIDER_COLOR,
+    palette.has_on ? palette.on_val : DEFAULT_ACCENT_COLOR,
     palette.off_val, palette.sensor_val,
     display_sensor_font(display),
     compact_portrait_cover_art
@@ -132,9 +132,9 @@ inline bool media_driver_cleanup(
 
 struct MediaDriverEnvironment {
   const GridConfig *grid_config = nullptr;
-  uint32_t accent_color = DEFAULT_SLIDER_COLOR;
-  uint32_t secondary_color = SECONDARY_GREY;
-  uint32_t tertiary_color = TERTIARY_GREY;
+  uint32_t accent_color = DEFAULT_ACCENT_COLOR;
+  uint32_t secondary_color = THEME_SURFACE_PRIMARY;
+  uint32_t tertiary_color = THEME_SURFACE_SECONDARY;
   const lv_font_t *sensor_font = nullptr;
   const lv_font_t *control_title_font = nullptr;
   const lv_font_t *control_artist_font = nullptr;
@@ -152,11 +152,11 @@ inline MediaDriverEnvironment media_driver_environment(
   MediaDriverEnvironment environment;
   environment.grid_config = &grid_config;
   environment.accent_color = palette.has_on
-    ? palette.on_val : DEFAULT_SLIDER_COLOR;
+    ? palette.on_val : DEFAULT_ACCENT_COLOR;
   environment.secondary_color = palette.has_off
-    ? palette.off_val : SECONDARY_GREY;
+    ? palette.off_val : THEME_SURFACE_PRIMARY;
   environment.tertiary_color = palette.has_sensor_color
-    ? palette.sensor_val : TERTIARY_GREY;
+    ? palette.sensor_val : THEME_SURFACE_SECONDARY;
   environment.sensor_font = display_sensor_font(display);
   environment.control_title_font = display_media_control_title_font(display);
   environment.volume_number_font = display_volume_number_font(display);
