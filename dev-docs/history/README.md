@@ -8,3 +8,6 @@ subsystem page, playbook, or device YAML for live behavior and values.
   build size, RAM, duration, and linker measurements captured on 2026-07-14.
 - [Parallel Check Benchmark](parallel-check-benchmark.md) - sequential versus
   four-worker local check timing captured on 2026-07-12.
+- [Theme Architecture Audit](theme-architecture-audit-2026-09-27.md) - device
+  color ownership, styling paths, and token-normalization baseline captured on
+  2026-09-27.
