@@ -16,9 +16,9 @@
 struct lv_obj_t {};
 struct lv_timer_t {};
 struct lv_font_t {};
-constexpr uint32_t DEFAULT_SLIDER_COLOR = 0;
-constexpr uint32_t SECONDARY_GREY = 0;
-constexpr uint32_t TERTIARY_GREY = 0;
+constexpr uint32_t DEFAULT_ACCENT_COLOR = 0;
+constexpr uint32_t THEME_SURFACE_PRIMARY = 0;
+constexpr uint32_t THEME_SURFACE_SECONDARY = 0;
 constexpr size_t HA_SHORT_STATE_MAX_LEN = 64;
 constexpr size_t HA_FRIENDLY_NAME_MAX_LEN = 256;
 
