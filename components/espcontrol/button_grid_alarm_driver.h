@@ -50,14 +50,14 @@ struct AlarmDriverEnvironment {
   int slot_count = 0;
   int grid_cols = 1;
   uint32_t on_color = DEFAULT_ACCENT_COLOR;
-  uint32_t off_color = THEME_SURFACE_PRIMARY;
-  uint32_t tertiary_color = THEME_SURFACE_SECONDARY;
+  uint32_t off_color = theme_display_color(current_theme().surface_primary);
+  uint32_t tertiary_color = theme_display_color(current_theme().surface_secondary);
   const lv_font_t *icon_font = nullptr;
   const lv_font_t *arming_title_font = nullptr;
   const lv_font_t *value_font = nullptr;
   const lv_font_t *key_font = nullptr;
   const lv_font_t *label_font = nullptr;
-  lv_color_t text_color = lv_color_hex(THEME_TEXT_PRIMARY);
+  lv_color_t text_color = lv_color_hex(current_theme().text_primary);
   int width_compensation_percent = 100;
   std::function<void(espcontrol::DisplayTakeoverKind)> begin_display_takeover;
   std::function<void(espcontrol::DisplayTakeoverKind)> end_display_takeover;
@@ -85,7 +85,7 @@ inline AlarmDriverEnvironment alarm_driver_environment(
   environment.key_font = display_optional_media_title_font(display);
   environment.text_color = slot.text_lbl
     ? lv_obj_get_style_text_color(slot.text_lbl, LV_PART_MAIN)
-    : lv_color_hex(THEME_TEXT_PRIMARY);
+    : lv_color_hex(current_theme().text_primary);
   environment.width_compensation_percent =
     display_main_width_percent(display);
   environment.begin_display_takeover = grid_config.begin_display_takeover;

@@ -1,0 +1,109 @@
+#pragma once
+
+#include <cstdint>
+
+#include "display_color.h"
+
+// Raw RGB values. Device/profile correction belongs at the LVGL call site,
+// just as it did before the palette was introduced.
+struct ThemePalette {
+  uint32_t background;
+  uint32_t surface_primary;
+  uint32_t surface_secondary;
+  uint32_t text_primary;
+  uint32_t text_muted;
+  uint32_t text_inverted;
+  uint32_t text_disabled;
+  uint32_t border;
+  uint32_t control_neutral;
+  uint32_t track_background;
+  uint32_t overlay;
+};
+
+constexpr ThemePalette make_dark_theme() {
+  ThemePalette theme{};
+  theme.background = 0x000000;
+  theme.surface_primary = 0x313131;
+  theme.surface_secondary = 0x212121;
+  theme.text_primary = 0xFFFFFF;
+  theme.text_muted = 0xB0B0B0;
+  theme.text_inverted = 0x000000;
+  theme.text_disabled = 0x707070;
+  theme.border = 0x313131;
+  theme.control_neutral = 0x313131;
+  theme.track_background = 0x313131;
+  theme.overlay = 0x000000;
+  return theme;
+}
+
+inline constexpr ThemePalette DARK_THEME = make_dark_theme();
+
+// Palette instances must outlive their use by the UI. Firmware installs only
+// DARK_THEME today; a host test may install a temporary palette in scope.
+inline const ThemePalette *&active_theme_palette_ref() {
+  static const ThemePalette *palette = &DARK_THEME;
+  return palette;
+}
+
+inline const ThemePalette &current_theme() {
+  return *active_theme_palette_ref();
+}
+
+inline void set_active_theme_palette(const ThemePalette &palette) {
+  active_theme_palette_ref() = &palette;
+}
+
+inline constexpr uint32_t theme_display_color(uint32_t raw_rgb) {
+  return correct_display_color(raw_rgb);
+}
+
+// A small, allocation-free dispatch boundary for live LVGL surfaces. Owners
+// register after construction and unregister before deletion; callbacks apply
+// the active palette in place without changing LVGL state or rebuilding cards.
+using ThemeRefreshCallback = void (*)(void *, const ThemePalette &);
+
+struct ThemeRefreshBinding {
+  void *owner = nullptr;
+  ThemeRefreshCallback callback = nullptr;
+  void *context = nullptr;
+  const ThemePalette *applied = &DARK_THEME;
+};
+
+inline ThemeRefreshBinding (&theme_refresh_bindings())[8] {
+  static ThemeRefreshBinding bindings[8]{};
+  return bindings;
+}
+
+inline bool register_theme_refresh(void *owner, ThemeRefreshCallback callback,
+                                   void *context) {
+  if (!owner || !callback) return false;
+  for (auto &binding : theme_refresh_bindings()) {
+    if (binding.owner == owner) {
+      binding.callback = callback;
+      binding.context = context;
+      return true;
+    }
+  }
+  for (auto &binding : theme_refresh_bindings()) {
+    if (!binding.owner) {
+      binding = {owner, callback, context};
+      return true;
+    }
+  }
+  return false;
+}
+
+inline void unregister_theme_refresh(void *owner) {
+  for (auto &binding : theme_refresh_bindings()) {
+    if (binding.owner == owner) binding = {};
+  }
+}
+
+inline void apply_current_theme() {
+  for (auto &binding : theme_refresh_bindings()) {
+    if (!binding.callback || binding.applied == &current_theme()) continue;
+    void *owner = binding.owner;
+    binding.callback(binding.context, current_theme());
+    if (binding.owner == owner) binding.applied = &current_theme();
+  }
+}
