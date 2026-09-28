@@ -11,7 +11,7 @@ checks live in [Task Playbooks](playbooks/README.md).
 | Node.js and npm | TypeScript, web bundles, VitePress, JavaScript checks, and task entry points | CI uses Node.js 24. Run `npm ci` after checkout or lockfile changes. |
 | Python 3 | Generators, validators, the check graph, and local ESPHome wrapper | Python must include `venv` support for CI-equivalent dependency isolation. |
 | CMake and CTest | Host-side firmware tests in `check:fast` | CMake 3.20 or newer. CI falls back to 3.31.10. |
-| C++ compiler | Firmware parser, modal-layout, and saved-config host checks | A C++17 compiler available as `c++`, `g++`, or `clang++`. |
+| C++ compiler | Firmware parser, modal-layout, and saved-config host checks | A C++17 compiler available as `c++`, `g++`, or `clang++`. MSVC alone is not supported by the host checks. |
 | Playwright Chromium | Browser-level configurator checks | The npm package is pinned by `package-lock.json`; install its Chromium runtime separately. |
 | ESPHome CLI | Local compile, flash, and log workflows | Match `ESPHOME_VERSION` in `.github/esphome.env`; `scripts/local_esphome.py` rejects a different version. |
 | Docker | Full firmware matrix, nightly, and release builds | A running Docker daemon able to pull the pinned ESPHome image. |
@@ -33,6 +33,12 @@ npx playwright install --with-deps chromium
 
 Install CMake 3.20 or newer and a C++17 compiler through the host package
 manager. The CI fallback version is documented in `.github/workflows/ci.yml`.
+On Windows, run the host check suite in a Linux environment with the documented
+GNU or Clang compiler until its CMake and Python test commands support MSVC.
+The Visual Studio Developer shell lets CMake find `cl.exe`, but the current
+tests pass GNU-style flags and cannot compile with it.
+For native Windows Python checks, set `PYTHONUTF8=1` in the shell first so
+Python reads repository UTF-8 files independently of the system code page.
 
 For local firmware work, install the ESPHome version named in
 `.github/esphome.env` into the active Python environment. Full matrix and

@@ -263,7 +263,11 @@ def run_generated_transaction_self_test():
         transaction.commit()
         if first.read_text(encoding="utf-8") != "first-new" or second.read_text(encoding="utf-8") != "second-new":
             raise BuildError("Generated transaction did not publish the complete set")
-        if first.stat().st_mode & 0o777 != 0o640 or third.stat().st_mode & 0o777 != 0o644:
+        # Windows filesystems do not expose POSIX mode bits reliably. The
+        # publish/rollback assertions below still run on every platform.
+        if os.name != "nt" and (
+            first.stat().st_mode & 0o777 != 0o640 or third.stat().st_mode & 0o777 != 0o644
+        ):
             raise BuildError("Generated transaction did not preserve safe file permissions")
 
         replacements = 0
@@ -287,7 +291,7 @@ def run_generated_transaction_self_test():
             raise BuildError("Generated transaction self-test did not exercise rollback")
         if first.read_text(encoding="utf-8") != "first-new" or second.read_text(encoding="utf-8") != "second-new":
             raise BuildError("Generated transaction did not restore the previous set")
-        if first.stat().st_mode & 0o777 != 0o640:
+        if os.name != "nt" and first.stat().st_mode & 0o777 != 0o640:
             raise BuildError("Generated transaction rollback did not restore file permissions")
 
         if third.read_text() != "third-new":
