@@ -61,6 +61,7 @@
 #include "network_status.h"
 #include "button_grid_alarm.h"
 #include "button_grid_navigation.h"
+#include "theme_runtime_ui.h"
 #include "button_grid_grid.h"
 
 #include "button_grid_remote_modal.h"

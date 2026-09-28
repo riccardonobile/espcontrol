@@ -51,8 +51,8 @@ RULES: tuple[tuple[re.Pattern[str], str, set[str]], ...] = (
     ),
 )
 
-# The YAML substitutions and C++ constants are authored independently. Guard
-# their dark RGB parity until the firmware has one shared theme source.
+# YAML substitutions and the runtime C++ palette are authored independently.
+# Guard their dark RGB parity until both can consume one shared source.
 THEME_RGB = {
     "BACKGROUND": 0x000000,
     "SURFACE_PRIMARY": 0x313131,
@@ -75,33 +75,36 @@ LEGACY_NEUTRAL_NAMES = re.compile(
 
 def check_theme_colors(root: Path) -> list[str]:
     yaml_path = root / "common/theme/colors.yaml"
-    cpp_path = root / "components/espcontrol/button_grid_style.h"
-    if not yaml_path.exists() and not cpp_path.exists():
+    palette_path = root / "components/espcontrol/theme_palette.h"
+    accent_path = root / "components/espcontrol/button_grid_style.h"
+    if not yaml_path.exists() and not palette_path.exists():
         return []  # Isolated display-token self-test fixtures.
     failures: list[str] = []
-    if not yaml_path.exists() or not cpp_path.exists():
-        return ["semantic theme colors need both YAML and C++ definitions"]
+    if not yaml_path.exists() or not palette_path.exists() or not accent_path.exists():
+        return ["semantic theme colors need YAML, the runtime palette, and the accent boundary"]
     yaml_text = yaml_path.read_text(encoding="utf-8")
-    cpp_text = cpp_path.read_text(encoding="utf-8")
+    palette_text = palette_path.read_text(encoding="utf-8")
+    accent_text = accent_path.read_text(encoding="utf-8")
     for role, rgb in THEME_RGB.items():
         yaml_name = f"theme_{role.lower()}_color"
         yaml_value = re.search(rf"^  {yaml_name}: [\"']?0x([0-9A-Fa-f]{{6}})[\"']?$", yaml_text, re.M)
         if yaml_value is None or int(yaml_value.group(1), 16) != rgb:
             failures.append(f"common/theme/colors.yaml: {yaml_name} must remain 0x{rgb:06X}")
-        cpp_name = f"THEME_{role}"
-        if role in {"SURFACE_PRIMARY", "SURFACE_SECONDARY"}:
-            cpp_name += "_RAW"
-        cpp_value = re.search(rf"\bconstexpr uint32_t {cpp_name} = 0x([0-9A-Fa-f]{{6}});", cpp_text)
-        if role in {"BORDER", "CONTROL_NEUTRAL", "TRACK_BACKGROUND"}:
-            if f"constexpr uint32_t {cpp_name} = THEME_SURFACE_PRIMARY;" not in cpp_text:
-                failures.append(f"button_grid_style.h: {cpp_name} must use the primary surface")
-        elif cpp_value is None or int(cpp_value.group(1), 16) != rgb:
-            failures.append(f"button_grid_style.h: {cpp_name} must remain 0x{rgb:06X}")
-    if "constexpr uint32_t DEFAULT_ACCENT_COLOR_RAW = 0xFF8C00;" not in cpp_text:
+        field = role.lower()
+        cpp_value = re.search(rf"\btheme\.{field}\s*=\s*0x([0-9A-Fa-f]{{6}});", palette_text)
+        if cpp_value is None or int(cpp_value.group(1), 16) != rgb:
+            failures.append(f"theme_palette.h: {field} must remain raw RGB 0x{rgb:06X}")
+    if "inline constexpr ThemePalette DARK_THEME = make_dark_theme();" not in palette_text:
+        failures.append("theme_palette.h: define the concrete Dark palette")
+    if "inline const ThemePalette &current_theme()" not in palette_text:
+        failures.append("theme_palette.h: provide runtime current-theme access")
+    if "constexpr uint32_t DEFAULT_ACCENT_COLOR_RAW = 0xFF8C00;" not in accent_text:
         failures.append("button_grid_style.h: preserve the separate default user accent")
+    neutral_global = re.compile(r"\bTHEME_(?:BACKGROUND|SURFACE_[A-Z_]+|TEXT_[A-Z_]+|BORDER|CONTROL_NEUTRAL|TRACK_BACKGROUND|OVERLAY)\b")
     for path in (root / "components/espcontrol").glob("*.h"):
-        if LEGACY_NEUTRAL_NAMES.search(path.read_text(encoding="utf-8")):
-            failures.append(f"{path.relative_to(root)}: use semantic neutral color names")
+        text = path.read_text(encoding="utf-8")
+        if LEGACY_NEUTRAL_NAMES.search(text) or neutral_global.search(text):
+            failures.append(f"{path.relative_to(root)}: consume the runtime palette, not global neutral colors")
     return failures
 
 
@@ -297,12 +300,17 @@ def run_self_test() -> None:
         (root / "common/theme").mkdir(parents=True)
         (root / "components/espcontrol").mkdir(parents=True)
         yaml_path = root / "common/theme/colors.yaml"
-        cpp_path = root / "components/espcontrol/button_grid_style.h"
+        cpp_path = root / "components/espcontrol/theme_palette.h"
+        accent_path = root / "components/espcontrol/button_grid_style.h"
         yaml_path.write_text((ROOT / "common/theme/colors.yaml").read_text(encoding="utf-8"), encoding="utf-8")
-        cpp_path.write_text((ROOT / "components/espcontrol/button_grid_style.h").read_text(encoding="utf-8"), encoding="utf-8")
+        cpp_path.write_text((ROOT / "components/espcontrol/theme_palette.h").read_text(encoding="utf-8"), encoding="utf-8")
+        accent_path.write_text((ROOT / "components/espcontrol/button_grid_style.h").read_text(encoding="utf-8"), encoding="utf-8")
         assert not check_theme_colors(root)
         yaml_path.write_text(yaml_path.read_text(encoding="utf-8").replace("0xB0B0B0", "0xB0B0B1"), encoding="utf-8")
         assert any("theme_text_muted_color" in failure for failure in check_theme_colors(root))
+        yaml_path.write_text((ROOT / "common/theme/colors.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+        cpp_path.write_text(cpp_path.read_text(encoding="utf-8").replace("theme.text_muted = 0xB0B0B0", "theme.text_muted = 0xB0B0B1"), encoding="utf-8")
+        assert any("text_muted" in failure for failure in check_theme_colors(root))
     print("Firmware display token self-tests passed.")
 
 

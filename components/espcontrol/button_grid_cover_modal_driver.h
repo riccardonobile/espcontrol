@@ -66,7 +66,7 @@ inline CoverControlCtx *cover_modal_driver_track(
 
 struct CoverModalDriverEnvironment {
   uint32_t accent_color = DEFAULT_ACCENT_COLOR;
-  uint32_t secondary_color = THEME_SURFACE_PRIMARY;
+  uint32_t secondary_color = theme_display_color(current_theme().surface_primary);
   const lv_font_t *option_title_font = nullptr;
   const lv_font_t *option_value_font = nullptr;
   const lv_font_t *option_menu_font = nullptr;

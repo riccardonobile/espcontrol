@@ -32,19 +32,31 @@ Visual setup and runtime wiring are separate. A new card often needs both.
 
 ## Device UI colors
 
-The firmware currently has one dark presentation. Semantic neutral colors are
-declared as ESPHome substitutions in `common/theme/colors.yaml` and as C++
-constants in `components/espcontrol/button_grid_style.h`. Device packages include
-the shared YAML file; `common/theme/button.yaml` applies the LVGL button defaults,
-then local C++ styles and state callbacks may override them. Keep that styling
-order when changing a card. The `check:firmware-display-tokens` task verifies
-the authored YAML and C++ dark RGB values remain in parity.
+The firmware currently has one dark presentation. Compile-time ESPHome color
+substitutions live in `common/theme/colors.yaml`. Runtime C++ reads raw RGB
+roles from `ThemePalette` in `components/espcontrol/theme_palette.h` through
+`current_theme()`; `theme_display_color()` applies the existing device color
+correction at C++ call sites. Device packages include the shared YAML file;
+`common/theme/button.yaml` applies LVGL button defaults, then local C++ styles
+and state callbacks may override them. Keep that order when styling cards.
+`check:firmware-display-tokens` verifies YAML and C++ dark RGB parity.
+
+`apply_current_theme()` is the in-place refresh dispatch boundary. Persistent
+grid and HUD objects, the shared modal shell, and the network status overlay
+register their live LVGL targets. Dark-to-Dark refresh is a no-op, preserving
+current state selectors and user accent. Before exposing another palette, add
+refresh adapters for slider tracks and handles, climate/media/alarm and other
+modal controls, card descendants with special state styling, and YAML-created
+loading/connectivity/setup pages. The shared shell callback refreshes its panel
+and chrome only; modal-specific state and functional colors remain with their
+owners. YAML substitutions themselves remain compile-time. The refresh registry
+uses fixed storage and does not rebuild cards or Home Assistant subscriptions.
 
 `CardPalette` carries each card's user accent/on color and configured off/sensor
 colors; it is not a global theme. Functional alarm, media error, and climate
 colors, QR black/white, artwork and image colors, and user-selected clock text
 stay outside the neutral theme values. Display color correction still applies
-where the existing C++ card path uses it. There is no light palette or runtime
+where the existing C++ card path uses it. There is no light palette or user
 theme selection yet.
 
 Media slider visuals own their runtime context as soon as visual setup creates
