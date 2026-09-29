@@ -1,8 +1,9 @@
 #pragma once
 
-// Runtime LVGL targets for the palette refresh boundary. The ESPHome YAML
-// creates these persistent objects; the C++ theme updates them in place when
-// the active palette changes. Dark -> Dark leaves their existing styles alone.
+#include "theme_runtime_static.h"
+
+// Runtime LVGL targets for the palette refresh boundary. Dark -> Dark leaves
+// existing styles, state, and Home Assistant bindings alone.
 
 struct ThemeGridTargets {
   lv_obj_t *main_page = nullptr;
@@ -32,9 +33,11 @@ inline void theme_apply_grid_button(lv_obj_t *button, uint32_t neutral,
   // owned by the persisted user accent and the card's state callbacks.
   lv_obj_set_style_bg_color(button, lv_color_hex(neutral), LV_PART_MAIN);
   lv_obj_set_style_text_color(button, lv_color_hex(theme.text_primary), LV_PART_MAIN);
-  lv_obj_set_style_text_color(button, lv_color_hex(theme.text_primary),
+  // Accent/checked foreground stays white for contrast even when the neutral
+  // palette uses dark text. The accent itself remains card/user-owned.
+  lv_obj_set_style_text_color(button, lv_color_hex(CARD_ACCENT_TEXT_COLOR),
                               static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_CHECKED);
-  lv_obj_set_style_text_color(button, lv_color_hex(theme.text_primary),
+  lv_obj_set_style_text_color(button, lv_color_hex(CARD_ACCENT_TEXT_COLOR),
                               static_cast<lv_style_selector_t>(LV_PART_MAIN) | LV_STATE_PRESSED);
   sync_card_checked_text_color(button);
   set_card_content_disabled(button, lv_obj_has_state(button, LV_STATE_DISABLED));
@@ -45,17 +48,28 @@ inline void theme_apply_grid(void *context, const ThemePalette &theme) {
   if (!targets.main_page) return;
   lv_obj_set_style_bg_color(targets.main_page, lv_color_hex(theme.background), LV_PART_MAIN);
   const uint32_t neutral = theme_grid_correct_color(theme.surface_primary, targets);
+  const ThemeTreeCorrection correction = {targets.red_percent, targets.green_percent,
+                                          targets.blue_percent};
   for (int i = 0; i < targets.count; ++i) {
-    if (targets.neutral_buttons[i])
+    if (targets.neutral_buttons[i] && targets.buttons[i]) {
+      const bool accent_state = lv_obj_has_state(targets.buttons[i], LV_STATE_CHECKED) ||
+                                lv_obj_has_state(targets.buttons[i], LV_STATE_PRESSED);
+      theme_restyle_tree(targets.buttons[i], theme_refresh_previous(), theme, accent_state, correction);
       theme_apply_grid_button(targets.buttons[i], neutral, theme);
+    }
   }
   for (auto &entry : navigation_subpages()) {
     if (!entry.screen) continue;
     lv_obj_set_style_bg_color(entry.screen, lv_color_hex(theme.background), LV_PART_MAIN);
+    theme_restyle_tree(entry.back_button, theme_refresh_previous(), theme, false, correction);
     theme_apply_grid_button(entry.back_button, neutral, theme);
     for (auto &card : entry.cards) {
-      if (card.neutral_background)
+      if (card.neutral_background && card.button) {
+        const bool accent_state = lv_obj_has_state(card.button, LV_STATE_CHECKED) ||
+                                  lv_obj_has_state(card.button, LV_STATE_PRESSED);
+        theme_restyle_tree(card.button, theme_refresh_previous(), theme, accent_state, correction);
         theme_apply_grid_button(card.button, neutral, theme);
+      }
     }
   }
 }

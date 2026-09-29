@@ -544,6 +544,7 @@ inline void send_fan_step_action(FanCardCtx *ctx, bool increase) {
 
 inline void fan_control_style_tab(lv_obj_t *btn, bool active, uint32_t accent_color) {
   if (!btn) return;
+  control_modal_track_theme_tab(btn);
   (void) accent_color;
   lv_obj_set_style_bg_color(
     btn, lv_color_hex(active ? current_theme().text_primary : theme_display_color(current_theme().surface_primary)), LV_PART_MAIN);

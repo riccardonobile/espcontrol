@@ -68,6 +68,9 @@ lvgl:
 
 esphome:
   on_boot:
+    - priority: -210
+      then:
+        - lambda: 'register_theme_static_page(id(loading_page)->obj);'
     - priority: -200
       then:
         - lvgl.resume:

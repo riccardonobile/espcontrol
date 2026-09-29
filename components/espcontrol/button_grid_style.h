@@ -6,25 +6,21 @@
 
 constexpr uint32_t DEFAULT_ACCENT_COLOR_RAW = 0xFF8C00;
 constexpr uint32_t DEFAULT_ACCENT_COLOR = correct_display_color(DEFAULT_ACCENT_COLOR_RAW);
+constexpr uint32_t CARD_ACCENT_TEXT_COLOR = 0xFFFFFF;
+constexpr uint32_t CARD_CONTRAST_DARK_COLOR = theme_display_color(DARK_THEME.surface_secondary);
 
-constexpr uint32_t readable_text_color_for_bg(uint32_t bg_color,
-                                               const ThemePalette &theme) {
+constexpr uint32_t readable_text_color_for_bg(uint32_t bg_color) {
   uint32_t red = (bg_color >> 16) & 0xFF;
   uint32_t green = (bg_color >> 8) & 0xFF;
   uint32_t blue = bg_color & 0xFF;
   uint32_t brightness = (red * 299 + green * 587 + blue * 114) / 1000;
-  return brightness > 186 ? theme_display_color(theme.surface_secondary)
-                          : theme.text_primary;
+  return brightness > 186 ? CARD_CONTRAST_DARK_COLOR : CARD_ACCENT_TEXT_COLOR;
 }
 
-inline uint32_t readable_text_color_for_bg(uint32_t bg_color) {
-  return readable_text_color_for_bg(bg_color, current_theme());
-}
-
-static_assert(readable_text_color_for_bg(0xFFFFFF, DARK_THEME) ==
+static_assert(readable_text_color_for_bg(0xFFFFFF) ==
                   theme_display_color(DARK_THEME.surface_secondary),
               "light backgrounds need dark text");
-static_assert(readable_text_color_for_bg(0x000000, DARK_THEME) ==
+static_assert(readable_text_color_for_bg(0x000000) ==
                   DARK_THEME.text_primary,
               "dark backgrounds need light text");
 

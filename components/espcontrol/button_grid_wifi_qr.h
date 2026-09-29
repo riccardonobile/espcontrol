@@ -94,6 +94,7 @@ inline void wifi_qr_set_visible(lv_obj_t *obj, bool visible) {
 
 inline void wifi_qr_style_tab(lv_obj_t *btn, bool active) {
   if (!btn) return;
+  control_modal_track_theme_tab(btn);
   lv_obj_set_style_bg_color(
     btn, lv_color_hex(active ? current_theme().text_primary : theme_display_color(current_theme().surface_primary)), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(btn, active ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);

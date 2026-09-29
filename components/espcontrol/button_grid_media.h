@@ -2906,6 +2906,7 @@ inline void media_control_apply_volume_percent(MediaControlCtx *ctx, int pct,
 
 inline void media_control_style_tab(lv_obj_t *btn, bool active) {
   if (!btn) return;
+  control_modal_track_theme_tab(btn);
   lv_obj_set_style_bg_color(
     btn, lv_color_hex(active ? current_theme().text_primary : theme_display_color(current_theme().surface_primary)), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(btn, active ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
@@ -3437,9 +3438,9 @@ inline void media_control_refresh_speaker_row(MediaControlCtx *ctx,
   if (!row->pending) row->selected = media_control_group_contains(ctx, row->entity_id);
   const bool show_volume = media_control_speaker_row_shows_volume(ctx, row);
   const bool visible = true;
-  const uint32_t bg_color = row->selected ? ctx->accent_color : ctx->secondary_color;
+  const uint32_t bg_color = row->selected ? ctx->accent_color : theme_display_color(current_theme().surface_primary);
   const uint32_t text_color = row->selected
-    ? current_theme().text_primary : readable_text_color_for_bg(bg_color);
+    ? CARD_ACCENT_TEXT_COLOR : readable_text_color_for_bg(bg_color);
   if (row->row) {
     if (visible) lv_obj_clear_flag(row->row, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(row->row, LV_OBJ_FLAG_HIDDEN);

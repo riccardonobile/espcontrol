@@ -400,7 +400,7 @@ lvgl:
                 x: -24
                 y: -24
                 radius: 1000
-                bg_color: $theme_control_neutral_color
+                bg_color: 0x313131
                 bg_opa: 100%
                 border_width: 0
                 shadow_width: 0
@@ -417,7 +417,7 @@ lvgl:
                       align: center
                       text: "\U000F03E4"
                       text_font: font_icon_main
-                      text_color: $theme_text_primary_color
+                      text_color: 0xFFFFFF
                       clickable: false
 script:
   - id: cover_art_resolve_home_assistant_base_url

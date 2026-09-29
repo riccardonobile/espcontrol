@@ -1577,6 +1577,7 @@ inline void climate_set_dial_controls_visible(bool visible) {
 
 inline void climate_set_step_button_enabled(lv_obj_t *btn, bool enabled) {
   if (!btn) return;
+  control_modal_track_theme_disabled(btn);
   lv_style_selector_t disabled_selector =
     static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_DISABLED);
   lv_obj_set_style_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
@@ -1606,6 +1607,7 @@ inline void climate_set_step_button_enabled(lv_obj_t *btn, bool enabled) {
 
 inline void climate_control_style_tab(lv_obj_t *btn, bool active, uint32_t accent_color) {
   if (!btn) return;
+  control_modal_track_theme_tab(btn);
   (void) accent_color;
   lv_obj_set_style_bg_color(
     btn, lv_color_hex(active ? current_theme().text_primary : theme_display_color(current_theme().surface_primary)), LV_PART_MAIN);
@@ -1732,8 +1734,8 @@ inline void climate_open_inline_option_list(ClimateControlCtx *ctx, const std::s
       ClimateOptionClick *click = climate_next_option_click(ui, ctx, section_kind, option);
       if (!click) break;
       bool selected = climate_option_selected(ctx, section_kind, option);
-      uint32_t bg_color = selected ? ctx->accent_color : ctx->secondary_color;
-      uint32_t text_color = selected ? current_theme().text_primary : readable_text_color_for_bg(bg_color);
+      uint32_t bg_color = selected ? ctx->accent_color : theme_display_color(current_theme().surface_primary);
+      uint32_t text_color = selected ? CARD_ACCENT_TEXT_COLOR : readable_text_color_for_bg(bg_color);
       lv_obj_t *btn = lv_btn_create(parent);
       lv_obj_set_size(btn, 118, 118);
       lv_obj_set_style_radius(btn, control_modal_card_radius(ctx->btn), LV_PART_MAIN);

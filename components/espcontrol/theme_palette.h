@@ -18,6 +18,7 @@ struct ThemePalette {
   uint32_t control_neutral;
   uint32_t track_background;
   uint32_t overlay;
+  uint32_t setup_action;
 };
 
 constexpr ThemePalette make_dark_theme() {
@@ -33,6 +34,7 @@ constexpr ThemePalette make_dark_theme() {
   theme.control_neutral = 0x313131;
   theme.track_background = 0x313131;
   theme.overlay = 0x000000;
+  theme.setup_action = 0x333333;
   return theme;
 }
 
@@ -66,12 +68,21 @@ struct ThemeRefreshBinding {
   void *owner = nullptr;
   ThemeRefreshCallback callback = nullptr;
   void *context = nullptr;
-  const ThemePalette *applied = &DARK_THEME;
+  const ThemePalette *applied = nullptr;
 };
 
-inline ThemeRefreshBinding (&theme_refresh_bindings())[8] {
-  static ThemeRefreshBinding bindings[8]{};
+inline ThemeRefreshBinding (&theme_refresh_bindings())[16] {
+  static ThemeRefreshBinding bindings[16]{};
   return bindings;
+}
+
+inline const ThemePalette *&theme_refresh_previous_ref() {
+  static const ThemePalette *previous = &DARK_THEME;
+  return previous;
+}
+
+inline const ThemePalette &theme_refresh_previous() {
+  return *theme_refresh_previous_ref();
 }
 
 inline bool register_theme_refresh(void *owner, ThemeRefreshCallback callback,
@@ -86,7 +97,11 @@ inline bool register_theme_refresh(void *owner, ThemeRefreshCallback callback,
   }
   for (auto &binding : theme_refresh_bindings()) {
     if (!binding.owner) {
-      binding = {owner, callback, context};
+      // Newly created YAML screens start with Dark compile-time styles. Other
+      // owners already use current_theme() at construction. Replaying the
+      // Dark -> active transition is harmless for those owners and ensures a
+      // page created after a palette switch receives the active palette.
+      binding = {owner, callback, context, &DARK_THEME};
       return true;
     }
   }
@@ -103,7 +118,9 @@ inline void apply_current_theme() {
   for (auto &binding : theme_refresh_bindings()) {
     if (!binding.callback || binding.applied == &current_theme()) continue;
     void *owner = binding.owner;
+    theme_refresh_previous_ref() = binding.applied;
     binding.callback(binding.context, current_theme());
     if (binding.owner == owner) binding.applied = &current_theme();
   }
+  theme_refresh_previous_ref() = &current_theme();
 }

@@ -248,11 +248,100 @@ struct ControlModalThemeTargets {
   lv_obj_t *panel = nullptr;
   lv_obj_t *close_button = nullptr;
   bool nested = false;
+  bool content_owned = false;
+  lv_obj_t *theme_tabs[10]{};
+  uint8_t theme_tab_count = 0;
+  lv_obj_t *theme_pressed[24]{};
+  uint8_t theme_pressed_count = 0;
+  lv_obj_t *theme_disabled[8]{};
+  uint8_t theme_disabled_count = 0;
 };
 
 inline ControlModalThemeTargets (&control_modal_theme_targets())[2] {
   static ControlModalThemeTargets targets[2]{};
   return targets;
+}
+
+inline ControlModalThemeTargets *control_modal_theme_owner(lv_obj_t *obj) {
+  if (!obj) return nullptr;
+  for (auto &targets : control_modal_theme_targets()) {
+    if (!targets.panel || targets.content_owned) continue;
+    for (lv_obj_t *parent = obj; parent; parent = lv_obj_get_parent(parent))
+      if (parent == targets.panel) return &targets;
+  }
+  return nullptr;
+}
+
+inline void control_modal_theme_child_deleted(lv_event_t *event) {
+  lv_obj_t *obj = static_cast<lv_obj_t *>(lv_event_get_target(event));
+  for (auto &targets : control_modal_theme_targets()) {
+    for (uint8_t i = 0; i < targets.theme_tab_count;) {
+      if (targets.theme_tabs[i] != obj) { ++i; continue; }
+      for (uint8_t j = i + 1; j < targets.theme_tab_count; ++j)
+        targets.theme_tabs[j - 1] = targets.theme_tabs[j];
+      targets.theme_tabs[--targets.theme_tab_count] = nullptr;
+    }
+    for (uint8_t i = 0; i < targets.theme_pressed_count;) {
+      if (targets.theme_pressed[i] != obj) { ++i; continue; }
+      for (uint8_t j = i + 1; j < targets.theme_pressed_count; ++j)
+        targets.theme_pressed[j - 1] = targets.theme_pressed[j];
+      targets.theme_pressed[--targets.theme_pressed_count] = nullptr;
+    }
+    for (uint8_t i = 0; i < targets.theme_disabled_count;) {
+      if (targets.theme_disabled[i] != obj) { ++i; continue; }
+      for (uint8_t j = i + 1; j < targets.theme_disabled_count; ++j)
+        targets.theme_disabled[j - 1] = targets.theme_disabled[j];
+      targets.theme_disabled[--targets.theme_disabled_count] = nullptr;
+    }
+  }
+}
+
+inline void control_modal_track_theme_tab(lv_obj_t *tab) {
+  auto *targets = control_modal_theme_owner(tab);
+  if (!targets) return;
+  for (uint8_t i = 0; i < targets->theme_tab_count; ++i)
+    if (targets->theme_tabs[i] == tab) return;
+  if (targets->theme_tab_count < 10) {
+    bool tracked = false;
+    for (uint8_t i = 0; i < targets->theme_pressed_count; ++i)
+      if (targets->theme_pressed[i] == tab) tracked = true;
+    for (uint8_t i = 0; i < targets->theme_disabled_count; ++i)
+      if (targets->theme_disabled[i] == tab) tracked = true;
+    if (!tracked) lv_obj_add_event_cb(tab, control_modal_theme_child_deleted, LV_EVENT_DELETE, nullptr);
+    targets->theme_tabs[targets->theme_tab_count++] = tab;
+  }
+}
+
+inline void control_modal_track_theme_pressed(lv_obj_t *button) {
+  auto *targets = control_modal_theme_owner(button);
+  if (!targets) return;
+  for (uint8_t i = 0; i < targets->theme_pressed_count; ++i)
+    if (targets->theme_pressed[i] == button) return;
+  if (targets->theme_pressed_count < 24) {
+    bool tracked = false;
+    for (uint8_t i = 0; i < targets->theme_tab_count; ++i)
+      if (targets->theme_tabs[i] == button) tracked = true;
+    for (uint8_t i = 0; i < targets->theme_disabled_count; ++i)
+      if (targets->theme_disabled[i] == button) tracked = true;
+    if (!tracked) lv_obj_add_event_cb(button, control_modal_theme_child_deleted, LV_EVENT_DELETE, nullptr);
+    targets->theme_pressed[targets->theme_pressed_count++] = button;
+  }
+}
+
+inline void control_modal_track_theme_disabled(lv_obj_t *button) {
+  auto *targets = control_modal_theme_owner(button);
+  if (!targets) return;
+  for (uint8_t i = 0; i < targets->theme_disabled_count; ++i)
+    if (targets->theme_disabled[i] == button) return;
+  if (targets->theme_disabled_count < 8) {
+    bool tracked = false;
+    for (uint8_t i = 0; i < targets->theme_tab_count; ++i)
+      if (targets->theme_tabs[i] == button) tracked = true;
+    for (uint8_t i = 0; i < targets->theme_pressed_count; ++i)
+      if (targets->theme_pressed[i] == button) tracked = true;
+    if (!tracked) lv_obj_add_event_cb(button, control_modal_theme_child_deleted, LV_EVENT_DELETE, nullptr);
+    targets->theme_disabled[targets->theme_disabled_count++] = button;
+  }
 }
 
 inline void control_modal_apply_theme(void *context, const ThemePalette &theme) {
@@ -266,19 +355,36 @@ inline void control_modal_apply_theme(void *context, const ThemePalette &theme) 
                               LV_PART_MAIN);
   }
   if (targets.close_button) {
+    theme_restyle_pressed_fill(targets.close_button, theme);
     lv_obj_t *label = lv_obj_get_child(targets.close_button, 0);
     if (label) lv_obj_set_style_text_color(label, lv_color_hex(theme.text_primary), LV_PART_MAIN);
+  }
+  if (!targets.content_owned && targets.panel)
+    theme_restyle_tree(targets.panel, theme_refresh_previous(), theme);
+  if (!targets.content_owned) {
+    for (uint8_t i = 0; i < targets.theme_tab_count; ++i)
+      theme_restyle_tab(targets.theme_tabs[i], theme);
+    for (uint8_t i = 0; i < targets.theme_pressed_count; ++i)
+      theme_restyle_pressed_fill(targets.theme_pressed[i], theme);
+    for (uint8_t i = 0; i < targets.theme_disabled_count; ++i)
+      theme_restyle_disabled_step(targets.theme_disabled[i], theme);
   }
 }
 
 inline void control_modal_register_theme(const ControlModalThemeTargets &targets) {
   auto &stored = control_modal_theme_targets()[targets.nested ? 1 : 0];
+  const bool new_owner = stored.overlay != targets.overlay;
   stored = targets;
   if (!stored.overlay) return;
   register_theme_refresh(stored.overlay, control_modal_apply_theme, &stored);
-  lv_obj_add_event_cb(stored.overlay, [](lv_event_t *event) {
-    unregister_theme_refresh(lv_event_get_target(event));
-  }, LV_EVENT_DELETE, nullptr);
+  if (new_owner) {
+    lv_obj_add_event_cb(stored.overlay, [](lv_event_t *event) {
+      lv_obj_t *owner = static_cast<lv_obj_t *>(lv_event_get_target(event));
+      unregister_theme_refresh(owner);
+      for (auto &entry : control_modal_theme_targets())
+        if (entry.overlay == owner) entry = {};
+    }, LV_EVENT_DELETE, nullptr);
+  }
   apply_current_theme();
 }
 
@@ -651,6 +757,7 @@ inline void control_modal_apply_step_buttons_layout(lv_obj_t *minus_btn,
 
 inline void control_modal_apply_pressed_fill(lv_obj_t *btn) {
   if (!btn) return;
+  control_modal_track_theme_pressed(btn);
   lv_obj_set_style_bg_color(btn, lv_color_hex(theme_display_color(current_theme().surface_primary)),
     static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_PRESSED));
   lv_obj_set_style_bg_opa(btn, LV_OPA_COVER,
@@ -867,7 +974,8 @@ inline ControlModalShell control_modal_open_shell(ControlModalKind kind,
   }
 
   control_modal_set_active(kind, shell.overlay, close_callback, definition.dismiss_policy);
-  control_modal_register_theme({shell.overlay, shell.panel, shell.close_btn, false});
+  control_modal_register_theme({shell.overlay, shell.panel, shell.close_btn, false,
+                                kind == ControlModalKind::IMAGE_CARD});
   set_clock_bar_modal_label(card_label);
   return shell;
 }

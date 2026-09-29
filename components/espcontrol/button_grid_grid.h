@@ -1096,7 +1096,8 @@ inline void grid_phase1(
 
     ParsedCfg p = parse_cfg(scfg);
     const auto context = card_runtime_context(p);
-    neutral_buttons[idx - 1] = context.family != espcontrol::cards::Family::IMAGE;
+    neutral_buttons[idx - 1] = context.family != espcontrol::cards::Family::IMAGE &&
+        espcontrol::cards::media_driver_theme_owned_surface(context, p);
     display_apply_main_width(s.icon_lbl, display);
     display_apply_slot_text_width(s, display);
     setup_card_visual(s, p, context, cfg, palette, row_span, col_span);
@@ -2121,7 +2122,8 @@ inline void grid_phase2(
         cfg.subpage_chevron_font);
       navigation_register_subpage_card(
           si + 1, bn, sub_slot, sb,
-          context.family != espcontrol::cards::Family::IMAGE);
+          context.family != espcontrol::cards::Family::IMAGE &&
+              espcontrol::cards::media_driver_theme_owned_surface(context, sb_cfg));
       display_apply_main_width(sub_slot.icon_lbl, display);
       display_apply_slot_text_width(sub_slot, display);
       setup_card_visual(sub_slot, sb_cfg, context, cfg, palette, rs, cs);

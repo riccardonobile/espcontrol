@@ -5,6 +5,12 @@
 # Directs the user to the device web UI to configure their buttons.
 # =============================================================================
 
+esphome:
+  on_boot:
+    - priority: -210
+      then:
+        - lambda: 'register_theme_static_page(id(button_setup_page)->obj);'
+
 lvgl:
   pages:
     - id: button_setup_page
