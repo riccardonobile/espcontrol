@@ -2,7 +2,7 @@
 
 #include "theme_runtime_tree.h"
 
-// ESPHome YAML creates these pages with the Dark compile-time substitutions.
+// ESPHome YAML creates these pages with compile-time theme substitutions.
 // A bounded set of object references lets the normal registry refresh them
 // without rebuilding their content or changing screen navigation.
 struct ThemeStaticPageTargets {
@@ -19,15 +19,16 @@ inline ThemeStaticPageTargets (&theme_static_pages())[8] {
   return pages;
 }
 
-inline void theme_collect_static_labels(lv_obj_t *obj, ThemeStaticPageTargets &targets) {
+inline void theme_collect_static_labels(lv_obj_t *obj, ThemeStaticPageTargets &targets,
+                                        const ThemePalette &initial) {
   if (lv_obj_check_type(obj, &lv_button_class) && targets.action_count < 2 &&
-      theme_color_matches(lv_obj_get_style_bg_color(obj, LV_PART_MAIN), DARK_THEME.setup_action))
+      theme_color_matches(lv_obj_get_style_bg_color(obj, LV_PART_MAIN), initial.setup_action))
     targets.actions[targets.action_count++] = obj;
   if (lv_obj_check_type(obj, &lv_label_class) && targets.label_count < 12) {
     const lv_color_t color = lv_obj_get_style_text_color(obj, LV_PART_MAIN);
     uint8_t role = 0;
-    if (theme_color_matches(color, DARK_THEME.text_primary)) role = 1;
-    else if (theme_color_matches(color, DARK_THEME.text_muted)) role = 2;
+    if (theme_color_matches(color, initial.text_primary)) role = 1;
+    else if (theme_color_matches(color, initial.text_muted)) role = 2;
     if (role) {
       targets.labels[targets.label_count] = obj;
       targets.roles[targets.label_count++] = role;
@@ -35,7 +36,7 @@ inline void theme_collect_static_labels(lv_obj_t *obj, ThemeStaticPageTargets &t
   }
   const uint32_t count = lv_obj_get_child_cnt(obj);
   for (uint32_t i = 0; i < count; ++i)
-    theme_collect_static_labels(lv_obj_get_child(obj, i), targets);
+    theme_collect_static_labels(lv_obj_get_child(obj, i), targets, initial);
 }
 
 inline void theme_apply_static_page(void *context, const ThemePalette &theme) {
@@ -60,10 +61,22 @@ inline bool register_theme_static_page(lv_obj_t *page, bool include_labels = tru
   if (!slot) return false;
   *slot = {};
   slot->page = page;
-  if (include_labels) theme_collect_static_labels(page, *slot);
+  // YAML objects retain their compile-time palette even if runtime selection
+  // changed before this page registered. Match only that palette's foregrounds
+  // so an explicit white content label in a Light page is not treated as Dark text.
+  const ThemePalette &initial =
+      theme_color_matches(lv_obj_get_style_bg_color(page, LV_PART_MAIN),
+                          LIGHT_THEME.background) ? LIGHT_THEME : DARK_THEME;
+  if (include_labels) theme_collect_static_labels(page, *slot, initial);
   if (!register_theme_refresh(page, theme_apply_static_page, slot)) {
     *slot = {};
     return false;
+  }
+  for (auto &binding : theme_refresh_bindings()) {
+    if (binding.owner == page) {
+      binding.applied = &initial;
+      break;
+    }
   }
   lv_obj_add_event_cb(page, [](lv_event_t *event) {
     lv_obj_t *owner = static_cast<lv_obj_t *>(lv_event_get_target(event));

@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cmath>
 
 #include "button_grid_style.h"
 
@@ -15,6 +16,23 @@ void apply_theme_sample(void *context, const ThemePalette &theme) {
   sample.text = theme.text_primary;
   sample.previous = &theme_refresh_previous();
   ++sample.applications;
+}
+
+double theme_test_luminance(uint32_t rgb) {
+  const auto channel = [](uint32_t value) {
+    const double normalized = static_cast<double>(value) / 255.0;
+    return normalized <= 0.04045 ? normalized / 12.92
+                                 : std::pow((normalized + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel((rgb >> 16) & 0xFF) +
+         0.7152 * channel((rgb >> 8) & 0xFF) +
+         0.0722 * channel(rgb & 0xFF);
+}
+
+double theme_test_contrast(uint32_t foreground, uint32_t background) {
+  const double a = theme_test_luminance(foreground);
+  const double b = theme_test_luminance(background);
+  return (std::fmax(a, b) + 0.05) / (std::fmin(a, b) + 0.05);
 }
 
 int main() {
@@ -34,6 +52,24 @@ int main() {
   assert(readable_text_color_for_bg(0xFFFFFF) ==
          theme_display_color(DARK_THEME.surface_secondary));
   assert(readable_text_color_for_bg(0x000000) == DARK_THEME.text_primary);
+  assert(LIGHT_THEME.background == 0xF4F4F4);
+  assert(LIGHT_THEME.surface_primary == 0xFFFFFF);
+  assert(LIGHT_THEME.surface_secondary == 0xE8E8E8);
+  assert(LIGHT_THEME.text_primary == 0x181818);
+  assert(LIGHT_THEME.text_muted == 0x606060);
+  assert(LIGHT_THEME.text_inverted == 0xFFFFFF);
+  assert(LIGHT_THEME.text_disabled == 0x9A9A9A);
+  assert(LIGHT_THEME.border == 0xD0D0D0);
+  assert(LIGHT_THEME.control_neutral == 0xE0E0E0);
+  assert(LIGHT_THEME.track_background == 0xD0D0D0);
+  assert(LIGHT_THEME.overlay == 0x000000);
+  assert(LIGHT_THEME.setup_action == 0xE0E0E0);
+  assert(theme_test_contrast(LIGHT_THEME.text_primary, LIGHT_THEME.background) >= 4.5);
+  assert(theme_test_contrast(LIGHT_THEME.text_primary, LIGHT_THEME.surface_primary) >= 4.5);
+  assert(theme_test_contrast(LIGHT_THEME.text_muted, LIGHT_THEME.surface_primary) >= 4.5);
+  assert(theme_test_contrast(LIGHT_THEME.text_muted, LIGHT_THEME.surface_secondary) >= 4.5);
+  // Disabled text and subtle borders are intentionally lower emphasis; their
+  // practical legibility still needs review on the physical displays.
 
   set_current_button_primary_color(0xAABBCC);
   ThemeSample sample;
@@ -82,5 +118,25 @@ int main() {
   assert(others[15].applications == 2);
   unregister_theme_refresh(&sample);
   for (int i = 1; i < 16; ++i) unregister_theme_refresh(&others[i]);
+
+  ThemeSample production_switch;
+  assert(register_theme_refresh(&production_switch, apply_theme_sample, &production_switch));
+  set_active_theme_palette(LIGHT_THEME);
+  apply_current_theme();
+  assert(&current_theme() == &LIGHT_THEME);
+  assert(production_switch.applications == 1);
+  assert(production_switch.previous == &DARK_THEME);
+  assert(production_switch.background == 0xF4F4F4);
+  CardPalette light_card;
+  assert(light_card.off_val == theme_display_color(LIGHT_THEME.surface_primary));
+  assert(light_card.sensor_val == theme_display_color(LIGHT_THEME.surface_secondary));
+  assert(light_card.on_val == DEFAULT_ACCENT_COLOR);
+  assert(current_button_primary_color() == 0xAABBCC);
+  set_active_theme_palette(DARK_THEME);
+  apply_current_theme();
+  assert(production_switch.applications == 2);
+  assert(production_switch.previous == &LIGHT_THEME);
+  assert(production_switch.background == DARK_THEME.background);
+  unregister_theme_refresh(&production_switch);
   return 0;
 }

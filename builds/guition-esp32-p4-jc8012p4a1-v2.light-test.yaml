@@ -1,0 +1,11 @@
+# Factory-shaped firmware for physical Light testing; no setting is persisted.
+substitutions: !include light-theme-test-colors.yaml
+
+packages:
+  factory: !include guition-esp32-p4-jc8012p4a1-v2.factory.yaml
+
+esphome:
+  on_boot:
+    - priority: 900
+      then:
+        - lambda: 'set_active_theme_palette(LIGHT_THEME);'
