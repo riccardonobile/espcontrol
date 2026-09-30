@@ -39,6 +39,7 @@ struct lv_obj_t {
   lv_color_t disabled_text{0};
   int border_width = 0;
   int opacity = LV_OPA_TRANSP;
+  int state = 0;
   std::vector<lv_obj_t *> children;
   lv_event_cb_t delete_callback = nullptr;
 };
@@ -143,6 +144,9 @@ int main() {
   active_tab.children.push_back(&active_tab_label);
   panel.children = {&title, &metadata, &unavailable, &slider, &arc,
                     &selected, &error, &artwork, &active_tab};
+  panel.state = LV_STATE_PRESSED;  // An open control keeps its interaction state.
+  selected.state = LV_STATE_DISABLED;
+  lv_obj_t *active_page = &panel;
 
   theme_restyle_tree(&panel, DARK_THEME, alternate);
   assert(panel.background.full == alternate.surface_secondary);
@@ -159,6 +163,9 @@ int main() {
   assert(error.background.full == 0xB00020);
   assert(error_label.text.full == DARK_THEME.text_primary);
   assert(artwork_label.text.full == DARK_THEME.text_primary);
+  assert(panel.state == LV_STATE_PRESSED);
+  assert(selected.state == LV_STATE_DISABLED);
+  assert(active_page == &panel);
   theme_restyle_tab(&active_tab, alternate);
   assert(active_tab.background.full == alternate.text_primary);
   assert(active_tab_label.text.full == alternate.surface_secondary);
@@ -210,6 +217,25 @@ int main() {
   assert(active_tab.pressed_background.full == DARK_THEME.surface_primary);
   theme_restyle_disabled_step(&disabled_step, DARK_THEME);
   assert(disabled_step.disabled_border.full == DARK_THEME.track_background);
+
+  // Exercise the production palettes through the same in-place tree adapter.
+  theme_restyle_tree(&panel, DARK_THEME, LIGHT_THEME);
+  assert(panel.background.full == LIGHT_THEME.surface_secondary);
+  assert(title.text.full == LIGHT_THEME.text_primary);
+  assert(metadata.text.full == LIGHT_THEME.text_muted);
+  assert(unavailable.text.full == LIGHT_THEME.text_disabled);
+  assert(slider.background.full == LIGHT_THEME.track_background);
+  assert(slider.knob.full == LIGHT_THEME.text_primary);
+  assert(selected.background.full == 0xAABBCC);
+  assert(selected_label.text.full == DARK_THEME.text_primary);
+  assert(error.background.full == 0xB00020);
+  assert(artwork_label.text.full == DARK_THEME.text_primary);
+  assert(panel.state == LV_STATE_PRESSED && selected.state == LV_STATE_DISABLED);
+  assert(active_page == &panel);
+  theme_restyle_tree(&panel, LIGHT_THEME, DARK_THEME);
+  assert(panel.background.full == DARK_THEME.surface_secondary);
+  assert(title.text.full == DARK_THEME.text_primary);
+  assert(slider.background.full == DARK_THEME.track_background);
 
   // A YAML-created setup page starts with compile-time Dark styles. The
   // registered object references must refresh and clean up on deletion.
@@ -273,4 +299,43 @@ int main() {
   late_setup_page.delete_callback(&late_deleted);
   set_active_theme_palette(DARK_THEME);
   apply_current_theme();
+
+  // A forced-Light build creates YAML pages with Light colors already in place.
+  // They still need role discovery so a later Light -> Dark switch works.
+  set_active_theme_palette(LIGHT_THEME);
+  lv_obj_t light_page;
+  light_page.background = lv_color_hex(LIGHT_THEME.background);
+  light_page.opacity = LV_OPA_COVER;
+  lv_obj_t light_title;
+  light_title.type = &lv_label_class;
+  light_title.text = lv_color_hex(LIGHT_THEME.text_primary);
+  lv_obj_t light_hint;
+  light_hint.type = &lv_label_class;
+  light_hint.text = lv_color_hex(LIGHT_THEME.text_muted);
+  lv_obj_t light_action;
+  light_action.type = &lv_button_class;
+  light_action.background = lv_color_hex(LIGHT_THEME.setup_action);
+  light_page.children = {&light_title, &light_hint, &light_action};
+  assert(register_theme_static_page(&light_page));
+  assert(light_title.text.full == LIGHT_THEME.text_primary);
+  set_active_theme_palette(DARK_THEME);
+  apply_current_theme();
+  assert(light_page.background.full == DARK_THEME.background);
+  assert(light_title.text.full == DARK_THEME.text_primary);
+  assert(light_hint.text.full == DARK_THEME.text_muted);
+  assert(light_action.background.full == DARK_THEME.setup_action);
+  lv_event_t light_deleted{&light_page};
+  light_page.delete_callback(&light_deleted);
+
+  lv_obj_t late_light_page;
+  late_light_page.background = lv_color_hex(LIGHT_THEME.background);
+  lv_obj_t late_light_title;
+  late_light_title.type = &lv_label_class;
+  late_light_title.text = lv_color_hex(LIGHT_THEME.text_primary);
+  late_light_page.children.push_back(&late_light_title);
+  assert(register_theme_static_page(&late_light_page));
+  assert(late_light_page.background.full == DARK_THEME.background);
+  assert(late_light_title.text.full == DARK_THEME.text_primary);
+  lv_event_t late_light_deleted{&late_light_page};
+  late_light_page.delete_callback(&late_light_deleted);
 }

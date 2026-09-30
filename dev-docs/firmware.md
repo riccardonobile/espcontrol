@@ -32,14 +32,22 @@ Visual setup and runtime wiring are separate. A new card often needs both.
 
 ## Device UI colors
 
-The firmware currently has one dark presentation. Compile-time ESPHome color
-substitutions live in `common/theme/colors.yaml`. Runtime C++ reads raw RGB
+The firmware has Dark and Light palettes. Dark remains the normal boot default;
+there is no saved or user-visible theme preference. Compile-time Dark ESPHome
+color substitutions live in `common/theme/colors.yaml`. Runtime C++ reads raw RGB
 roles from `ThemePalette` in `components/espcontrol/theme_palette.h` through
 `current_theme()`; `theme_display_color()` applies the existing device color
 correction at C++ call sites. Device packages include the shared YAML file;
 `common/theme/button.yaml` applies LVGL button defaults, then local C++ styles
 and state callbacks may override them. Keep that order when styling cards.
-`check:firmware-display-tokens` verifies YAML and C++ dark RGB parity.
+`check:firmware-display-tokens` verifies Dark YAML/C++ parity and the Light
+test-build substitutions against `LIGHT_THEME`.
+
+The explicit `builds/<slug>.light-test.yaml` entries for the two P4 test devices
+reuse their factory packages, apply `builds/light-theme-test-colors.yaml` before
+LVGL objects are created, and select `LIGHT_THEME` at boot priority 900. This
+avoids a Dark flash during Light testing. These entries do not save a theme
+setting and do not affect normal factory or development builds.
 
 `apply_current_theme()` is the in-place refresh dispatch boundary. Grid and
 subpage cards, HUD, network status, and control modal shells register an LVGL
@@ -47,7 +55,7 @@ owner and unregister on deletion. Their callbacks refresh theme-owned
 descendants, including neutral slider tracks and handles, climate/media/alarm
 chrome, muted and disabled labels, and dynamic option lists. State callbacks
 read `current_theme()` for neutral colors so a later state update cannot restore
-an old palette. The fixed registry skips Dark-to-Dark calls and does not rebuild
+an old palette. The fixed registry skips same-palette calls and does not rebuild
 objects or Home Assistant subscriptions.
 
 YAML color substitutions set initial styles only. Loading, connectivity, setup,
@@ -58,14 +66,14 @@ clock text, image overlay/shadow contrast, QR colors, functional state colors,
 and user accent stay with their own owners. The cover-art screensaver is
 content-owned and intentionally has no theme registration: artwork, sampled
 colors, fixed playback fallback, adaptive icon contrast, and title/artist text must render exactly as before
-through any runtime palette refresh.
+through any runtime palette refresh, including Dark-to-Light changes.
 
 `CardPalette` carries each card's user accent/on color and configured off/sensor
 colors; it is not a global theme. Functional alarm, media error, and climate
 colors, QR black/white, artwork and image colors, and user-selected clock text
 stay outside the neutral theme values. Display color correction still applies
-where the existing C++ card path uses it. There is no light palette or user
-theme selection yet.
+where the existing C++ card path uses it. Internal palette selection supports
+Dark and Light; persistence and user controls are not implemented.
 
 Media slider visuals own their runtime context as soon as visual setup creates
 them. Teardown must cancel both geometry and media-position timers, remove the

@@ -40,8 +40,25 @@ constexpr ThemePalette make_dark_theme() {
 
 inline constexpr ThemePalette DARK_THEME = make_dark_theme();
 
+// Raw RGB values for the first Light presentation. The separate setup action
+// role keeps the existing Dark #333333 distinct from other neutral controls.
+inline constexpr ThemePalette LIGHT_THEME = {
+    0xF4F4F4,  // background
+    0xFFFFFF,  // surface_primary
+    0xE8E8E8,  // surface_secondary
+    0x181818,  // text_primary
+    0x606060,  // text_muted
+    0xFFFFFF,  // text_inverted
+    0x9A9A9A,  // text_disabled
+    0xD0D0D0,  // border
+    0xE0E0E0,  // control_neutral
+    0xD0D0D0,  // track_background
+    0x000000,  // overlay
+    0xE0E0E0,  // setup_action
+};
+
 // Palette instances must outlive their use by the UI. Firmware installs only
-// DARK_THEME today; a host test may install a temporary palette in scope.
+// the two static palettes; a host test may install a temporary palette in scope.
 inline const ThemePalette *&active_theme_palette_ref() {
   static const ThemePalette *palette = &DARK_THEME;
   return palette;
@@ -97,10 +114,9 @@ inline bool register_theme_refresh(void *owner, ThemeRefreshCallback callback,
   }
   for (auto &binding : theme_refresh_bindings()) {
     if (!binding.owner) {
-      // Newly created YAML screens start with Dark compile-time styles. Other
-      // owners already use current_theme() at construction. Replaying the
-      // Dark -> active transition is harmless for those owners and ensures a
-      // page created after a palette switch receives the active palette.
+      // Production YAML screens start with Dark compile-time styles; the
+      // explicit Light test build starts with Light styles. Replaying the
+      // Dark -> active transition is harmless for newly created owners.
       binding = {owner, callback, context, &DARK_THEME};
       return true;
     }

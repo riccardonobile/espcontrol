@@ -31,6 +31,13 @@ assert not re.search(r"\$theme_\w+", cover_art)
 assert "bg_color: 0x313131" in cover_art
 assert "text_color: 0xFFFFFF" in cover_art
 
+qr = (ROOT / "components" / "espcontrol" / "button_grid_wifi_qr.h").read_text(encoding="utf-8")
+assert "lv_qrcode_set_dark_color(ui.qr, lv_color_black())" in qr
+assert "lv_qrcode_set_light_color(ui.qr, lv_color_white())" in qr
+
+button_theme = (ROOT / "common" / "theme" / "button.yaml").read_text(encoding="utf-8")
+assert re.search(r"checked:\s+bg_color: \$button_on_color\s+(?:#.*\n\s+)?text_color: 0xFFFFFF", button_theme)
+
 media_driver = (ROOT / "components" / "espcontrol" / "button_grid_media_driver.h").read_text(encoding="utf-8")
 grid = (ROOT / "components" / "espcontrol" / "button_grid_grid.h").read_text(encoding="utf-8")
 assert 'media_card_mode(config.sensor) != "cover_art"' in media_driver

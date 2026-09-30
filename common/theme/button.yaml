@@ -45,6 +45,7 @@ lvgl:
         border_width: $button_border_width
       checked:
         bg_color: $button_on_color
-        text_color: $theme_text_primary_color
+        # Accent foreground is independent of the neutral Light/Dark text role.
+        text_color: 0xFFFFFF
         border_color: $button_border_color
         border_width: $button_border_width
