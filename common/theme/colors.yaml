@@ -13,3 +13,4 @@ substitutions:
   theme_control_neutral_color: "0x313131"
   theme_track_background_color: "0x313131"
   theme_overlay_color: "0x000000"
+  theme_setup_action_color: "0x333333"

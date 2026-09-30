@@ -537,6 +537,7 @@ inline void light_control_set_temp_modal_value(LightControlCtx *ctx, int kelvin)
 
 inline void light_control_style_tab(lv_obj_t *btn, bool active, uint32_t accent_color) {
   if (!btn) return;
+  control_modal_track_theme_tab(btn);
   (void) accent_color;
   lv_obj_set_style_bg_color(
     btn, lv_color_hex(active ? current_theme().text_primary : theme_display_color(current_theme().surface_primary)), LV_PART_MAIN);
@@ -1820,6 +1821,7 @@ inline void cover_control_apply_card_visual(CoverControlCtx *ctx,
 
 inline void cover_control_style_tab(lv_obj_t *btn, bool active, uint32_t accent_color) {
   if (!btn) return;
+  control_modal_track_theme_tab(btn);
   (void) accent_color;
   lv_obj_set_style_bg_color(
     btn, lv_color_hex(active ? current_theme().text_primary : theme_display_color(current_theme().surface_primary)), LV_PART_MAIN);
@@ -2105,7 +2107,7 @@ inline lv_coord_t cover_control_slider_handle_inset(lv_obj_t *slider) {
 
 inline uint32_t cover_control_slider_fill_color(CoverControlCtx *ctx, int pct) {
   return slider_clamp_pct(pct) == 0
-    ? (ctx ? ctx->secondary_color : theme_display_color(current_theme().surface_primary))
+    ? theme_display_color(current_theme().surface_primary)
     : (ctx ? ctx->accent_color : DEFAULT_ACCENT_COLOR);
 }
 
@@ -2381,8 +2383,8 @@ inline void cover_control_refresh_preset_selection(CoverControlCtx *ctx) {
     if (!btn) continue;
     int pct = static_cast<int>(reinterpret_cast<uintptr_t>(lv_obj_get_user_data(btn)));
     bool selected = pct == ui.selected_preset;
-    uint32_t bg_color = selected ? ctx->accent_color : ctx->secondary_color;
-    uint32_t text_color = selected ? current_theme().text_primary
+    uint32_t bg_color = selected ? ctx->accent_color : theme_display_color(current_theme().surface_primary);
+    uint32_t text_color = selected ? CARD_ACCENT_TEXT_COLOR
                                    : readable_text_color_for_bg(bg_color);
     lv_obj_set_style_bg_color(btn, lv_color_hex(bg_color), LV_PART_MAIN);
     lv_obj_t *icon = lv_obj_get_child(btn, 0);

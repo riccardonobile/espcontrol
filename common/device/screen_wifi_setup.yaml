@@ -4,6 +4,12 @@
 # Captive portal instructions shown when WiFi is disconnected.
 # =============================================================================
 
+esphome:
+  on_boot:
+    - priority: -210
+      then:
+        - lambda: 'register_theme_static_page(id(wifi_setup_page)->obj);'
+
 lvgl:
   pages:
     - id: wifi_setup_page

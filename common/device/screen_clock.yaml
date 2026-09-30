@@ -33,6 +33,12 @@ font:
     bpp: 2
     glyphs: "0123456789:"
 
+esphome:
+  on_boot:
+    - priority: -210
+      then:
+        - lambda: 'register_theme_static_page(id(clock_screensaver), false);'
+
 lvgl:
   top_layer:
     widgets:

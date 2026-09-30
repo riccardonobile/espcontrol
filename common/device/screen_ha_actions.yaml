@@ -5,6 +5,12 @@
 # to perform Home Assistant actions. The user taps Done to continue.
 # =============================================================================
 
+esphome:
+  on_boot:
+    - priority: -210
+      then:
+        - lambda: 'register_theme_static_page(id(ha_actions_page)->obj);'
+
 lvgl:
   pages:
     - id: ha_actions_page
@@ -76,7 +82,7 @@ lvgl:
                     - button:
                         width: $setup_action_button_width
                         height: $setup_action_button_height
-                        bg_color: 0x333333
+                        bg_color: $theme_setup_action_color
                         radius: $setup_action_button_radius
                         shadow_width: 0
                         on_click:

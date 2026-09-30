@@ -41,16 +41,24 @@ correction at C++ call sites. Device packages include the shared YAML file;
 and state callbacks may override them. Keep that order when styling cards.
 `check:firmware-display-tokens` verifies YAML and C++ dark RGB parity.
 
-`apply_current_theme()` is the in-place refresh dispatch boundary. Persistent
-grid and HUD objects, the shared modal shell, and the network status overlay
-register their live LVGL targets. Dark-to-Dark refresh is a no-op, preserving
-current state selectors and user accent. Before exposing another palette, add
-refresh adapters for slider tracks and handles, climate/media/alarm and other
-modal controls, card descendants with special state styling, and YAML-created
-loading/connectivity/setup pages. The shared shell callback refreshes its panel
-and chrome only; modal-specific state and functional colors remain with their
-owners. YAML substitutions themselves remain compile-time. The refresh registry
-uses fixed storage and does not rebuild cards or Home Assistant subscriptions.
+`apply_current_theme()` is the in-place refresh dispatch boundary. Grid and
+subpage cards, HUD, network status, and control modal shells register an LVGL
+owner and unregister on deletion. Their callbacks refresh theme-owned
+descendants, including neutral slider tracks and handles, climate/media/alarm
+chrome, muted and disabled labels, and dynamic option lists. State callbacks
+read `current_theme()` for neutral colors so a later state update cannot restore
+an old palette. The fixed registry skips Dark-to-Dark calls and does not rebuild
+objects or Home Assistant subscriptions.
+
+YAML color substitutions set initial styles only. Loading, connectivity, setup,
+action, and button setup pages register their already-created LVGL page and
+theme-colored labels at boot; the plain clock screensaver registers only its
+background. Each page releases its registry entry when deleted. User-selected
+clock text, image overlay/shadow contrast, QR colors, functional state colors,
+and user accent stay with their own owners. The cover-art screensaver is
+content-owned and intentionally has no theme registration: artwork, sampled
+colors, fixed playback fallback, adaptive icon contrast, and title/artist text must render exactly as before
+through any runtime palette refresh.
 
 `CardPalette` carries each card's user accent/on color and configured off/sensor
 colors; it is not a global theme. Functional alarm, media error, and climate

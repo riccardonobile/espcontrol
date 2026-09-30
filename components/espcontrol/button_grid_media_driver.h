@@ -9,6 +9,10 @@
 
 namespace espcontrol::cards {
 
+inline bool media_driver_theme_owned_surface(const Context &context, const ParsedCfg &config) {
+  return context.family != Family::MEDIA || media_card_mode(config.sensor) != "cover_art";
+}
+
 inline bool media_driver_matches(const Context &context) {
   using Driver = card_runtime::CardDriverId;
   switch (context.runtime.driver) {

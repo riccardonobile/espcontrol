@@ -16,6 +16,14 @@ target_compile_options(theme_palette_test PRIVATE -Wall -Wextra -Werror)
 target_include_directories(theme_palette_test PRIVATE ../../components/espcontrol)
 add_test(NAME theme_palette_test COMMAND theme_palette_test)
 
+add_executable(theme_runtime_tree_test theme_runtime_tree_test.cpp)
+target_compile_features(theme_runtime_tree_test PRIVATE cxx_std_17)
+target_compile_options(theme_runtime_tree_test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(theme_runtime_tree_test PRIVATE ../../components/espcontrol)
+add_test(NAME theme_runtime_tree_test COMMAND theme_runtime_tree_test)
+add_test(NAME theme_refresh_contract_test COMMAND ${Python3_EXECUTABLE}
+  ${CMAKE_CURRENT_SOURCE_DIR}/theme_refresh_contract_test.py)
+
 add_executable(digest_auth_policy_test digest_auth_policy_test.cpp)
 target_compile_features(digest_auth_policy_test PRIVATE cxx_std_17)
 target_compile_options(digest_auth_policy_test PRIVATE -Wall -Wextra -Werror)

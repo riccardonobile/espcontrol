@@ -38,6 +38,10 @@ struct AlarmCardCtx {
   uint32_t on_color = DEFAULT_ACCENT_COLOR;
   uint32_t off_color = theme_display_color(current_theme().surface_primary);
   uint32_t tertiary_color = theme_display_color(current_theme().surface_secondary);
+  int theme_red_percent = 100;
+  int theme_green_percent = 100;
+  int theme_blue_percent = 100;
+  bool off_theme_owned = false;
   int width_compensation_percent = 100;
   int grid_cols = 3;
   bool available = false;
@@ -549,9 +553,15 @@ inline void alarm_clear_pending_action_if_progressed(AlarmCardCtx *ctx) {
   alarm_clear_pending_action(ctx);
 }
 
+inline uint32_t alarm_theme_off_color(const AlarmCardCtx *ctx) {
+  if (!ctx->off_theme_owned) return ctx->off_color;
+  return correct_display_color(current_theme().surface_primary,
+      ctx->theme_red_percent, ctx->theme_green_percent, ctx->theme_blue_percent);
+}
+
 inline void alarm_set_card_state_colors(AlarmCardCtx *ctx, uint32_t checked_color) {
   if (!ctx || !ctx->btn) return;
-  lv_obj_set_style_bg_color(ctx->btn, lv_color_hex(ctx->off_color),
+  lv_obj_set_style_bg_color(ctx->btn, lv_color_hex(alarm_theme_off_color(ctx)),
     static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_DEFAULT));
   lv_obj_set_style_bg_color(ctx->btn, lv_color_hex(checked_color),
     static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_CHECKED));
@@ -812,7 +822,7 @@ inline uint32_t alarm_control_active_color(AlarmCardCtx *ctx, const std::string 
 }
 
 inline uint32_t alarm_control_inactive_color(AlarmCardCtx *ctx) {
-  return ctx ? ctx->off_color : theme_display_color(current_theme().surface_primary);
+  return ctx ? alarm_theme_off_color(ctx) : theme_display_color(current_theme().surface_primary);
 }
 
 inline lv_coord_t alarm_control_mode_button_radius(const ControlModalLayout &layout,
