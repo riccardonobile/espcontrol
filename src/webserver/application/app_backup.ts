@@ -22,7 +22,9 @@ import {
     normalizeScreensaverDimmedBrightness,
     normalizeTemperatureUnit,
     normalizeTimeOfDay,
+    normalizeThemeMode,
 } from "../model/settings";
+import { syncThemeSettingsUi } from "./theme_settings_ui";
 import type { BackupImportController } from "../features/backup_import_controller";
 import type { BackupExportController } from "../features/backup_export_controller";
 import type { BackupFileController } from "../features/backup_file_controller";
@@ -315,6 +317,9 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                 brightness_day: Math.round(state.brightnessDayVal),
                 brightness_night: Math.round(state.brightnessNightVal),
                 brightness_mode: normalizeBrightnessMode(state.brightnessMode),
+                theme_mode: normalizeThemeMode(state.themeMode),
+                theme_light_start: normalizeTimeOfDay(state.themeLightStart, "07:00"),
+                theme_dark_start: normalizeTimeOfDay(state.themeDarkStart, "20:00"),
                 manual_brightness: Math.round(state.manualBrightnessVal),
                 brightness_dawn_time: normalizeTimeOfDay(state.brightnessDawnTime, "06:00"),
                 brightness_dusk_time: normalizeTimeOfDay(state.brightnessDuskTime, "18:00"),
@@ -680,6 +685,14 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     state.brightnessDayVal = importedScreenSettings.brightnessDayVal;
                     state.brightnessNightVal = importedScreenSettings.brightnessNightVal;
                     state.brightnessMode = importedScreenSettings.brightnessMode;
+                    // Optional fields keep older backups compatible and leave
+                    // an existing theme choice alone when those fields are absent.
+                    if (Object.prototype.hasOwnProperty.call(screenSettings, "theme_mode"))
+                        state.themeMode = normalizeThemeMode(screenSettings.theme_mode);
+                    if (Object.prototype.hasOwnProperty.call(screenSettings, "theme_light_start"))
+                        state.themeLightStart = normalizeTimeOfDay(screenSettings.theme_light_start, "07:00");
+                    if (Object.prototype.hasOwnProperty.call(screenSettings, "theme_dark_start"))
+                        state.themeDarkStart = normalizeTimeOfDay(screenSettings.theme_dark_start, "20:00");
                     state.manualBrightnessVal = importedScreenSettings.manualBrightnessVal;
                     state.brightnessDawnTime = importedScreenSettings.brightnessDawnTime;
                     state.brightnessDuskTime = importedScreenSettings.brightnessDuskTime;
@@ -698,6 +711,12 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     postNumber(entityName("screen_daytime_brightness"), state.brightnessDayVal);
                     postNumber(entityName("screen_nighttime_brightness"), state.brightnessNightVal);
                     postBrightnessMode(state.brightnessMode);
+                    if (Object.prototype.hasOwnProperty.call(screenSettings, "theme_light_start"))
+                        requestApi.postText(entityName("screen_theme_light_start"), state.themeLightStart);
+                    if (Object.prototype.hasOwnProperty.call(screenSettings, "theme_dark_start"))
+                        requestApi.postText(entityName("screen_theme_dark_start"), state.themeDarkStart);
+                    if (Object.prototype.hasOwnProperty.call(screenSettings, "theme_mode"))
+                        requestApi.postSelect(entityName("screen_theme_mode"), state.themeMode);
                     if (state.brightnessMode === "manual")
                         postDisplayBacklightBrightness(state.manualBrightnessVal);
                     postBrightnessDawnTime(state.brightnessDawnTime);
@@ -723,6 +742,7 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                         els.setNightBrightnessVal.textContent = Math.round(state.brightnessNightVal) + "%";
                     }
                     syncScreenScheduleUi();
+                    syncThemeSettingsUi(state, controllers.runtime);
                 }
                 state.selectedSlots = [];
                 state.lastClickedSlot = -1;

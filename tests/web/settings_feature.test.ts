@@ -6,12 +6,29 @@ import { createMediaPlaybackController } from "../../src/webserver/features/medi
 import { createVoiceServicesController } from "../../src/webserver/features/voice_services_controller";
 import { createClockBarController } from "../../src/webserver/features/clock_bar_controller";
 import { createScreenScheduleController } from "../../src/webserver/features/screen_schedule_controller";
+import { normalizeThemeMode, normalizeTimeOfDay } from "../../src/webserver/model/settings";
+import { createBackupEnvelope, normalizeBackupEnvelope } from "../../src/webserver/model/backup";
 
 function equal<T>(actual: T, expected: T, message: string): void {
   if (actual !== expected) throw new Error(`${message}: expected ${String(expected)}, received ${String(actual)}`);
 }
 
 export function runSettingsFeatureTests(): void {
+  for (const mode of ["Dark", "Light", "Schedule", "Sun"])
+    equal(normalizeThemeMode(mode.toLowerCase()), mode, "theme mode backup round trip");
+  equal(normalizeThemeMode(undefined), "Dark", "old settings default to Dark");
+  equal(normalizeTimeOfDay("20:00", "07:00"), "20:00", "overnight Light time round trips");
+  equal(normalizeTimeOfDay("07:00", "20:00"), "07:00", "overnight Dark time round trips");
+  equal(normalizeTimeOfDay("24:00", "07:00"), "07:00", "invalid backup time uses safe default");
+  const themeScreen = { theme_mode: "Sun", theme_light_start: "20:00", theme_dark_start: "07:00" };
+  const backupOutputs = { buttons: [], subpages: {} };
+  const savedTheme = createBackupEnvelope({ device: "panel", slots: 0, screen: themeScreen }, backupOutputs);
+  const restoredTheme = normalizeBackupEnvelope(savedTheme as unknown as Record<string, unknown>, backupOutputs);
+  equal(restoredTheme.screen?.theme_mode, "Sun", "backup retains configured Sun mode rather than effective palette");
+  equal(restoredTheme.screen?.theme_light_start, "20:00", "backup retains Light boundary");
+  equal(restoredTheme.screen?.theme_dark_start, "07:00", "backup retains Dark boundary");
+  equal(normalizeBackupEnvelope({ version: 2, format: "espcontrol.backup", buttons: [], screen: {} }, backupOutputs).screen?.theme_mode,
+        undefined, "old backups remain valid without a theme field");
   const clock = screensaverControlState("Clock", 35.4, 12.6, 8.2);
   equal(clock.mode, "clock", "clock action is normalized");
   equal(clock.clockVisible, true, "clock controls are shown for clock mode");

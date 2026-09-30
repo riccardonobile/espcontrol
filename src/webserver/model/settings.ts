@@ -39,6 +39,14 @@ export function normalizeTimeOfDay(value: unknown, fallback: string): string {
   return String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
 }
 
+export function normalizeThemeMode(value: unknown): string {
+  const mode = String(value || "").trim().toLowerCase();
+  if (mode === "light") return "Light";
+  if (mode === "schedule") return "Schedule";
+  if (mode === "sun") return "Sun";
+  return "Dark";
+}
+
 export function normalizeBrightnessMode(value: unknown): string {
   const mode = String(value || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (mode === "manual") return "manual";

@@ -11,7 +11,7 @@
   "summary": {
     "deviceProfiles": 8,
     "cardTypes": 43,
-    "entityNames": 102,
+    "entityNames": 105,
     "icons": 359,
     "structuralIcons": 22,
     "compatibilityFixtureGroups": 2
@@ -7235,6 +7235,30 @@
           "screen_brightness_mode",
           "brightness_mode"
         ],
+        "groups": [
+          "settings"
+        ]
+      },
+      {
+        "key": "screen_theme_mode",
+        "domain": "select",
+        "name": "Screen: Theme Mode",
+        "groups": [
+          "settings"
+        ]
+      },
+      {
+        "key": "screen_theme_light_start",
+        "domain": "text",
+        "name": "Screen: Theme Light Start",
+        "groups": [
+          "settings"
+        ]
+      },
+      {
+        "key": "screen_theme_dark_start",
+        "domain": "text",
+        "name": "Screen: Theme Dark Start",
         "groups": [
           "settings"
         ]

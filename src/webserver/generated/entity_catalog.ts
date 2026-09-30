@@ -493,6 +493,18 @@ export const ENTITY_CATALOG = {
         "brightness_mode"
       ]
     },
+    "screen_theme_mode": {
+      "domain": "select",
+      "name": "Screen: Theme Mode"
+    },
+    "screen_theme_light_start": {
+      "domain": "text",
+      "name": "Screen: Theme Light Start"
+    },
+    "screen_theme_dark_start": {
+      "domain": "text",
+      "name": "Screen: Theme Dark Start"
+    },
     "screen_schedule_enabled": {
       "domain": "switch",
       "name": "Screen: Schedule Enabled",
@@ -796,6 +808,9 @@ export const ENTITY_CATALOG = {
       "wifi_strength",
       "display_backlight",
       "screen_brightness_mode",
+      "screen_theme_mode",
+      "screen_theme_light_start",
+      "screen_theme_dark_start",
       "screen_schedule_enabled",
       "screen_schedule_trigger",
       "screen_schedule_sensor_activation",

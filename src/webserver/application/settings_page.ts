@@ -6,7 +6,9 @@ import {
     normalizeLanguage,
     normalizeTemperatureUnit,
     normalizeTimeOfDay,
+    normalizeThemeMode,
 } from "../model/settings";
+import { syncThemeSettingsUi } from "./theme_settings_ui";
 import type { ConfigCodecFeature } from "./config_codec";
 import type { UiRuntimeState } from "./state";
 import type { CoreFeature } from "./core";
@@ -82,6 +84,34 @@ export function createSettingsPageFeature(codec: Pick<ConfigCodecFeature, "bindT
         });
         appearBody.appendChild(onColor);
         els.setOnColor = onColor;
+        var themeModes: any = segmentControl([
+            ["Dark", "Dark"], ["Light", "Light"],
+            ["Schedule", "Schedule"], ["Sun", "Sun"],
+        ], normalizeThemeMode(state.themeMode), function (this: any, mode?: any) {
+            state.themeMode = normalizeThemeMode(mode);
+            postSelect(entityName("screen_theme_mode"), state.themeMode);
+            syncThemeSettingsUi(state, runtime);
+        }, "sp-segment sp-segment-scroll");
+        themeModes.segment.id = "sp-set-theme-mode";
+        appearBody.appendChild(fieldLabel("Theme"));
+        appearBody.appendChild(themeModes.segment);
+        els.setThemeModeButtons = themeModes.buttons;
+        var themeScheduleFields: any = condField();
+        var themeLightStart: any = createTimeInput("Light starts", "sp-set-theme-light-start", state.themeLightStart, "07:00", function (this: any, value?: any) {
+            state.themeLightStart = normalizeTimeOfDay(value, "07:00");
+            postText(entityName("screen_theme_light_start"), state.themeLightStart);
+        });
+        themeScheduleFields.appendChild(themeLightStart.wrap);
+        els.setThemeLightStart = themeLightStart.input;
+        var themeDarkStart: any = createTimeInput("Dark starts", "sp-set-theme-dark-start", state.themeDarkStart, "20:00", function (this: any, value?: any) {
+            state.themeDarkStart = normalizeTimeOfDay(value, "20:00");
+            postText(entityName("screen_theme_dark_start"), state.themeDarkStart);
+        });
+        themeScheduleFields.appendChild(themeDarkStart.wrap);
+        els.setThemeDarkStart = themeDarkStart.input;
+        appearBody.appendChild(themeScheduleFields);
+        els.setThemeScheduleFields = themeScheduleFields;
+        syncThemeSettingsUi(state, runtime);
         var appearanceResetButton: any = createActionButton("sp-icon-button sp-card-header-action", "", "restore", "Reset colours to defaults");
         appearanceResetButton.title = "Reset colours";
         appearanceResetButton.addEventListener("click", function (this: any, event?: any) {

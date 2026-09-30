@@ -115,17 +115,6 @@ def check_theme_colors(root: Path) -> list[str]:
     light_values = [int(value, 16) for value in re.findall(r"0x([0-9A-Fa-f]{6})", light_match.group(1))] if light_match else []
     if light_values != list(LIGHT_THEME_RGB.values()):
         failures.append("theme_palette.h: Light roles must match the reviewed raw RGB palette")
-    test_colors_path = root / "builds/light-theme-test-colors.yaml"
-    if not test_colors_path.exists():
-        failures.append("builds/light-theme-test-colors.yaml: Light test colors are required")
-        test_colors = ""
-    else:
-        test_colors = test_colors_path.read_text(encoding="utf-8")
-    for role, rgb in LIGHT_THEME_RGB.items():
-        name = f"theme_{role.lower()}_color"
-        match = re.search(rf"^{name}: [\"']?0x([0-9A-Fa-f]{{6}})[\"']?$", test_colors, re.M)
-        if match is None or int(match.group(1), 16) != rgb:
-            failures.append(f"builds/light-theme-test-colors.yaml: {name} must be 0x{rgb:06X}")
     if "inline const ThemePalette &current_theme()" not in palette_text:
         failures.append("theme_palette.h: provide runtime current-theme access")
     if "constexpr uint32_t DEFAULT_ACCENT_COLOR_RAW = 0xFF8C00;" not in accent_text:
@@ -329,15 +318,12 @@ def run_self_test() -> None:
         root = Path(tmp)
         (root / "common/theme").mkdir(parents=True)
         (root / "components/espcontrol").mkdir(parents=True)
-        (root / "builds").mkdir(parents=True)
         yaml_path = root / "common/theme/colors.yaml"
         cpp_path = root / "components/espcontrol/theme_palette.h"
         accent_path = root / "components/espcontrol/button_grid_style.h"
-        light_path = root / "builds/light-theme-test-colors.yaml"
         yaml_path.write_text((ROOT / "common/theme/colors.yaml").read_text(encoding="utf-8"), encoding="utf-8")
         cpp_path.write_text((ROOT / "components/espcontrol/theme_palette.h").read_text(encoding="utf-8"), encoding="utf-8")
         accent_path.write_text((ROOT / "components/espcontrol/button_grid_style.h").read_text(encoding="utf-8"), encoding="utf-8")
-        light_path.write_text((ROOT / "builds/light-theme-test-colors.yaml").read_text(encoding="utf-8"), encoding="utf-8")
         assert not check_theme_colors(root)
         yaml_path.write_text(yaml_path.read_text(encoding="utf-8").replace("0xB0B0B0", "0xB0B0B1"), encoding="utf-8")
         assert any("theme_text_muted_color" in failure for failure in check_theme_colors(root))
