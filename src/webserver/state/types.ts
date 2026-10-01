@@ -186,8 +186,12 @@ export interface AppState {
   brightnessNightVal: number;
   brightnessMode: string;
   themeMode: string;
+  themeAutoMethod: string;
+  themeActive: string;
   themeLightStart: string;
   themeDarkStart: string;
+  themeSunriseOffset: number;
+  themeSunsetOffset: number;
   manualBrightnessVal: number;
   brightnessDawnTime: string;
   brightnessDuskTime: string;

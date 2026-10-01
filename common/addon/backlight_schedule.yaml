@@ -66,6 +66,14 @@ globals:
 
 text_sensor:
   - platform: template
+    name: "${entity_screen_active_theme}"
+    id: screen_active_theme
+    entity_category: diagnostic
+    icon: "mdi:theme-light-dark"
+    web_server:
+      sorting_group_id: sg_brightness
+
+  - platform: template
     name: "${entity_screen_sunrise}"
     id: sunrise_time_sensor
     entity_category: diagnostic
@@ -89,6 +97,19 @@ esphome:
     # replace this initialization during ESPHome package merging.
     - priority: -190
       then:
+        - lambda: |-
+            // Older firmware exposed Schedule and Sun as top-level options.
+            // If a restored value survives the new option list, preserve it.
+            const auto old_mode = id(screen_theme_mode).current_option();
+            if (old_mode == "Schedule" || old_mode == "Sun") {
+              auto method = id(screen_theme_auto_method).make_call();
+              method.set_option(old_mode == "Sun" ? "Sunrise / Sunset" : "Time");
+              method.perform();
+              auto mode = id(screen_theme_mode).make_call();
+              mode.set_option("Auto");
+              mode.perform();
+              global_preferences->sync();
+            }
         - lambda: |-
             if (!id(screen_schedule_sensor_entity_migrated)) {
               auto call = id(screen_schedule_sensor_entity).make_call();
@@ -214,7 +235,6 @@ switch:
 select:
   - platform: template
     name: "${entity_screen_theme_mode}"
-    internal: true
     id: screen_theme_mode
     entity_category: config
     icon: "mdi:theme-light-dark"
@@ -224,8 +244,24 @@ select:
     options:
       - "Dark"
       - "Light"
-      - "Schedule"
-      - "Sun"
+      - "Auto"
+    web_server:
+      sorting_group_id: sg_brightness
+    on_value:
+      then:
+        - script.execute: theme_settings_refresh
+
+  - platform: template
+    name: "${entity_screen_theme_auto_method}"
+    id: screen_theme_auto_method
+    entity_category: config
+    icon: "mdi:clock-outline"
+    optimistic: true
+    restore_value: true
+    initial_option: "Time"
+    options:
+      - "Time"
+      - "Sunrise / Sunset"
     web_server:
       sorting_group_id: sg_brightness
     on_value:
@@ -320,7 +356,6 @@ select:
 text:
   - platform: template
     name: "${entity_screen_theme_light_start}"
-    internal: true
     id: screen_theme_light_start
     restore_value: true
     initial_value: "07:00"
@@ -344,7 +379,6 @@ text:
 
   - platform: template
     name: "${entity_screen_theme_dark_start}"
-    internal: true
     id: screen_theme_dark_start
     restore_value: true
     initial_value: "20:00"
@@ -485,6 +519,52 @@ text:
         - script.execute: backlight_apply_brightness
 
 number:
+  - platform: template
+    name: "${entity_screen_theme_sunrise_offset}"
+    id: screen_theme_sunrise_offset
+    min_value: -180
+    max_value: 180
+    step: 1
+    initial_value: 0
+    restore_value: true
+    unit_of_measurement: min
+    entity_category: config
+    icon: "mdi:weather-sunset-up"
+    web_server:
+      sorting_group_id: sg_brightness
+    set_action:
+      - lambda: |-
+          if (!std::isfinite(x) || std::floor(x) != x ||
+              !theme_sun_offset_valid(static_cast<int>(x))) {
+            ESP_LOGW("theme", "Rejected invalid sunrise offset: %.1f", x);
+            return;
+          }
+          id(screen_theme_sunrise_offset).publish_state(x);
+          id(theme_settings_refresh).execute();
+
+  - platform: template
+    name: "${entity_screen_theme_sunset_offset}"
+    id: screen_theme_sunset_offset
+    min_value: -180
+    max_value: 180
+    step: 1
+    initial_value: 0
+    restore_value: true
+    unit_of_measurement: min
+    entity_category: config
+    icon: "mdi:weather-sunset-down"
+    web_server:
+      sorting_group_id: sg_brightness
+    set_action:
+      - lambda: |-
+          if (!std::isfinite(x) || std::floor(x) != x ||
+              !theme_sun_offset_valid(static_cast<int>(x))) {
+            ESP_LOGW("theme", "Rejected invalid sunset offset: %.1f", x);
+            return;
+          }
+          id(screen_theme_sunset_offset).publish_state(x);
+          id(theme_settings_refresh).execute();
+
   - platform: template
     name: "${entity_screen_schedule_on_hour}"
     internal: true
@@ -677,10 +757,15 @@ script:
       - lambda: |-
           ThemeSettings settings;
           settings.mode = parse_theme_mode(id(screen_theme_mode).current_option());
+          settings.auto_method = parse_theme_auto_method(id(screen_theme_auto_method).current_option());
           // Invalid restored values keep the documented defaults. New writes
           // are rejected by the text entities above.
           parse_theme_time(id(screen_theme_light_start).state, settings.light_start);
           parse_theme_time(id(screen_theme_dark_start).state, settings.dark_start);
+          if (id(screen_theme_sunrise_offset).has_state())
+            settings.sunrise_offset = static_cast<int>(id(screen_theme_sunrise_offset).state);
+          if (id(screen_theme_sunset_offset).has_state())
+            settings.sunset_offset = static_cast<int>(id(screen_theme_sunset_offset).state);
           auto now = panel_time_or_fallback(id(panel_time).now(), id(homeassistant_time).now());
           ThemeConditions conditions;
           conditions.time_valid = now.is_valid();
@@ -689,6 +774,10 @@ script:
           conditions.sunrise_minute = id(sunrise_hour) * 60 + id(sunrise_minute);
           conditions.sunset_minute = id(sunset_hour) * 60 + id(sunset_minute);
           apply_theme_resolution(current_theme_resolver(), settings, conditions);
+          const char *active = current_theme_resolver().effective == EffectiveTheme::LIGHT
+                                   ? "Light" : "Dark";
+          if (id(screen_active_theme).state != active)
+            id(screen_active_theme).publish_state(active);
 
   # Record the brightness expected from a firmware-owned light call. The
   # Display Backlight state callback uses this to distinguish internal display

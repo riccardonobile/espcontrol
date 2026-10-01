@@ -42,9 +42,21 @@ export function normalizeTimeOfDay(value: unknown, fallback: string): string {
 export function normalizeThemeMode(value: unknown): string {
   const mode = String(value || "").trim().toLowerCase();
   if (mode === "light") return "Light";
-  if (mode === "schedule") return "Schedule";
-  if (mode === "sun") return "Sun";
+  if (mode === "auto" || mode === "schedule" || mode === "sun") return "Auto";
   return "Dark";
+}
+
+export function normalizeThemeAutoMethod(value: unknown): string {
+  const method = String(value || "").trim().toLowerCase();
+  return method === "sun" || method === "sunrise / sunset" || method === "sunrise_sunset"
+    ? "Sunrise / Sunset" : "Time";
+}
+
+export function parseThemeSunOffset(value: unknown): number | null {
+  const text = String(value == null ? "" : value).trim();
+  if (!/^[+-]?\d+$/.test(text)) return null;
+  const offset = Number(text);
+  return Number.isSafeInteger(offset) && offset >= -180 && offset <= 180 ? offset : null;
 }
 
 export function normalizeBrightnessMode(value: unknown): string {

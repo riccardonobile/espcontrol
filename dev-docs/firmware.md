@@ -44,15 +44,19 @@ and state callbacks may override them. Keep that order when styling cards.
 Light palette. The former forced-Light test builds are retired; use the normal
 factory build and the saved browser setting for device testing.
 
-`common/addon/backlight_schedule.yaml` owns the persisted theme mode and
-`HH:MM` schedule text entities. `theme_settings_refresh` constructs a
+`common/addon/backlight_schedule.yaml` owns the persisted Dark/Light/Auto mode,
+Auto method (Time or Sunrise / Sunset), `HH:MM` time entities, and bounded
+sunrise/sunset minute offsets. These are visible ESPHome entities, shared by
+Home Assistant and the web configurator. The read-only Active Theme text sensor
+reports the effective palette. `theme_settings_refresh` constructs a
 `ThemeSettings` and `ThemeConditions` from those entities, the existing local
 clock, and the existing on-device sunrise/sunset calculation. The pure
 resolver in `components/espcontrol/theme_settings.h` keeps configured mode
 separate from the effective palette. It retains the previous effective palette
 while time or Sun data is unavailable, defaulting to Dark at cold boot, and
 dispatches `apply_current_theme()` only when the effective palette changes.
-Equal schedule boundaries resolve Dark. A 60-second callback plus time-sync,
+Equal transition boundaries resolve Dark. Solar offsets wrap across midnight.
+A 60-second callback plus time-sync,
 solar recalculation, and setting changes trigger resolution. Normal factory
 YAML still starts with Dark styles; a restored Light choice is applied during
 boot once the persisted select is ready.
