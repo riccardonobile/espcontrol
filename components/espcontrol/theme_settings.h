@@ -6,13 +6,19 @@
 
 #include "theme_palette.h"
 
-enum class ThemeMode : uint8_t { DARK, LIGHT, SCHEDULE, SUN };
+enum class ThemeMode : uint8_t { DARK, LIGHT, AUTO };
+enum class ThemeAutoMethod : uint8_t { TIME, SUNRISE_SUNSET };
 enum class EffectiveTheme : uint8_t { DARK, LIGHT };
+
+inline constexpr int THEME_SUN_OFFSET_LIMIT_MINUTES = 180;
 
 struct ThemeSettings {
   ThemeMode mode = ThemeMode::DARK;
+  ThemeAutoMethod auto_method = ThemeAutoMethod::TIME;
   int light_start = 7 * 60;
   int dark_start = 20 * 60;
+  int sunrise_offset = 0;
+  int sunset_offset = 0;
 };
 
 struct ThemeConditions {
@@ -43,9 +49,23 @@ inline bool parse_theme_time(const std::string &text, int &minute) {
 
 inline ThemeMode parse_theme_mode(const std::string &mode) {
   if (mode == "Light") return ThemeMode::LIGHT;
-  if (mode == "Schedule") return ThemeMode::SCHEDULE;
-  if (mode == "Sun") return ThemeMode::SUN;
+  if (mode == "Auto") return ThemeMode::AUTO;
   return ThemeMode::DARK;
+}
+
+inline ThemeAutoMethod parse_theme_auto_method(const std::string &method) {
+  return method == "Sunrise / Sunset" ? ThemeAutoMethod::SUNRISE_SUNSET
+                                        : ThemeAutoMethod::TIME;
+}
+
+inline bool theme_sun_offset_valid(int offset) {
+  return offset >= -THEME_SUN_OFFSET_LIMIT_MINUTES &&
+         offset <= THEME_SUN_OFFSET_LIMIT_MINUTES;
+}
+
+inline int theme_normalize_minute(int minute) {
+  const int normalized = minute % 1440;
+  return normalized < 0 ? normalized + 1440 : normalized;
 }
 
 inline bool theme_light_between(int now, int light_start, int dark_start) {
@@ -61,16 +81,18 @@ inline EffectiveTheme resolve_theme(const ThemeSettings &settings,
   switch (settings.mode) {
     case ThemeMode::DARK: return EffectiveTheme::DARK;
     case ThemeMode::LIGHT: return EffectiveTheme::LIGHT;
-    case ThemeMode::SCHEDULE:
+    case ThemeMode::AUTO:
       if (!conditions.time_valid) return previous;
-      return theme_light_between(conditions.local_minute, settings.light_start,
-                                 settings.dark_start)
-                 ? EffectiveTheme::LIGHT : EffectiveTheme::DARK;
-    case ThemeMode::SUN:
-      if (!conditions.time_valid || !conditions.sun_valid) return previous;
-      return theme_light_between(conditions.local_minute,
-                                 conditions.sunrise_minute,
-                                 conditions.sunset_minute)
+      if (settings.auto_method == ThemeAutoMethod::TIME)
+        return theme_light_between(conditions.local_minute, settings.light_start,
+                                   settings.dark_start)
+                   ? EffectiveTheme::LIGHT : EffectiveTheme::DARK;
+      if (!conditions.sun_valid || !theme_sun_offset_valid(settings.sunrise_offset) ||
+          !theme_sun_offset_valid(settings.sunset_offset)) return previous;
+      return theme_light_between(
+                 conditions.local_minute,
+                 theme_normalize_minute(conditions.sunrise_minute + settings.sunrise_offset),
+                 theme_normalize_minute(conditions.sunset_minute + settings.sunset_offset))
                  ? EffectiveTheme::LIGHT : EffectiveTheme::DARK;
   }
   return EffectiveTheme::DARK;

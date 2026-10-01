@@ -15,8 +15,9 @@ int main() {
     assert(!parse_theme_time(invalid, minute));
   assert(parse_theme_mode("Dark") == ThemeMode::DARK);
   assert(parse_theme_mode("Light") == ThemeMode::LIGHT);
-  assert(parse_theme_mode("Schedule") == ThemeMode::SCHEDULE);
-  assert(parse_theme_mode("Sun") == ThemeMode::SUN);
+  assert(parse_theme_mode("Auto") == ThemeMode::AUTO);
+  assert(parse_theme_auto_method("Time") == ThemeAutoMethod::TIME);
+  assert(parse_theme_auto_method("Sunrise / Sunset") == ThemeAutoMethod::SUNRISE_SUNSET);
   assert(parse_theme_mode("") == ThemeMode::DARK);  // Older saved configuration.
 
   ThemeResolver resolver;
@@ -33,7 +34,7 @@ int main() {
   assert(apply_theme_resolution(resolver, settings, conditions));
   assert(&current_theme() == &DARK_THEME && counter.calls == 2);
 
-  settings.mode = ThemeMode::SCHEDULE;
+  settings.mode = ThemeMode::AUTO;
   conditions.time_valid = true;
   for (int now : {0, 419, 1200, 1380}) {
     conditions.local_minute = now;
@@ -58,7 +59,7 @@ int main() {
   conditions.time_valid = false;
   assert(resolve_theme(settings, conditions, EffectiveTheme::LIGHT) == EffectiveTheme::LIGHT);
 
-  settings.mode = ThemeMode::SUN;
+  settings.auto_method = ThemeAutoMethod::SUNRISE_SUNSET;
   conditions.time_valid = true;
   conditions.sunrise_minute = 360;
   conditions.sunset_minute = 1080;
@@ -71,5 +72,38 @@ int main() {
   assert(resolve_theme(settings, conditions, EffectiveTheme::LIGHT) == EffectiveTheme::LIGHT);
   assert(resolve_theme(settings, conditions, ThemeResolver{}.effective) == EffectiveTheme::DARK);
   assert(!apply_theme_resolution(resolver, settings, conditions));
+  conditions.sun_valid = true;
+  conditions.sunrise_minute = 360;
+  conditions.sunset_minute = 1080;
+  settings.sunrise_offset = 30;
+  conditions.local_minute = 389;
+  assert(resolve_theme(settings, conditions, EffectiveTheme::DARK) == EffectiveTheme::DARK);
+  conditions.local_minute = 390;
+  assert(resolve_theme(settings, conditions, EffectiveTheme::DARK) == EffectiveTheme::LIGHT);
+  settings.sunrise_offset = -20;
+  conditions.local_minute = 340;
+  assert(resolve_theme(settings, conditions, EffectiveTheme::DARK) == EffectiveTheme::LIGHT);
+  settings.sunset_offset = 45;
+  conditions.local_minute = 1124;
+  assert(resolve_theme(settings, conditions, EffectiveTheme::LIGHT) == EffectiveTheme::LIGHT);
+  conditions.local_minute = 1125;
+  assert(resolve_theme(settings, conditions, EffectiveTheme::LIGHT) == EffectiveTheme::DARK);
+  settings.sunset_offset = -15;
+  conditions.local_minute = 1065;
+  assert(resolve_theme(settings, conditions, EffectiveTheme::LIGHT) == EffectiveTheme::DARK);
+  assert(theme_normalize_minute(1430 + 30) == 20);
+  assert(theme_normalize_minute(10 - 30) == 1420);
+  conditions.sunrise_minute = 1430;
+  conditions.sunset_minute = 600;
+  settings.sunrise_offset = 30;
+  settings.sunset_offset = -15;
+  conditions.local_minute = 20;
+  assert(resolve_theme(settings, conditions, EffectiveTheme::DARK) == EffectiveTheme::LIGHT);
+  conditions.local_minute = 19;
+  assert(resolve_theme(settings, conditions, EffectiveTheme::LIGHT) == EffectiveTheme::DARK);
+  assert(theme_sun_offset_valid(-180) && theme_sun_offset_valid(180));
+  assert(!theme_sun_offset_valid(-181) && !theme_sun_offset_valid(181));
+  settings.sunrise_offset = 181;
+  assert(resolve_theme(settings, conditions, EffectiveTheme::LIGHT) == EffectiveTheme::LIGHT);
   unregister_theme_refresh(&counter);
 }
