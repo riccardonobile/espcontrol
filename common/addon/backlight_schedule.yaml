@@ -143,6 +143,11 @@ esphome:
                 (int) id(schedule_off_hour).state,
                 id(screen_schedule_sensor_activation).current_option());
         - script.execute: screen_schedule_boot_guard
+    - priority: -110
+      then:
+        # The timezone boot hook runs at -100. Resolve after it so scheduled
+        # and solar modes use the device's configured local clock.
+        - script.execute: theme_settings_refresh
 
 # =============================================================================
 # USER-CONFIGURABLE ENTITIES
@@ -207,6 +212,26 @@ switch:
             - script.execute: backlight_apply_brightness
 
 select:
+  - platform: template
+    name: "${entity_screen_theme_mode}"
+    internal: true
+    id: screen_theme_mode
+    entity_category: config
+    icon: "mdi:theme-light-dark"
+    optimistic: true
+    restore_value: true
+    initial_option: "Dark"
+    options:
+      - "Dark"
+      - "Light"
+      - "Schedule"
+      - "Sun"
+    web_server:
+      sorting_group_id: sg_brightness
+    on_value:
+      then:
+        - script.execute: theme_settings_refresh
+
   - platform: template
     name: "${entity_screen_brightness_mode}"
     id: brightness_mode
@@ -293,6 +318,54 @@ select:
         - script.execute: screen_schedule_check
 
 text:
+  - platform: template
+    name: "${entity_screen_theme_light_start}"
+    internal: true
+    id: screen_theme_light_start
+    restore_value: true
+    initial_value: "07:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    icon: "mdi:weather-sunny"
+    update_interval: never
+    web_server:
+      sorting_group_id: sg_brightness
+    set_action:
+      - lambda: |-
+          int minute;
+          if (!parse_theme_time(x, minute)) {
+            ESP_LOGW("theme", "Rejected invalid Light start time: %s", x.c_str());
+            return;
+          }
+          id(screen_theme_light_start).publish_state(x);
+          id(theme_settings_refresh).execute();
+
+  - platform: template
+    name: "${entity_screen_theme_dark_start}"
+    internal: true
+    id: screen_theme_dark_start
+    restore_value: true
+    initial_value: "20:00"
+    min_length: 5
+    max_length: 5
+    mode: text
+    entity_category: config
+    icon: "mdi:weather-night"
+    update_interval: never
+    web_server:
+      sorting_group_id: sg_brightness
+    set_action:
+      - lambda: |-
+          int minute;
+          if (!parse_theme_time(x, minute)) {
+            ESP_LOGW("theme", "Rejected invalid Dark start time: %s", x.c_str());
+            return;
+          }
+          id(screen_theme_dark_start).publish_state(x);
+          id(theme_settings_refresh).execute();
+
   # Kept separate from the screensaver presence entity so sensor-driven night
   # schedules can follow a different Home Assistant sensor.
   - platform: template
@@ -598,6 +671,25 @@ number:
 # =============================================================================
 
 script:
+  - id: theme_settings_refresh
+    mode: restart
+    then:
+      - lambda: |-
+          ThemeSettings settings;
+          settings.mode = parse_theme_mode(id(screen_theme_mode).current_option());
+          // Invalid restored values keep the documented defaults. New writes
+          // are rejected by the text entities above.
+          parse_theme_time(id(screen_theme_light_start).state, settings.light_start);
+          parse_theme_time(id(screen_theme_dark_start).state, settings.dark_start);
+          auto now = panel_time_or_fallback(id(panel_time).now(), id(homeassistant_time).now());
+          ThemeConditions conditions;
+          conditions.time_valid = now.is_valid();
+          if (conditions.time_valid) conditions.local_minute = now.hour * 60 + now.minute;
+          conditions.sun_valid = id(sunrise_sunset_valid);
+          conditions.sunrise_minute = id(sunrise_hour) * 60 + id(sunrise_minute);
+          conditions.sunset_minute = id(sunset_hour) * 60 + id(sunset_minute);
+          apply_theme_resolution(current_theme_resolver(), settings, conditions);
+
   # Record the brightness expected from a firmware-owned light call. The
   # Display Backlight state callback uses this to distinguish internal display
   # transitions from a user changing brightness in Home Assistant.
@@ -920,6 +1012,7 @@ script:
             id(sunset_time_sensor).publish_state(r.sunset_str);
           }
           id(backlight_apply_brightness).execute();
+          id(theme_settings_refresh).execute();
 
 # =============================================================================
 # PERIODIC CHECK (60 seconds)
@@ -946,6 +1039,7 @@ interval:
 
   - interval: 60s
     then:
+      - script.execute: theme_settings_refresh
       - script.execute: screen_schedule_check
       - if:
           condition:

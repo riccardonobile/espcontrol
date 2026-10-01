@@ -86,6 +86,7 @@ TASKS = (
              "common/addon/backlight.yaml",
              "common/addon/backlight_schedule.yaml",
              "components/espcontrol/backlight.h",
+             "components/espcontrol/theme_settings.h",
              "components/espcontrol/display_mode_controller.h",
              "components/espcontrol/device_reset.*",
              "components/espcontrol/reset_policy.h",

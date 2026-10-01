@@ -29,7 +29,9 @@ import {
     normalizeScreensaverDimmedBrightness,
     normalizeTemperatureUnit,
     normalizeTimeOfDay,
+    normalizeThemeMode,
 } from "../model/settings";
+import { syncThemeSettingsUi } from "./theme_settings_ui";
 import type { UiRuntimeState } from "./state";
 import type { CoreFeature } from "./core";
 import { languageOptionsWithFallback, syncLanguageSelect } from "./language_state";
@@ -413,6 +415,18 @@ export function createAppStateEventHandlersFeature(
             "select-screen__brightness_mode": function (this: any, val?: any, d?: any) {
                 state.brightnessMode = normalizeBrightnessMode(d.value || val);
                 syncScreenScheduleUi();
+            },
+            "select-screen__theme_mode": function (this: any, val?: any, d?: any) {
+                state.themeMode = normalizeThemeMode(d.value || val);
+                syncThemeSettingsUi(state, runtime);
+            },
+            "text-screen__theme_light_start": function (this: any, val?: any) {
+                state.themeLightStart = normalizeTimeOfDay(val, "07:00");
+                syncThemeSettingsUi(state, runtime);
+            },
+            "text-screen__theme_dark_start": function (this: any, val?: any) {
+                state.themeDarkStart = normalizeTimeOfDay(val, "20:00");
+                syncThemeSettingsUi(state, runtime);
             },
             "light-display_backlight": function (this: any, val?: any, d?: any) {
                 var brightness: any = parseFloat(d && d.brightness);

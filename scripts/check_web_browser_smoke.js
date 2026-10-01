@@ -1113,6 +1113,17 @@ async function assertSettingsPage(page, label, options = {}, posts = []) {
     true,
     `${label}: color controls should be visible`,
   );
+  const themeModes = page.locator("#sp-set-theme-mode");
+  assert.deepStrictEqual(await themeModes.locator("button").allTextContents(),
+    ["Dark", "Light", "Schedule", "Sun"], `${label}: theme modes render`);
+  await themeModes.getByRole("button", { name: "Schedule" }).click();
+  assert(await page.locator("#sp-set-theme-light-start").isVisible(),
+    `${label}: Schedule exposes Light start`);
+  assert(await page.locator("#sp-set-theme-dark-start").isVisible(),
+    `${label}: Schedule exposes Dark start`);
+  await themeModes.getByRole("button", { name: "Dark" }).click();
+  assert(!(await page.locator("#sp-set-theme-light-start").isVisible()),
+    `${label}: manual theme hides schedule inputs`);
   assert.deepStrictEqual(
     await page
       .locator("#sp-settings .sp-settings-status-title")

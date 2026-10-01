@@ -16,6 +16,12 @@ target_compile_options(theme_palette_test PRIVATE -Wall -Wextra -Werror)
 target_include_directories(theme_palette_test PRIVATE ../../components/espcontrol)
 add_test(NAME theme_palette_test COMMAND theme_palette_test)
 
+add_executable(theme_settings_test theme_settings_test.cpp)
+target_compile_features(theme_settings_test PRIVATE cxx_std_17)
+target_compile_options(theme_settings_test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(theme_settings_test PRIVATE ../../components/espcontrol)
+add_test(NAME theme_settings_test COMMAND theme_settings_test)
+
 add_executable(theme_runtime_tree_test theme_runtime_tree_test.cpp)
 target_compile_features(theme_runtime_tree_test PRIVATE cxx_std_17)
 target_compile_options(theme_runtime_tree_test PRIVATE -Wall -Wextra -Werror)
