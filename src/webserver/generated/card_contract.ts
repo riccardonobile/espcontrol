@@ -10,7 +10,7 @@ type LargeNumbersRule = true | {
 };
 
 export const CARD_CONTRACT_VERSION = 1 as const;
-export const CARD_CONTRACT_NORMALIZATION_HOOKS = ["normalize_action_fields", "action_large_numbers_supported", "normalize_action_options", "normalize_media_fields", "normalize_media_options", "normalize_fan_fields", "normalize_fan_options", "normalize_date_time_fields", "normalize_date_time_options", "normalize_mower_fields", "normalize_occupancy_fields", "normalize_occupancy_options", "normalize_access_fields", "normalize_access_options", "normalize_security_fields", "normalize_security_options", "normalize_weather_fields", "normalize_weather_options", "normalize_image_fields", "normalize_image_options", "normalize_climate_fields", "normalize_climate_options", "normalize_light_control_options", "normalize_webhook_fields", "normalize_webhook_options", "normalize_subpage_fields", "normalize_subpage_options", "normalize_switch_options", "normalize_sensor_fields", "normalize_sensor_options", "normalize_vacuum_fields"] as const;
+export const CARD_CONTRACT_NORMALIZATION_HOOKS = ["normalize_action_fields", "action_large_numbers_supported", "normalize_action_options", "normalize_media_fields", "normalize_media_options", "normalize_fan_fields", "normalize_fan_options", "normalize_date_time_fields", "normalize_date_time_options", "normalize_mower_fields", "normalize_occupancy_fields", "normalize_occupancy_options", "normalize_access_fields", "normalize_access_options", "normalize_security_fields", "normalize_security_options", "normalize_weather_fields", "normalize_weather_options", "normalize_image_fields", "normalize_image_options", "normalize_climate_fields", "normalize_climate_options", "normalize_light_control_options", "normalize_webhook_fields", "normalize_webhook_options", "normalize_subpage_fields", "normalize_subpage_options", "normalize_switch_options", "normalize_sensor_fields", "normalize_sensor_options", "normalize_vacuum_fields", "normalize_power_options"] as const;
 export const CARD_CONTRACT_MIGRATION_ACTIONS: Readonly<Record<string, MigrationActionSpec>> = {
   "legacy_local_action": {
     "when": [
@@ -4064,6 +4064,120 @@ export const CARD_CONTRACT_CARDS: Readonly<Record<string, CardTypeSpec>> = {
       "precision": "tomorrow",
       "options": ""
     }
+  },
+  "power": {
+    "label": "Power",
+    "hidden": true,
+    "allowInSubpage": true,
+    "domains": [
+      "sensor"
+    ],
+    "options": [
+      {
+        "name": "solar_entity",
+        "label": "Solar power",
+        "kind": "text",
+        "defaultValue": "",
+        "omitDefault": true
+      },
+      {
+        "name": "grid_entity",
+        "label": "Grid power",
+        "kind": "text",
+        "defaultValue": "",
+        "omitDefault": true
+      },
+      {
+        "name": "battery_entity",
+        "label": "Battery power",
+        "kind": "text",
+        "defaultValue": "",
+        "omitDefault": true
+      },
+      {
+        "name": "battery_soc_entity",
+        "label": "Battery SOC",
+        "kind": "text",
+        "defaultValue": "",
+        "omitDefault": true
+      },
+      {
+        "name": "invert_grid",
+        "label": "Invert Grid polarity",
+        "kind": "flag",
+        "omitDefault": true
+      },
+      {
+        "name": "invert_battery",
+        "label": "Invert Battery polarity",
+        "kind": "flag",
+        "omitDefault": true
+      }
+    ],
+    "normalization": {
+      "fields": {
+        "entity": {
+          "policy": "keep"
+        },
+        "label": {
+          "policy": "default_if_empty",
+          "value": "Power Dashboard"
+        },
+        "icon": {
+          "policy": "default_if_empty",
+          "value": "Auto"
+        },
+        "icon_on": {
+          "policy": "default",
+          "value": "Auto"
+        },
+        "sensor": {
+          "policy": "clear"
+        },
+        "unit": {
+          "policy": "clear"
+        },
+        "type": {
+          "policy": "default",
+          "value": "power"
+        },
+        "precision": {
+          "policy": "allowed",
+          "values": [
+            "",
+            "0",
+            "1",
+            "2"
+          ],
+          "fallback": ""
+        },
+        "options": {
+          "policy": "hook",
+          "hook": "normalize_power_options"
+        }
+      },
+      "unknownOptions": "drop",
+      "canonicalOptionOrder": [
+        "solar_entity",
+        "grid_entity",
+        "battery_entity",
+        "battery_soc_entity",
+        "invert_grid",
+        "invert_battery"
+      ],
+      "optionHook": "normalize_power_options"
+    },
+    "default": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": ""
+    }
   }
 };
 export const CARD_RUNTIME_SPECS: Readonly<Record<string, CardRuntimeSpec>> = {
@@ -4608,6 +4722,18 @@ export const CARD_RUNTIME_SPECS: Readonly<Record<string, CardRuntimeSpec>> = {
       "runtimeAllocation": false,
       "subpage": true
     }
+  },
+  "power": {
+    "driver": "power",
+    "capabilities": {
+      "informationOnly": true,
+      "subscriptions": false,
+      "actions": false,
+      "numericControl": false,
+      "modal": false,
+      "runtimeAllocation": false,
+      "subpage": true
+    }
   }
 };
 export const CARD_CONTRACT_MIGRATION_ALIASES: Readonly<Record<string, Partial<CardConfig>>> = {
@@ -4681,7 +4807,8 @@ export const CARD_CONTRACT_SUBPAGE_TYPE_CODES: Readonly<Record<string, string>> 
   "screen_lock": "SL",
   "webhook": "WH",
   "internal": "I",
-  "subpage": "G"
+  "subpage": "G",
+  "power": "PW"
 };
 export const CARD_CONTRACT_SUBPAGE_TYPES_BY_CODE: Readonly<Record<string, string>> = {
   "TM": "timer",
@@ -4722,7 +4849,8 @@ export const CARD_CONTRACT_SUBPAGE_TYPES_BY_CODE: Readonly<Record<string, string
   "SL": "screen_lock",
   "WH": "webhook",
   "I": "internal",
-  "G": "subpage"
+  "G": "subpage",
+  "PW": "power"
 };
 export const CARD_CONTRACT_LARGE_NUMBERS: Readonly<Record<string, LargeNumbersRule>> = {
   "": true,
@@ -4751,6 +4879,8 @@ export const CARD_CONTRACT_OPTION_NAMES: Readonly<Record<string, string>> = {
   "actions": "actions",
   "active_color": "active_color",
   "alarm_card_type": "alarm_card_type",
+  "battery_entity": "battery_entity",
+  "battery_soc_entity": "battery_soc_entity",
   "center_clock": "center_clock",
   "climate_tabs": "climate_tabs",
   "confirm_message": "confirm_message",
@@ -4770,6 +4900,7 @@ export const CARD_CONTRACT_OPTION_NAMES: Readonly<Record<string, string>> = {
   "fan_tabs": "fan_tabs",
   "garage_mode": "garage_mode",
   "gate_mode": "gate_mode",
+  "grid_entity": "grid_entity",
   "hidden": "hidden",
   "icon_display": "icon_display",
   "image_icon": "image_icon",
@@ -4779,6 +4910,8 @@ export const CARD_CONTRACT_OPTION_NAMES: Readonly<Record<string, string>> = {
   "image_modal_refresh_mode": "image_modal_refresh_mode",
   "image_modal_refresh_trigger": "image_modal_refresh_trigger",
   "internal_mode": "internal_mode",
+  "invert_battery": "invert_battery",
+  "invert_grid": "invert_grid",
   "label_display": "label_display",
   "large_numbers": "large_numbers",
   "lawn_mower_mode": "lawn_mower_mode",
@@ -4798,6 +4931,7 @@ export const CARD_CONTRACT_OPTION_NAMES: Readonly<Record<string, string>> = {
   "playlist_player_source": "playlist_player_source",
   "script_fields": "script_fields",
   "security": "security",
+  "solar_entity": "solar_entity",
   "speaker_group_entity": "speaker_group_entity",
   "ssid64": "ssid64",
   "state_entity": "state_entity",

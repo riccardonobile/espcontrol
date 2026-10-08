@@ -719,6 +719,11 @@ inline const char *espcontrol_i18n_de(const char *text) {
   if (std::strcmp(text, "Confirm") == 0) return "Bestätigen";
   if (std::strcmp(text, "Guest Wi-Fi") == 0) return "Gast-WLAN";
   if (std::strcmp(text, "Wi-Fi did not change") == 0) return "WLAN wurde nicht geändert";
+  if (std::strcmp(text, "Power Dashboard") == 0) return "Leistungsübersicht";
+  if (std::strcmp(text, "Charging") == 0) return "Lädt";
+  if (std::strcmp(text, "Discharging") == 0) return "Entlädt";
+  if (std::strcmp(text, "Importing") == 0) return "Importiert";
+  if (std::strcmp(text, "Exporting") == 0) return "Exportiert";
   return text;
 }
 
@@ -959,6 +964,11 @@ inline const char *espcontrol_i18n_es(const char *text) {
   if (std::strcmp(text, "Confirm") == 0) return "Confirmar";
   if (std::strcmp(text, "Guest Wi-Fi") == 0) return "Wi-Fi de invitados";
   if (std::strcmp(text, "Wi-Fi did not change") == 0) return "El Wi-Fi no ha cambiado";
+  if (std::strcmp(text, "Power Dashboard") == 0) return "Panel de potencia";
+  if (std::strcmp(text, "Charging") == 0) return "Cargando";
+  if (std::strcmp(text, "Discharging") == 0) return "Descargando";
+  if (std::strcmp(text, "Importing") == 0) return "Importando";
+  if (std::strcmp(text, "Exporting") == 0) return "Exportando";
   return text;
 }
 
@@ -1442,6 +1452,11 @@ inline const char *espcontrol_i18n_fr(const char *text) {
   if (std::strcmp(text, "Confirm") == 0) return "Confirmer";
   if (std::strcmp(text, "Guest Wi-Fi") == 0) return "Wi-Fi invité";
   if (std::strcmp(text, "Wi-Fi did not change") == 0) return "Le Wi-Fi n’a pas changé";
+  if (std::strcmp(text, "Power Dashboard") == 0) return "Tableau de puissance";
+  if (std::strcmp(text, "Charging") == 0) return "Charge";
+  if (std::strcmp(text, "Discharging") == 0) return "Décharge";
+  if (std::strcmp(text, "Importing") == 0) return "Importation";
+  if (std::strcmp(text, "Exporting") == 0) return "Exportation";
   return text;
 }
 
@@ -2191,6 +2206,11 @@ inline const char *espcontrol_i18n_it(const char *text) {
   if (std::strcmp(text, "Confirm") == 0) return "Confermare";
   if (std::strcmp(text, "Guest Wi-Fi") == 0) return "Wi-Fi ospiti";
   if (std::strcmp(text, "Wi-Fi did not change") == 0) return "Il Wi-Fi non è cambiato";
+  if (std::strcmp(text, "Power Dashboard") == 0) return "Dashboard potenza";
+  if (std::strcmp(text, "Charging") == 0) return "In carica";
+  if (std::strcmp(text, "Discharging") == 0) return "In scarica";
+  if (std::strcmp(text, "Importing") == 0) return "Importazione";
+  if (std::strcmp(text, "Exporting") == 0) return "Esportazione";
   return text;
 }
 
@@ -2667,6 +2687,11 @@ inline const char *espcontrol_i18n_nl(const char *text) {
   if (std::strcmp(text, "Confirm") == 0) return "Bevestigen";
   if (std::strcmp(text, "Guest Wi-Fi") == 0) return "Gastwifi";
   if (std::strcmp(text, "Wi-Fi did not change") == 0) return "Wifi is niet gewijzigd";
+  if (std::strcmp(text, "Power Dashboard") == 0) return "Vermogensdashboard";
+  if (std::strcmp(text, "Charging") == 0) return "Laden";
+  if (std::strcmp(text, "Discharging") == 0) return "Ontladen";
+  if (std::strcmp(text, "Importing") == 0) return "Importeren";
+  if (std::strcmp(text, "Exporting") == 0) return "Exporteren";
   return text;
 }
 
@@ -3145,6 +3170,11 @@ inline const char *espcontrol_i18n_pt_br(const char *text) {
   if (std::strcmp(text, "Confirm") == 0) return "Confirmar";
   if (std::strcmp(text, "Guest Wi-Fi") == 0) return "Wi-Fi de convidados";
   if (std::strcmp(text, "Wi-Fi did not change") == 0) return "O Wi-Fi não mudou";
+  if (std::strcmp(text, "Power Dashboard") == 0) return "Painel de potência";
+  if (std::strcmp(text, "Charging") == 0) return "Carregando";
+  if (std::strcmp(text, "Discharging") == 0) return "Descarregando";
+  if (std::strcmp(text, "Importing") == 0) return "Importando";
+  if (std::strcmp(text, "Exporting") == 0) return "Exportando";
   return text;
 }
 
@@ -3386,6 +3416,11 @@ inline const char *espcontrol_i18n_pt(const char *text) {
   if (std::strcmp(text, "Confirm") == 0) return "Confirmar";
   if (std::strcmp(text, "Guest Wi-Fi") == 0) return "Wi-Fi de convidados";
   if (std::strcmp(text, "Wi-Fi did not change") == 0) return "O Wi-Fi não mudou";
+  if (std::strcmp(text, "Power Dashboard") == 0) return "Painel de potência";
+  if (std::strcmp(text, "Charging") == 0) return "A carregar";
+  if (std::strcmp(text, "Discharging") == 0) return "A descarregar";
+  if (std::strcmp(text, "Importing") == 0) return "A importar";
+  if (std::strcmp(text, "Exporting") == 0) return "A exportar";
   return text;
 }
 
@@ -5381,6 +5416,11 @@ inline const char *espcontrol_i18n_key_en(const char *key) {
   if (std::strcmp(key, "timer_confirm") == 0) return "Confirm";
   if (std::strcmp(key, "guest_wifi") == 0) return "Guest Wi-Fi";
   if (std::strcmp(key, "wifi_did_not_change") == 0) return "Wi-Fi did not change";
+  if (std::strcmp(key, "power_dashboard") == 0) return "Power Dashboard";
+  if (std::strcmp(key, "charging") == 0) return "Charging";
+  if (std::strcmp(key, "discharging") == 0) return "Discharging";
+  if (std::strcmp(key, "importing") == 0) return "Importing";
+  if (std::strcmp(key, "exporting") == 0) return "Exporting";
   return key;
 }
 
@@ -6091,6 +6131,11 @@ inline const char *espcontrol_i18n_key_de(const char *key) {
   if (std::strcmp(key, "timer_confirm") == 0) return "Bestätigen";
   if (std::strcmp(key, "guest_wifi") == 0) return "Gast-WLAN";
   if (std::strcmp(key, "wifi_did_not_change") == 0) return "WLAN wurde nicht geändert";
+  if (std::strcmp(key, "power_dashboard") == 0) return "Leistungsübersicht";
+  if (std::strcmp(key, "charging") == 0) return "Lädt";
+  if (std::strcmp(key, "discharging") == 0) return "Entlädt";
+  if (std::strcmp(key, "importing") == 0) return "Importiert";
+  if (std::strcmp(key, "exporting") == 0) return "Exportiert";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -6332,6 +6377,11 @@ inline const char *espcontrol_i18n_key_es(const char *key) {
   if (std::strcmp(key, "timer_confirm") == 0) return "Confirmar";
   if (std::strcmp(key, "guest_wifi") == 0) return "Wi-Fi de invitados";
   if (std::strcmp(key, "wifi_did_not_change") == 0) return "El Wi-Fi no ha cambiado";
+  if (std::strcmp(key, "power_dashboard") == 0) return "Panel de potencia";
+  if (std::strcmp(key, "charging") == 0) return "Cargando";
+  if (std::strcmp(key, "discharging") == 0) return "Descargando";
+  if (std::strcmp(key, "importing") == 0) return "Importando";
+  if (std::strcmp(key, "exporting") == 0) return "Exportando";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -6817,6 +6867,11 @@ inline const char *espcontrol_i18n_key_fr(const char *key) {
   if (std::strcmp(key, "timer_confirm") == 0) return "Confirmer";
   if (std::strcmp(key, "guest_wifi") == 0) return "Wi-Fi invité";
   if (std::strcmp(key, "wifi_did_not_change") == 0) return "Le Wi-Fi n’a pas changé";
+  if (std::strcmp(key, "power_dashboard") == 0) return "Tableau de puissance";
+  if (std::strcmp(key, "charging") == 0) return "Charge";
+  if (std::strcmp(key, "discharging") == 0) return "Décharge";
+  if (std::strcmp(key, "importing") == 0) return "Importation";
+  if (std::strcmp(key, "exporting") == 0) return "Exportation";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -7569,6 +7624,11 @@ inline const char *espcontrol_i18n_key_it(const char *key) {
   if (std::strcmp(key, "timer_confirm") == 0) return "Confermare";
   if (std::strcmp(key, "guest_wifi") == 0) return "Wi-Fi ospiti";
   if (std::strcmp(key, "wifi_did_not_change") == 0) return "Il Wi-Fi non è cambiato";
+  if (std::strcmp(key, "power_dashboard") == 0) return "Dashboard potenza";
+  if (std::strcmp(key, "charging") == 0) return "In carica";
+  if (std::strcmp(key, "discharging") == 0) return "In scarica";
+  if (std::strcmp(key, "importing") == 0) return "Importazione";
+  if (std::strcmp(key, "exporting") == 0) return "Esportazione";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -8046,6 +8106,11 @@ inline const char *espcontrol_i18n_key_nl(const char *key) {
   if (std::strcmp(key, "timer_confirm") == 0) return "Bevestigen";
   if (std::strcmp(key, "guest_wifi") == 0) return "Gastwifi";
   if (std::strcmp(key, "wifi_did_not_change") == 0) return "Wifi is niet gewijzigd";
+  if (std::strcmp(key, "power_dashboard") == 0) return "Vermogensdashboard";
+  if (std::strcmp(key, "charging") == 0) return "Laden";
+  if (std::strcmp(key, "discharging") == 0) return "Ontladen";
+  if (std::strcmp(key, "importing") == 0) return "Importeren";
+  if (std::strcmp(key, "exporting") == 0) return "Exporteren";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -8526,6 +8591,11 @@ inline const char *espcontrol_i18n_key_pt_br(const char *key) {
   if (std::strcmp(key, "timer_confirm") == 0) return "Confirmar";
   if (std::strcmp(key, "guest_wifi") == 0) return "Wi-Fi de convidados";
   if (std::strcmp(key, "wifi_did_not_change") == 0) return "O Wi-Fi não mudou";
+  if (std::strcmp(key, "power_dashboard") == 0) return "Painel de potência";
+  if (std::strcmp(key, "charging") == 0) return "Carregando";
+  if (std::strcmp(key, "discharging") == 0) return "Descarregando";
+  if (std::strcmp(key, "importing") == 0) return "Importando";
+  if (std::strcmp(key, "exporting") == 0) return "Exportando";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -8768,6 +8838,11 @@ inline const char *espcontrol_i18n_key_pt(const char *key) {
   if (std::strcmp(key, "timer_confirm") == 0) return "Confirmar";
   if (std::strcmp(key, "guest_wifi") == 0) return "Wi-Fi de convidados";
   if (std::strcmp(key, "wifi_did_not_change") == 0) return "O Wi-Fi não mudou";
+  if (std::strcmp(key, "power_dashboard") == 0) return "Painel de potência";
+  if (std::strcmp(key, "charging") == 0) return "A carregar";
+  if (std::strcmp(key, "discharging") == 0) return "A descarregar";
+  if (std::strcmp(key, "importing") == 0) return "A importar";
+  if (std::strcmp(key, "exporting") == 0) return "A exportar";
   return espcontrol_i18n_key_en(key);
 }
 

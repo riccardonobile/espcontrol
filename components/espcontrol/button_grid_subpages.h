@@ -51,6 +51,7 @@ inline std::string decode_compact_subpage_field(const std::string &value, size_t
 }
 
 inline SubpageBtn normalize_subpage_btn(SubpageBtn b) {
+  if (normalize_saved_config_power(b, espcontrol::power::normalize_options)) return b;
   if (brightness_slider_type(b.type) && !b.sensor.empty()) b.sensor.clear();
   if (fan_card_type(b.type)) {
     b.sensor.clear();

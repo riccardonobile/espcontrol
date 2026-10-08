@@ -33,6 +33,8 @@ import { migrateSavedConfigSensorLegacy, normalizeSavedConfigSensor } from "../g
 import { migrateSavedConfigActionLegacy, normalizeSavedConfigAction } from "../generated/saved_config_action";
 import { normalizeSavedConfigMedia } from "../generated/saved_config_media";
 import { normalizeSavedConfigStatic } from "../generated/saved_config_static";
+import { normalizeSavedConfigPower } from "../generated/saved_config_power";
+import { normalizePowerOptions } from "../model/power_card";
 import { normalizeSavedConfigFan } from "../generated/saved_config_fan";
 import { normalizeSavedConfigDateTime } from "../generated/saved_config_date_time";
 import { normalizeSavedConfigMower } from "../generated/saved_config_mower";
@@ -474,6 +476,7 @@ export function createConfigCodecFeature(
             normalizeSavedConfigWebhook(b, normalizeSavedConfigWebhookFields, normalizeSavedConfigWebhookOptions);
         normalizeWithRegisteredCardType(b);
         var normalizedSavedStatic: any = !!(b && normalizeSavedConfigStatic(b));
+        var normalizedSavedPower: any = !!(b && normalizeSavedConfigPower(b, normalizePowerOptions));
         if (b)
             normalizeSavedConfigDateTime(b, normalizeSavedConfigDateTimeFields, normalizeSavedConfigDateTimeOptions);
         if (b)
@@ -487,7 +490,7 @@ export function createConfigCodecFeature(
         var normalizedSavedSensor: any = !!(b && normalizeSavedConfigSensor(b, wasLegacyTextSensor, normalizeSavedConfigSensorFields, normalizeSensorOptions));
         var normalizedSavedOccupancy: any = !!(b && normalizeSavedConfigOccupancy(b, normalizeSavedConfigOccupancyFields, normalizeSavedConfigOccupancyOptions));
         var normalizedSavedSwitch: any = !!(b && !normalizedSavedSensor && normalizeSavedConfigSwitch(b, normalizeSwitchConfirmationOptions));
-        if (b && !normalizedSavedSensor && !normalizedSavedSwitch && !normalizedSavedAccess && !normalizedSavedOccupancy && !normalizedSavedStatic && !normalizedSavedFan && !normalizedSavedMower && b.type !== "action" && b.type !== "alarm" && b.type !== "alarm_action" && !isClimateCardType(b.type) && b.type !== "webhook" && b.type !== "media" && b.type !== "subpage" && b.type !== "image" && b.type !== "wifi_qr" && b.type !== "wifi_qr_card" && b.type !== "light_control" && b.type !== "vacuum" && !cardLargeNumbersSupported(b)) {
+        if (b && !normalizedSavedPower && !normalizedSavedSensor && !normalizedSavedSwitch && !normalizedSavedAccess && !normalizedSavedOccupancy && !normalizedSavedStatic && !normalizedSavedFan && !normalizedSavedMower && b.type !== "action" && b.type !== "alarm" && b.type !== "alarm_action" && !isClimateCardType(b.type) && b.type !== "webhook" && b.type !== "media" && b.type !== "subpage" && b.type !== "image" && b.type !== "wifi_qr" && b.type !== "wifi_qr_card" && b.type !== "light_control" && b.type !== "vacuum" && !cardLargeNumbersSupported(b)) {
             b.options = "";
         }
         return b;
@@ -701,7 +704,7 @@ export function createConfigCodecFeature(
         else if (isActionOptionSelect || isFanCardType(type)) {
             options = "";
         }
-        else if (type !== "action" && type !== "alarm_action" && !isClimateCardType(type) && type !== "cover" && type !== "garage" && type !== "gate" && type !== "webhook" && type !== "screen_lock" && type !== "media" && type !== "presence" && type !== "light_control" && type !== "fan_control" && !cardLargeNumbersSupported({ type: type, precision: precision })) {
+        else if (type !== "power" && type !== "action" && type !== "alarm_action" && !isClimateCardType(type) && type !== "cover" && type !== "garage" && type !== "gate" && type !== "webhook" && type !== "screen_lock" && type !== "media" && type !== "presence" && type !== "light_control" && type !== "fan_control" && !cardLargeNumbersSupported({ type: type, precision: precision })) {
             options = "";
         }
         if (type === "image") {
