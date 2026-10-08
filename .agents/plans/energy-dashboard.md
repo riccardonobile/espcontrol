@@ -200,15 +200,27 @@ periodic timer. Implement static geometry first. Moving indicators, their speed
 and reduced-motion behavior require a separate review decision, not a claim
 that they are already validated by this prototype.
 
-## Power data model and recommended allocation
+## Finalized Power Flow calculation proposal
 
 Use instantaneous Home, Solar, Grid and Battery readings, plus optional Battery
 SOC. Prefer the existing `entity` field for Home and typed card options for the
 other IDs. Preserve the nine-field compact format; do not create device-wide
 Power settings or another persistence service. Unconfigured inputs remain
 unavailable with their nodes visible; do not invent zero-producing equipment.
+All four power entity IDs are configurable; SOC is an optional separate percent
+entity and never participates in the power balance.
 
-Recommended explicit data rules, with numerical policy awaiting approval:
+The user's actual HA conventions are confirmed, matching v0.32:
+
+| Input | Default canonical meaning after W/kW normalization |
+| --- | --- |
+| Solar (`S`) | Positive production, zero when idle. |
+| Home (`H`) | Positive consumption, zero when idle. |
+| Grid (`G`) | Positive importing, negative exporting. |
+| Battery (`B`) | Positive discharging, negative charging. |
+| Battery SOC | Independent percentage; optional, not a power input. |
+
+Explicit data rules, retaining the existing validity/formatting proposal:
 
 - **Units:** valid W maps directly to canonical watts; valid kW multiplies by
   1,000. Read unit attributes through existing subscriptions. Any explicit unit
@@ -221,10 +233,11 @@ Recommended explicit data rules, with numerical policy awaiting approval:
 - **Display:** reuse existing `format_fixed_decimal()` and value/unit widgets
   with current precision/unit conventions. Convert for display separately from
   model watts; display rounding must not decide flow direction or Idle.
-- **Polarity:** Grid positive = importing, negative = exporting; Battery
-  positive = discharging, negative = charging, as in v0.32. Recommend explicit
-  per-input inversion options for these two signals when integrations use the
-  opposite sign. Do not infer polarity from current state or SOC. Home and Solar
+- **Polarity:** default to the confirmed signs above. Keep optional Grid and
+  Battery inversion flags, both defaulting to false, for other installations.
+  Apply each chosen inversion once after unit normalization, before status,
+  balance and allocation; preserve the original HA value separately. Do not
+  infer or auto-flip signs from a balance error, current state or SOC. Home and Solar
   are nonnegative consumption/production; negative values beyond the zero band
   are invalid configuration/data, not reversed Home/Solar paths.
 - **Zero band:** recommend `abs(power_w) <= 1 W` as known idle, inclusive of
@@ -247,22 +260,83 @@ Recommended explicit data rules, with numerical policy awaiting approval:
   updates alone must not invalidate an unchanged, connected sensor: HA is
   event-driven. No per-card polling network connection or expiry timer.
 
-Four aggregate readings do not uniquely identify the seven pairwise paths,
-including simultaneous behind-the-meter flows. The mockup's checkbox values
-are synthetic and not necessarily balanced. Measured edge sensors are the
-strongest source if an installation exposes them; supporting them would need
-an explicitly approved mapping/contract rather than seven extra mandatory IDs.
+### Signed balance and visibility gate
 
-For a minimal first implementation, recommend **documented solar-first inferred
-paths** from the four aggregate inputs, subject to architecture approval:
+For normalized, polarity-adjusted watts, the expected relationship is:
 
-1. Split net Grid into import source/export sink and net Battery into discharge
-   source/charge sink; only one direction of each is active within a snapshot.
-2. Allocate Solar to Home, then Battery charging, then Grid export.
-3. Allocate Battery discharge to remaining Home, then remaining Grid export.
-4. Allocate Grid import to remaining Home, then remaining Battery charging.
-5. Each allocation is the minimum of remaining source and sink. Never exceed
-   a measured capacity, manufacture a negative flow or double-count a sample.
+```text
+H = S + G + B
+R = S + G + B - H
+source_total = max(S, 0) + max(G, 0) + max(B, 0)
+sink_total   = max(H, 0) + max(-G, 0) + max(-B, 0)
+T = max(BALANCE_ABSOLUTE_W, BALANCE_RELATIVE * max(source_total, sink_total))
+```
+
+Use full-precision normalized readings for `R` and `T`, before display rounding
+or idle-band suppression. `R > 0` means excess measured supply; `R < 0` means
+excess measured demand. Small noise within the Home/Solar zero band still has
+nonnegative working capacities; negative values beyond it remain invalid.
+
+Keep tolerance centrally tunable through named model design constants, initially
+`BALANCE_ABSOLUTE_W = 10 W` and `BALANCE_RELATIVE = 0.02`. These are proposals
+subject to real-sensor validation, not new persisted fields or web/HA controls.
+The same constants must drive calculation and tests; do not scatter thresholds
+among the card, modal and preview. The previously proposed 1 W idle band remains
+subject to validation as well.
+
+Inferred arrows are eligible only when all four power readings/units are valid,
+live and `abs(R) <= T` (boundary inclusive). If any input is missing/invalid or
+the residual exceeds `T`, hide **all inferred arrows**, including allocations
+from an earlier valid snapshot. Keep independently valid node values and
+Battery/Grid status visible; neither residual failure nor missing Solar/Home
+turns known Battery/Grid states into Unavailable. Invalid SOC does not gate arrows.
+Recompute on each relevant model update; no delay, synthetic replacement value
+or extra subscription is required to wait for samples to become consistent.
+
+This tolerates measurement differences, inverter losses and asynchronous HA
+updates without asserting an atomic sample set. Within tolerance, leave residual
+capacity unallocated rather than editing readings to force the equation. Above
+tolerance, the valid readings remain useful while the allocation is withheld.
+Do not infer a missing Home/Solar value merely because the other terms balance.
+
+### Deterministic solar-first allocation
+
+Four aggregate readings cannot uniquely identify actual pairwise routes. The
+first implementation proposal is therefore **inferred visual allocation**, not
+measured edge telemetry. Measured flow sensors could be a stronger future input
+but would require an explicitly approved separate mapping; they are not required
+by, or added to, this four-entity proposal.
+
+After the gate passes, construct nonnegative working capacities. Readings within
+the idle band contribute zero; retain their original values for numeric display:
+
+```text
+Sources: Solar production, Grid import, Battery discharge
+Sinks:   Home consumption, Battery charge, Grid export
+```
+
+Grid import/export and Battery charge/discharge are mutually exclusive for each
+signed input. Allocate in exactly this order:
+
+1. Solar -> Home
+2. Solar -> Battery
+3. Solar -> Grid
+4. Battery -> Home
+5. Battery -> Grid
+6. Grid -> Home
+7. Grid -> Battery
+
+For each edge, assign `min(remaining_source, remaining_sink)` and immediately
+subtract it from **both** capacities. Each edge is nonnegative; the sum of all
+outgoing edges never exceeds a source, and the sum of incoming edges never
+exceeds a sink. No negative remainder, double counting, fabricated balancing
+edge or simultaneous reciprocal Grid/Battery flow is allowed.
+
+Recommend the same 1 W band for arrow visibility: a path is visible only when
+its allocated value is greater than the band. An allocated sub-band remainder
+is still deducted from capacity bookkeeping; hiding it must not release it for
+another edge. This visibility threshold is part of the numerical proposal to
+validate, not a separate animation or measurement claim.
 
 This priority is a display convention, not proof of actual routing. Keep node
 numbers as measured readings; do not display inferred edge values as measured
@@ -270,13 +344,10 @@ data. Label the modal's path interpretation as estimated using existing title/
 caption styling and explain the policy in configurator help/public docs. Ports
 and geometry remain unchanged by that explanation.
 
-Because HA samples arrive asynchronously and equipment has losses, check the
-source/sink residual before exposing inferred paths. Recommend a provisional
-balance tolerance of `max(10 W, 2% of the larger total)`; within it, leave any
-residual unallocated, rather than adjusting measurements. Above it, show valid
-node numbers/statuses and mark inferred paths unavailable. That tolerance and
-the priority need approval and real-installation validation; neither guarantees
-that temporally mismatched samples describe the same physical instant.
+Keep all seven v0.32 paths and fixed ports regardless of active edges. Allocation
+changes values/visibility only; it never moves ports or recomputes their positions.
+Grid -> Battery traverses the exact Battery -> Grid centerline in reverse, with
+the arrowhead reversed. Geometry is recalculated only for layout/profile changes.
 
 Use `ha_subscribe_state()` and unit attributes through `HaCallbackOwnerScope`,
 `ha_read_retained_state()`/attribute access and existing subscription generations.
@@ -451,6 +522,83 @@ application changes before this plan is reviewed.
 
 ## Risks and testing strategy
 
+### Table-driven calculation tests to implement
+
+These are specifications for future host/model tests, not tests already added
+or an implemented Power feature. S/H/G/B mean Solar/Home/Grid/Battery. Readings
+are watts after unit normalization but **before** selected sign inversions.
+An em dash means a missing or invalid input, not zero. Invert G/B means the
+corresponding compatibility flag is true; otherwise both flags are false.
+Expected paths are visible allocations under the proposed 1 W band and
+10 W/2% balance constants; all unlisted paths must be hidden. English secondary
+text denotes the existing i18n-rendered status keys, Battery first.
+
+| Case | Readings W `(S, H, G, B)` | Invert | Expected visible inferred paths, W | Secondary label |
+| --- | --- | --- | --- | --- |
+| Solar supplies Home | `(1000, 1000, 0, 0)` | None | S -> H: 1000 | `Idle` |
+| Solar charges Battery | `(1500, 1000, 0, -500)` | None | S -> H: 1000; S -> B: 500 | `Charging` |
+| Solar exports to Grid | `(1500, 1000, -500, 0)` | None | S -> H: 1000; S -> G: 500 | `Exporting` |
+| Battery supplies Home | `(0, 1000, 0, 1000)` | None | B -> H: 1000 | `Discharging` |
+| Battery exports to Grid | `(0, 0, -500, 500)` | None | B -> G: 500 | `Discharging · Exporting` |
+| Grid supplies Home | `(0, 1000, 1000, 0)` | None | G -> H: 1000 | `Importing` |
+| Grid charges Battery | `(0, 0, 500, -500)` | None | G -> B: 500 | `Charging · Importing` |
+| Import and charging | `(300, 1000, 1000, -300)` | None | S -> H: 300; G -> H: 700; G -> B: 300 | `Charging · Importing` |
+| Discharge and export | `(300, 700, -400, 800)` | None | S -> H: 300; B -> H: 400; B -> G: 400 | `Discharging · Exporting` |
+| Solar charges and exports | `(1800, 1000, -300, -500)` | None | S -> H: 1000; S -> B: 500; S -> G: 300 | `Charging · Exporting` |
+| All zero | `(0, 0, 0, 0)` | None | None | `Idle` |
+| Near zero | `(0.5, 0.5, 0.5, -0.5)` | None | None | `Idle` |
+| At 1 W idle boundary | `(0, 1, 1, 0)` | None | None | `Idle` |
+| Above idle boundary | `(0, 1.1, 1.1, 0)` | None | G -> H: 1.1 | `Importing` |
+| Small accepted imbalance | `(300, 295, 0, 0)` | None | S -> H: 295 | `Idle` |
+| At absolute tolerance | `(100, 90, 0, 0)` | None | S -> H: 90 | `Idle` |
+| Beyond absolute tolerance | `(100, 89, 0, 0)` | None | None | `Idle` |
+| At negative absolute tolerance | `(90, 100, 0, 0)` | None | S -> H: 90 | `Idle` |
+| Beyond negative absolute tolerance | `(89, 100, 0, 0)` | None | None | `Idle` |
+| At relative tolerance | `(1200, 1176, 0, 0)` | None | S -> H: 1176 | `Idle` |
+| Beyond relative tolerance | `(1200, 1175, 0, 0)` | None | None | `Idle` |
+| At negative relative tolerance | `(1176, 1200, 0, 0)` | None | S -> H: 1176 | `Idle` |
+| Beyond negative relative tolerance | `(1175, 1200, 0, 0)` | None | None | `Idle` |
+| Large negative residual | `(500, 1000, 200, -100)` | None | None | `Charging · Importing` |
+| Missing Solar | `(—, 1000, 700, 300)` | None | None | `Discharging · Importing` |
+| Missing Home | `(500, —, -200, -300)` | None | None | `Charging · Exporting` |
+| Missing Grid | `(500, 500, —, 0)` | None | None | `Unavailable` |
+| Missing Battery | `(500, 1000, 500, —)` | None | None | `Importing` |
+| Invalid Grid, active Battery | `(0, 1000, —, 1000)` | None | None | `Discharging` |
+| Both status inputs missing | `(500, 500, —, —)` | None | None | `Unavailable` |
+| Grid inversion | `(0, 1000, -1000, 0)` | G | G -> H: 1000 | `Importing` |
+| Battery inversion | `(0, 1000, 0, -1000)` | B | B -> H: 1000 | `Discharging` |
+| Both inversions | `(300, 1000, -1000, 300)` | G + B | S -> H: 300; G -> H: 700; G -> B: 300 | `Charging · Importing` |
+| Opposite signs without inversion | `(300, 1000, -1000, 300)` | None | None | `Discharging · Exporting` |
+| Sub-band allocation | `(1000, 999.5, 50, -50)` | None | S -> H: 999.5; G -> B: 49.5 | `Charging · Importing` |
+
+Additional assertions/variants for this matrix:
+
+- Run each valid numeric fixture with W input and equivalent kW input; canonical
+  allocations, residual, validity and secondary state must be identical.
+- Parameterize missing/invalid inputs with absent entities, `unknown`,
+  `unavailable`, NaN/Inf, trailing numeric junk, unsupported Wh/kWh and overflow.
+  Reject each without inventing zero or flipping polarity. Missing Home clears
+  the card number; valid other nodes and independent statuses remain visible.
+- Run valid cases with SOC omitted, 0%, 78%, 100%, unknown, -1% and 101%.
+  SOC rendering changes as appropriate; power paths and summary do not.
+- Absolute-boundary fixtures have `abs(R) = 10 W` versus `11 W`, with
+  `T = 10 W`; relative-boundary fixtures have `24 W` versus `25 W`, with
+  `T = 24 W`. Both positive and negative residual directions need coverage.
+- The sub-band allocation fixture also assigns 0.5 W to Solar -> Battery,
+  then 49.5 W to Grid -> Battery. The first arrow is hidden but its capacity
+  deduction remains: the model must not allocate 50 W from Grid as well.
+  Grid retains 0.5 W unallocated; Battery's complete incoming sum is 50 W.
+- Assert every allocation is finite/nonnegative and incoming/outgoing sums are
+  bounded by measured capacities. Check leftover capacities, not only flags;
+  no residual is silently added to another path to force exact balance.
+- Test valid -> invalid/unbalanced -> valid transitions: clear previously active
+  arrows immediately, retain valid readings/status, then restore the correct
+  paths on recovery without moving ports, restarting subscriptions or reopening.
+- Check all seven paths separately and together as geometry-only fixtures,
+  including reciprocal Grid/Battery traversal. This inferred model never
+  enables both reciprocal directions at once; the prototype's "Show all" is
+  only a topology stress test. Port positions must be invariant in every case.
+
 | Risk | Required protection |
 | --- | --- |
 | Secondary status lies about partial data | Exhaust all Battery/Grid combinations, all four approved active words/order/middle dot, one-active/one-unknown, idle/unknown and both-invalid. Idle requires two valid readings within the zero band; missing Home/SOC must not erase known states. |
@@ -479,21 +627,22 @@ firmware, implement sensors/calculations or claim device testing.
 
 ### Remaining decisions requiring approval
 
-1. Accept the partial-status fallback: show known active status alone; otherwise
-   Unavailable unless both Battery and Grid are known idle.
-2. Accept the solar-first inferred allocation and visible estimated-path
-   explanation, or prefer a measured-edge mapping (which would require a
-   separately specified contract). This choice determines what arrows mean.
-3. Accept or revise the proposed 1 W zero band and residual tolerance of
-   `max(10 W, 2%)`, and confirm explicit Grid/Battery inversion options. Validate
-   this with the user's actual HA entities/units and inverter behavior before
-   implementation; do not silently guess sensor polarity or missing units.
-4. Coordinate the minimal generic-label integration with PR #2162 if it remains
+1. Validate or revise the proposed 1 W idle/arrow band and centrally tunable
+   tolerance constants of 10 W and 2% against actual sensor update cadence,
+   measurement differences and inverter losses. Exact W/kW attributes/entity IDs
+   still belong to the eventual card configuration, not guessed defaults.
+2. Confirm the concise estimated-path explanation and imbalance/unavailable
+   indication using existing modal styles, without disturbing v0.32 geometry.
+3. Coordinate the minimal generic-label integration with PR #2162 if it remains
    open; preserve its typography and existing-card behavior when adding the
    Power secondary-label/chevron layout and theme/contrast hooks.
 
 Card naming, Home value, dynamic Battery/Grid summary, existing fonts, static
-seven-path topology and main/subpage support are approved. They do not need
-another design decision. Keep animations excluded unless separately approved.
+seven-path topology and main/subpage support are approved. Sensor signs are now
+confirmed, both optional inversion flags default to false, and the calculation
+proposal is the seven-step solar-first inferred allocation specified above.
+Do not reopen those input conventions or auto-correct them from a residual.
+Measured-edge mapping and animations remain outside this initial proposal
+unless separately approved.
 Keep the fork-only PR Draft, leave `main` untouched and wait for explicit
 implementation approval on `feature/energy-dashboard` and that same PR.
