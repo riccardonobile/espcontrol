@@ -1,0 +1,123 @@
+[
+  {
+    "name": "defaults without additional fields",
+    "input": "sensor.home_power;;;;;;power;;",
+    "expected": {
+      "entity": "sensor.home_power",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": ""
+    }
+  },
+  {
+    "name": "all entities and inverted polarity",
+    "input": "sensor.home_power;Power Dashboard;Auto;Auto;unused;kWh;power;bad;battery_soc_entity=sensor.battery_soc,invert_battery,unknown=x,grid_entity=sensor.grid_power,solar_entity=sensor.solar_power,battery_entity=sensor.battery_power,invert_grid,invert_grid",
+    "expected": {
+      "entity": "sensor.home_power",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": "solar_entity=sensor.solar_power,grid_entity=sensor.grid_power,battery_entity=sensor.battery_power,battery_soc_entity=sensor.battery_soc,invert_grid,invert_battery"
+    }
+  },
+  {
+    "name": "missing readings are not invented",
+    "input": ";;;;;;power;;",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": ""
+    }
+  },
+  {
+    "name": "partial bindings and optional SOC",
+    "input": "sensor.home_power;Custom;Flash;Wrong;;;power;2;grid_entity=sensor.grid_power,battery_soc_entity=sensor.battery_soc",
+    "expected": {
+      "entity": "sensor.home_power",
+      "label": "Custom",
+      "icon": "Flash",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,battery_soc_entity=sensor.battery_soc"
+    }
+  },
+  {
+    "name": "false malformed and prefixed flags omitted",
+    "input": "sensor.home_power;;;;;;power;;invert_grid=0,invert_battery=false,invert_grid_extra,unknown=x",
+    "expected": {
+      "entity": "sensor.home_power",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": ""
+    }
+  },
+  {
+    "name": "option order trims and duplicates collapse",
+    "input": "sensor.home_power;;;;;;power;1;grid_entity=%20sensor.grid_power%20,solar_entity=sensor.solar_power,grid_entity=sensor.other,invert_battery,invert_battery",
+    "expected": {
+      "entity": "sensor.home_power",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "1",
+      "options": "solar_entity=sensor.solar_power,grid_entity=sensor.grid_power,invert_battery"
+    }
+  },
+  {
+    "name": "empty optional sensor removed",
+    "input": "sensor.home_power;;;;;;power;;battery_soc_entity=%20%20,solar_entity=sensor.solar_power",
+    "expected": {
+      "entity": "sensor.home_power",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": "solar_entity=sensor.solar_power"
+    }
+  },
+  {
+    "name": "compact fields preserve custom label and nested options",
+    "input": "~sensor.home_power,House%3BPower,Auto,Auto,,,power,,solar_entity=sensor.solar_power%2Cgrid_entity=sensor.grid_power%2Cinvert_grid",
+    "expected": {
+      "entity": "sensor.home_power",
+      "label": "House;Power",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": "solar_entity=sensor.solar_power,grid_entity=sensor.grid_power,invert_grid"
+    },
+    "canonical": "~sensor.home_power,House%3BPower,Auto,Auto,,,power,,solar_entity=sensor.solar_power%2Cgrid_entity=sensor.grid_power%2Cinvert_grid"
+  }
+]

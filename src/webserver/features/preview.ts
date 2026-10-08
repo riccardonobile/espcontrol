@@ -41,6 +41,7 @@ interface PickerDetails {
 }
 
 const INFO_ONLY_CARD_TYPES = new Set([
+  "power",
   "sensor",
   "calendar",
   "clock",

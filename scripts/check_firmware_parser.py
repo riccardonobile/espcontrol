@@ -243,6 +243,19 @@ inline void lv_obj_move_background(lv_obj_t *) { lv_obj_move_background_calls++;
 #include "button_grid_layout.h"
 
 int main() {
+  auto power_saved = parse_cfg("sensor.home;Power Dashboard;Auto;Auto;;;power;;solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,battery_soc_entity=sensor.soc,invert_grid,invert_battery");
+  const auto power_config = espcontrol::power::decode_config_v1(power_saved);
+  assert(power_config.home_entity == "sensor.home");
+  assert(power_config.solar_entity == "sensor.solar");
+  assert(power_config.grid_entity == "sensor.grid");
+  assert(power_config.battery_entity == "sensor.battery");
+  assert(power_config.battery_soc_entity == "sensor.soc");
+  assert(power_config.invert_grid && power_config.invert_battery);
+  const auto power_defaults = espcontrol::power::decode_config_v1(parse_cfg(";;;;;;power;;"));
+  assert(power_defaults.home_entity.empty() && power_defaults.solar_entity.empty());
+  assert(power_defaults.grid_entity.empty() && power_defaults.battery_entity.empty());
+  assert(power_defaults.battery_soc_entity.empty());
+  assert(!power_defaults.invert_grid && !power_defaults.invert_battery);
   int row_span = 0;
   int col_span = 0;
   grid_token_spans('\0', row_span, col_span);
@@ -1059,6 +1072,8 @@ def main() -> int:
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         shutil.copy2(PARSER_HEADER, tmp_path / "button_grid_config_parser.h")
+        for name in ("power_card_config.h", "button_grid_saved_config_power_generated.h"):
+            shutil.copy2(ROOT / "components" / "espcontrol" / name, tmp_path / name)
         shutil.copy2(MEDIA_CONFIG_HEADER, tmp_path / "button_grid_media_config.h")
         shutil.copy2(ROOT / "components" / "espcontrol" / "temperature_unit.h", tmp_path / "temperature_unit.h")
         shutil.copy2(ROOT / "components" / "espcontrol" / "sun_calc.h", tmp_path / "sun_calc.h")

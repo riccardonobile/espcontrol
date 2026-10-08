@@ -360,6 +360,37 @@
       "classification": "accepted_legacy_input", "canonicalType": "weather", "webRegistration": "weather_forecast", "firmwareFamily": "WEATHER",
       "lifecycle": { "subscriptions": ["state", "attributes", "action_response"], "actions": ["none"], "modalOwner": "none" },
       "modes": [{ "name": "legacy_forecast", "config": { "entity": "weather.example", "type": "weather_forecast" } }]
+    },
+    "power": {
+      "classification": "canonical",
+      "canonicalType": "power",
+      "webRegistration": "power",
+      "firmwareFamily": "POWER",
+      "lifecycle": {
+        "subscriptions": [
+          "none"
+        ],
+        "actions": [
+          "none"
+        ],
+        "modalOwner": "none"
+      },
+      "modes": [
+        {
+          "name": "model",
+          "config": {
+            "entity": "sensor.home",
+            "options": "solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,battery_soc_entity=sensor.soc"
+          }
+        },
+        {
+          "name": "inverted",
+          "config": {
+            "entity": "sensor.home",
+            "options": "solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,invert_grid,invert_battery"
+          }
+        }
+      ]
     }
   },
   "runtimeOnlyTypes": {

@@ -1,6 +1,7 @@
 # Power Dashboard architecture plan
 
-Status: architecture planning only; implementation requires review approval.
+Status: Phase 1 model/contract implemented with approval; rendering, modal and
+configurator implementation still require separate approval.
 Baseline: `a406208906f900058da4c063d1e0c3eeeff9af6a` (merged upstream Theme
 Support, verified 2026-10-08). Work branch: `feature/energy-dashboard`; retain
 the existing document path and fork-only Draft PR #10 without renaming them.
@@ -17,6 +18,46 @@ the existing document path and fork-only Draft PR #10 without renaming them.
 - Reuse existing card drivers, modal lifecycle, theme palette, fonts,
   display profiles, Home Assistant subscriptions and configuration contracts.
 - Keep authored/generated boundaries and existing backups compatible.
+
+## Phase 1 implementation boundary
+
+`components/espcontrol/power_flow_model.h` now owns strict power/SOC validation,
+canonical polarity, balance validity, inferred allocations and translated status
+text independently of LVGL. The initial constants are 1 W idle, 10 W minimum
+balance tolerance and 2% relative tolerance. Values above the existing numeric
+formatter's safe precision-3 range (2,147,482 W) are rejected. Small negative
+Solar/Home noise within the idle band is retained without creating capacity.
+
+The authored `power` contract keeps all nine saved fields: Home uses `entity`;
+`options` holds `solar_entity`, `grid_entity`, `battery_entity`, optional
+`battery_soc_entity`, then bare `invert_grid`/`invert_battery` flags (absent means
+false). Default label is `Power Dashboard`; explicit labels are preserved.
+Unused `sensor`/`unit` fields are cleared; display precision allows empty/0/1/2.
+The new subpage code is `PW`; existing codes and storage versions are unchanged.
+Generated normalizers and typed config views preserve these options in firmware,
+browser serialization, native backups and card transfers.
+
+Power is registered but hidden during Phase 1. Its lifecycle inventory records
+no subscriptions, actions or modal until Phase 2 installs the actual driver.
+No card renderer, HA binding, layout, modal, geometry, preview or editor controls
+are implemented yet. The web registry entry contains only hidden contract
+metadata and normalization. Existing generators own all derived files.
+
+**Transport constraint for the editor phase:** native record bodies allow 2,048
+bytes, but live main-grid card text and its existing save validation still cap
+the serialized card at 255 bytes. Typical short sensor IDs fit; five long IDs
+can exceed this. The bound is preserved and tested, with no truncation or schema
+bump. Phase 2/3 must keep this validation visible and assess realistic installation
+IDs before exposing the card; native backup capacity alone does not prove a
+configuration can be applied to live text entities. Subpages retain their existing
+device-dependent chunk limits.
+
+Tests cover all 35 planned allocation cases in W/kW, conservation (including
+hidden allocations), parsing/limits, SOC, status combinations/i18n, invalidation,
+polarity and valid-invalid-valid transitions. Shared serialization fixtures cover
+defaults, custom labels, optional entities, malformed flags, canonical ordering,
+compact escaping and firmware/browser parity. No firmware size or physical UI
+validation is claimed for this model-only phase.
 
 ## Verified inputs and boundaries
 
@@ -87,7 +128,7 @@ unavailable convention; it must not display a false zero or disable navigation.
 Classify Battery and Grid independently as active, known idle or unavailable.
 Unavailable includes absent/unconfigured, unknown, invalid-unit, malformed,
 non-finite or disconnected data; it is never another spelling of zero.
-The following partial-data fallback is recommended for approval:
+The approved partial-data fallback is:
 
 | Battery | Grid | English rendering |
 | --- | --- | --- |
@@ -278,8 +319,9 @@ excess measured demand. Small noise within the Home/Solar zero band still has
 nonnegative working capacities; negative values beyond it remain invalid.
 
 Keep tolerance centrally tunable through named model design constants, initially
-`BALANCE_ABSOLUTE_W = 10 W` and `BALANCE_RELATIVE = 0.02`. These are proposals
-subject to real-sensor validation, not new persisted fields or web/HA controls.
+`MIN_BALANCE_TOLERANCE_W = 10 W` and `RELATIVE_BALANCE_TOLERANCE = 0.02`.
+Phase 1 uses these approved initial values, subject to real-sensor validation,
+not new persisted fields or web/HA controls.
 The same constants must drive calculation and tests; do not scatter thresholds
 among the card, modal and preview. The previously proposed 1 W idle band remains
 subject to validation as well.
@@ -491,8 +533,8 @@ question, not permission to rewrite existing card codes or silently drop fields.
 
 ## Implementation phases and acceptance gates
 
-The card presentation is approved; implementation itself still requires explicit
-approval. Start only after the remaining data/fallback decisions below are settled.
+Phase 1 is approved and implemented. Further implementation requires explicit
+approval; retain the remaining presentation/integration decisions below.
 Prefer these small phases/commits, including focused tests and generator output
 in the phase that owns them:
 
@@ -627,7 +669,7 @@ firmware, implement sensors/calculations or claim device testing.
 
 ### Remaining decisions requiring approval
 
-1. Validate or revise the proposed 1 W idle/arrow band and centrally tunable
+1. Physically validate the initial 1 W idle/arrow band and centrally tunable
    tolerance constants of 10 W and 2% against actual sensor update cadence,
    measurement differences and inverter losses. Exact W/kW attributes/entity IDs
    still belong to the eventual card configuration, not guessed defaults.
@@ -645,4 +687,4 @@ Do not reopen those input conventions or auto-correct them from a residual.
 Measured-edge mapping and animations remain outside this initial proposal
 unless separately approved.
 Keep the fork-only PR Draft, leave `main` untouched and wait for explicit
-implementation approval on `feature/energy-dashboard` and that same PR.
+Phase 2 approval on `feature/energy-dashboard` and that same PR.

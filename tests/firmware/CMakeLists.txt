@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.20)
 project(espcontrol_firmware_tests LANGUAGES CXX)
 
 enable_testing()
+add_executable(power_flow_model_test power_flow_model_test.cpp)
+target_compile_features(power_flow_model_test PRIVATE cxx_std_17)
+target_compile_options(power_flow_model_test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(power_flow_model_test PRIVATE ../../components/espcontrol)
+add_test(NAME power_flow_model_test COMMAND power_flow_model_test)
 include(CheckCXXSourceCompiles)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
