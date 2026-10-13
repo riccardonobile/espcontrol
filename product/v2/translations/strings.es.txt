@@ -263,3 +263,9 @@ charging=Cargando
 discharging=Descargando
 importing=Importando
 exporting=Exportando
+
+solar=Solar
+grid=Red
+battery=Batería
+inferred_flows=Flujos estimados
+inconsistent_readings=Lecturas incoherentes

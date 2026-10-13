@@ -4727,11 +4727,11 @@ export const CARD_RUNTIME_SPECS: Readonly<Record<string, CardRuntimeSpec>> = {
     "driver": "power",
     "capabilities": {
       "informationOnly": true,
-      "subscriptions": false,
-      "actions": false,
+      "subscriptions": true,
+      "actions": true,
       "numericControl": false,
-      "modal": false,
-      "runtimeAllocation": false,
+      "modal": true,
+      "runtimeAllocation": true,
       "subpage": true
     }
   }

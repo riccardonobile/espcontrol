@@ -2895,12 +2895,13 @@
       },
       "lifecycle": {
         "subscriptions": [
-          "none"
+          "state",
+          "attributes"
         ],
         "actions": [
-          "none"
+          "modal"
         ],
-        "modalOwner": "none"
+        "modalOwner": "power"
       }
     },
     {
@@ -2926,12 +2927,13 @@
       },
       "lifecycle": {
         "subscriptions": [
-          "none"
+          "state",
+          "attributes"
         ],
         "actions": [
-          "none"
+          "modal"
         ],
-        "modalOwner": "none"
+        "modalOwner": "power"
       }
     },
     {

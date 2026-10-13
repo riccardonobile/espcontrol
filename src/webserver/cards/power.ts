@@ -3,8 +3,8 @@ import { cardContractAllowInSubpage, cardContractCardLabel, cardContractDefaultC
 import { normalizeSavedConfigPower } from "../generated/saved_config_power";
 import { normalizePowerOptions } from "../model/power_card";
 
-// Phase 1 contract registration only. Hidden until the native card/editor exist;
-// no settings controls, preview, rendering, actions or subscriptions here.
+// Contract metadata only. Native rendering exists, but remain hidden until
+// the editor/preview phase; no settings controls or preview renderer here.
 export function registerPowerCardTypes(registry: CardRegistry): void {
   registry.register("power", {
     label: () => cardContractCardLabel("power"),

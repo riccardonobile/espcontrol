@@ -263,3 +263,9 @@ charging=In carica
 discharging=In scarica
 importing=Importazione
 exporting=Esportazione
+
+solar=Solare
+grid=Rete
+battery=Batteria
+inferred_flows=Flussi stimati
+inconsistent_readings=Letture incoerenti

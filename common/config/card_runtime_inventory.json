@@ -3,7 +3,7 @@
   "lifecycleVocabulary": {
     "subscriptions": ["none", "state", "attributes", "local", "time", "action_response", "http"],
     "actions": ["none", "home_assistant_service", "local", "http", "navigation", "modal"],
-    "modalOwners": ["none", "alarm", "climate", "cover", "image", "media", "wifi_qr"]
+    "modalOwners": ["none", "alarm", "climate", "cover", "image", "media", "wifi_qr", "power"]
   },
   "types": {
     "timer": {
@@ -368,12 +368,13 @@
       "firmwareFamily": "POWER",
       "lifecycle": {
         "subscriptions": [
-          "none"
+          "state",
+          "attributes"
         ],
         "actions": [
-          "none"
+          "modal"
         ],
-        "modalOwner": "none"
+        "modalOwner": "power"
       },
       "modes": [
         {

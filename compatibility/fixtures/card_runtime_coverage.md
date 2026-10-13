@@ -52,7 +52,7 @@ It records the pre-migration baseline; it does not move executable behaviour int
 | wifi_qr | canonical | wifi_qr | subscriptions, actions, modal, subpage | wifi_qr | wifi_qr | WIFI_QR | 2 |
 | wifi_qr_card | canonical | wifi_qr | subscriptions, actions, modal, subpage | wifi_qr_card | wifi_qr_card | WIFI_QR | 2 |
 | weather_forecast | accepted_legacy_input | weather | informationOnly, subscriptions, subpage | weather | weather_forecast | WEATHER | 1 |
-| power | canonical | power | informationOnly, subpage | power | power | POWER | 2 |
+| power | canonical | power | informationOnly, subscriptions, actions, modal, runtimeAllocation, subpage | power | power | POWER | 2 |
 
 ## Runtime-only type decisions
 
@@ -68,4 +68,4 @@ The inventory records broad observable responsibilities so later family migratio
 
 - Subscriptions: none, state, attributes, local, time, action_response, http
 - Actions: none, home_assistant_service, local, http, navigation, modal
-- Modal owners: none, alarm, climate, cover, image, media, wifi_qr
+- Modal owners: none, alarm, climate, cover, image, media, wifi_qr, power

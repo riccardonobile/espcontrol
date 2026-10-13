@@ -271,6 +271,7 @@ inline void grid_prepare_timer_visual_reset(lv_obj_t *owner);
 #include "button_grid_climate_control_driver.h"
 #include "button_grid_alarm_driver.h"
 #include "button_grid_media_driver.h"
+#include "button_grid_power_driver.h"
 
 inline void apply_card_label_line_clamp(lv_obj_t *label, const GridConfig &cfg,
                                         int row_span = 1) {
@@ -587,6 +588,7 @@ inline void setup_card_visual(BtnSlot &s, const ParsedCfg &p,
   if (context.known) screen_lock_register_controlled_button(s.btn);
 
   if (espcontrol::cards::timer_driver_setup_visual(s, p, context)) return;
+  if (espcontrol::cards::power_driver_setup_visual(s, p, context, palette)) return;
   if (espcontrol::cards::image_driver_setup_visual(s, p, context)) {
     espcontrol::cards::image_driver_attach_interaction(s, p, context);
     espcontrol::cards::image_driver_refresh_layout(s, p, context);
@@ -925,6 +927,7 @@ inline void refresh_card_layout(BtnSlot &s, const ParsedCfg &p,
   display_apply_main_width(s.icon_lbl, display);
   control_modal_register_card_label(s);
   display_apply_slot_text_width(s, display);
+  if (espcontrol::cards::power_driver_refresh_layout(s, context)) return;
   if (espcontrol::cards::navigation_driver_refresh_layout(
         s, p, context, cfg)) return;
 
@@ -1941,6 +1944,7 @@ inline void grid_phase2(
     int col_span = order.col_span[idx - 1] > 0 ? order.col_span[idx - 1] : 1;
     if (cfg.info_only && info_only_hidden_card_type(context)) continue;
     navigation_register_home_target(idx, pos, p.label, scfg, s.btn);
+    if (espcontrol::cards::power_driver_bind_data(s, p, context, display)) continue;
     if (espcontrol::cards::image_driver_bind_main(
           s, p, context, cfg)) continue;
     if (espcontrol::cards::wifi_qr_driver_bind_main(s, p, context)) continue;
@@ -2222,6 +2226,7 @@ inline void grid_phase2(
               add_parent_indicator(entity_id, timer_card_state_active_ref);
             })) continue;
       if (bind_basic_sensor_card(sub_slot, sb_cfg, context, palette, cs)) continue;
+      if (espcontrol::cards::power_driver_bind_data(sub_slot, sb_cfg, context, display)) continue;
       espcontrol::cards::BasicActionSubpageEnvironment action_environment;
       action_environment.grid_config = &cfg;
       action_environment.parent_config = &p;

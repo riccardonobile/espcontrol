@@ -187,6 +187,7 @@ inline bool card_runtime_main_click_opens_modal(
     case Driver::MEDIA_VOLUME:
     case Driver::MEDIA_COVER_ART:
     case Driver::OPTION_SELECT:
+    case Driver::POWER:
       return true;
     case Driver::FAN:
       return context.runtime.type == Type::FAN_PRESET;

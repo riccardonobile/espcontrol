@@ -724,6 +724,10 @@ inline const char *espcontrol_i18n_de(const char *text) {
   if (std::strcmp(text, "Discharging") == 0) return "Entlädt";
   if (std::strcmp(text, "Importing") == 0) return "Importiert";
   if (std::strcmp(text, "Exporting") == 0) return "Exportiert";
+  if (std::strcmp(text, "Grid") == 0) return "Netz";
+  if (std::strcmp(text, "Battery") == 0) return "Batterie";
+  if (std::strcmp(text, "Inferred flows") == 0) return "Geschätzte Flüsse";
+  if (std::strcmp(text, "Inconsistent readings") == 0) return "Inkonsistente Messwerte";
   return text;
 }
 
@@ -969,6 +973,10 @@ inline const char *espcontrol_i18n_es(const char *text) {
   if (std::strcmp(text, "Discharging") == 0) return "Descargando";
   if (std::strcmp(text, "Importing") == 0) return "Importando";
   if (std::strcmp(text, "Exporting") == 0) return "Exportando";
+  if (std::strcmp(text, "Grid") == 0) return "Red";
+  if (std::strcmp(text, "Battery") == 0) return "Batería";
+  if (std::strcmp(text, "Inferred flows") == 0) return "Flujos estimados";
+  if (std::strcmp(text, "Inconsistent readings") == 0) return "Lecturas incoherentes";
   return text;
 }
 
@@ -1457,6 +1465,11 @@ inline const char *espcontrol_i18n_fr(const char *text) {
   if (std::strcmp(text, "Discharging") == 0) return "Décharge";
   if (std::strcmp(text, "Importing") == 0) return "Importation";
   if (std::strcmp(text, "Exporting") == 0) return "Exportation";
+  if (std::strcmp(text, "Solar") == 0) return "Solaire";
+  if (std::strcmp(text, "Grid") == 0) return "Réseau";
+  if (std::strcmp(text, "Battery") == 0) return "Batterie";
+  if (std::strcmp(text, "Inferred flows") == 0) return "Flux estimés";
+  if (std::strcmp(text, "Inconsistent readings") == 0) return "Mesures incohérentes";
   return text;
 }
 
@@ -2211,6 +2224,11 @@ inline const char *espcontrol_i18n_it(const char *text) {
   if (std::strcmp(text, "Discharging") == 0) return "In scarica";
   if (std::strcmp(text, "Importing") == 0) return "Importazione";
   if (std::strcmp(text, "Exporting") == 0) return "Esportazione";
+  if (std::strcmp(text, "Solar") == 0) return "Solare";
+  if (std::strcmp(text, "Grid") == 0) return "Rete";
+  if (std::strcmp(text, "Battery") == 0) return "Batteria";
+  if (std::strcmp(text, "Inferred flows") == 0) return "Flussi stimati";
+  if (std::strcmp(text, "Inconsistent readings") == 0) return "Letture incoerenti";
   return text;
 }
 
@@ -5421,6 +5439,11 @@ inline const char *espcontrol_i18n_key_en(const char *key) {
   if (std::strcmp(key, "discharging") == 0) return "Discharging";
   if (std::strcmp(key, "importing") == 0) return "Importing";
   if (std::strcmp(key, "exporting") == 0) return "Exporting";
+  if (std::strcmp(key, "solar") == 0) return "Solar";
+  if (std::strcmp(key, "grid") == 0) return "Grid";
+  if (std::strcmp(key, "battery") == 0) return "Battery";
+  if (std::strcmp(key, "inferred_flows") == 0) return "Inferred flows";
+  if (std::strcmp(key, "inconsistent_readings") == 0) return "Inconsistent readings";
   return key;
 }
 
@@ -6136,6 +6159,10 @@ inline const char *espcontrol_i18n_key_de(const char *key) {
   if (std::strcmp(key, "discharging") == 0) return "Entlädt";
   if (std::strcmp(key, "importing") == 0) return "Importiert";
   if (std::strcmp(key, "exporting") == 0) return "Exportiert";
+  if (std::strcmp(key, "grid") == 0) return "Netz";
+  if (std::strcmp(key, "battery") == 0) return "Batterie";
+  if (std::strcmp(key, "inferred_flows") == 0) return "Geschätzte Flüsse";
+  if (std::strcmp(key, "inconsistent_readings") == 0) return "Inkonsistente Messwerte";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -6382,6 +6409,10 @@ inline const char *espcontrol_i18n_key_es(const char *key) {
   if (std::strcmp(key, "discharging") == 0) return "Descargando";
   if (std::strcmp(key, "importing") == 0) return "Importando";
   if (std::strcmp(key, "exporting") == 0) return "Exportando";
+  if (std::strcmp(key, "grid") == 0) return "Red";
+  if (std::strcmp(key, "battery") == 0) return "Batería";
+  if (std::strcmp(key, "inferred_flows") == 0) return "Flujos estimados";
+  if (std::strcmp(key, "inconsistent_readings") == 0) return "Lecturas incoherentes";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -6872,6 +6903,11 @@ inline const char *espcontrol_i18n_key_fr(const char *key) {
   if (std::strcmp(key, "discharging") == 0) return "Décharge";
   if (std::strcmp(key, "importing") == 0) return "Importation";
   if (std::strcmp(key, "exporting") == 0) return "Exportation";
+  if (std::strcmp(key, "solar") == 0) return "Solaire";
+  if (std::strcmp(key, "grid") == 0) return "Réseau";
+  if (std::strcmp(key, "battery") == 0) return "Batterie";
+  if (std::strcmp(key, "inferred_flows") == 0) return "Flux estimés";
+  if (std::strcmp(key, "inconsistent_readings") == 0) return "Mesures incohérentes";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -7629,6 +7665,11 @@ inline const char *espcontrol_i18n_key_it(const char *key) {
   if (std::strcmp(key, "discharging") == 0) return "In scarica";
   if (std::strcmp(key, "importing") == 0) return "Importazione";
   if (std::strcmp(key, "exporting") == 0) return "Esportazione";
+  if (std::strcmp(key, "solar") == 0) return "Solare";
+  if (std::strcmp(key, "grid") == 0) return "Rete";
+  if (std::strcmp(key, "battery") == 0) return "Batteria";
+  if (std::strcmp(key, "inferred_flows") == 0) return "Flussi stimati";
+  if (std::strcmp(key, "inconsistent_readings") == 0) return "Letture incoerenti";
   return espcontrol_i18n_key_en(key);
 }
 
