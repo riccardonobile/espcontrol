@@ -33,7 +33,7 @@ struct lv_obj_t {
   std::string text;
   lv_font_t const *font=nullptr;
   int x=0,y=0,w=140,h=16,flags=0,state=0,max_h=32767,mode=0,flex=0;
-  uint32_t color=0xffffff,bg=0x313131,line_color=0;
+  uint32_t color=0xffffff,bg=0x313131,line_color=0,pressed_bg=0xff8c00;
   const lv_point_precise_t *points=nullptr;
   size_t point_count=0;
   lv_obj_t *parent=nullptr;
@@ -67,7 +67,8 @@ void lv_label_set_display_text(lv_obj_t *o,const char *s){o->text=s;}
 void lv_obj_set_style_text_font(lv_obj_t *o,const lv_font_t *f,int){o->font=f;}
 const lv_font_t *lv_obj_get_style_text_font(lv_obj_t *o,int){return o->font;}
 void lv_obj_set_style_text_color(lv_obj_t *o,lv_color_t c,int){o->color=c.full;}
-lv_color_t lv_obj_get_style_bg_color(lv_obj_t *o,int){return {o->bg};}
+lv_color_t lv_obj_get_style_bg_color(lv_obj_t *o,int){return {o->state&LV_STATE_PRESSED?o->pressed_bg:o->bg};}
+void lv_obj_set_style_bg_color(lv_obj_t *o,lv_color_t c,int){o->bg=c.full;}
 bool lv_obj_has_state(lv_obj_t *o,int s){return o->state&s;}
 bool lv_obj_has_flag(lv_obj_t *o,int f){return o->flags&f;}
 void lv_obj_add_flag(lv_obj_t *o,int f){o->flags|=f;}
@@ -103,7 +104,7 @@ void apply_icon_width_compensation(lv_obj_t*,int){}
 void notify_dashboard_content_changed(){++notifications;}
 void apply_push_button_transition(lv_obj_t*){}
 const char *find_icon(const char*){return "icon";}
-struct Theme {uint32_t text_primary=0xffffff;};
+struct Theme {uint32_t text_primary=0xffffff,surface_sensor=0x212121;};
 Theme theme;
 const Theme &current_theme(){return theme;}
 uint32_t current_button_primary_color(){return 0xff8c00;}
@@ -111,6 +112,7 @@ uint32_t readable_text_color_for_bg(uint32_t c){return ((c>>16)*299+((c>>8)&255)
 struct BtnSlot {void *config=nullptr;lv_obj_t *btn=nullptr,*icon_lbl=nullptr,*text_lbl=nullptr,
   *sensor_container=nullptr,*sensor_lbl=nullptr,*unit_lbl=nullptr,*subpage_lbl=nullptr,*secondary_lbl=nullptr;};
 struct DisplayProfile{};
+uint32_t display_correct_color(uint32_t c,const DisplayProfile&){return c;}
 int display_main_width_percent(const DisplayProfile&){return 100;}
 const lv_font_t *display_icon_font(const DisplayProfile&){return &icon_font;}
 const lv_font_t *display_volume_label_font(const DisplayProfile&,const lv_font_t *f){return f;}
@@ -202,12 +204,20 @@ int main(){
     assert(ui.status->text=="Unavailable");assert(slot.secondary_lbl->text=="Charging");
     publish("sensor.s","900");assert(ui.status->text=="Inconsistent readings");
     publish("sensor.s","1500");assert(ui.status->text=="Inferred flows");
-    theme.text_primary=0x212121;power_cards_refresh_theme();
+    theme.text_primary=0x212121;theme.surface_sensor=0xf5f5f5;power_cards_refresh_theme();
     assert(slot.text_lbl->color==0x212121&&ui.area==area&&objects==count);
     assert(ui.points[0][0].x==point.x&&ui.points[0][0].y==point.y);
-    slot.btn->bg=0xffffff;slot.btn->state=LV_STATE_PRESSED;send(slot.btn,LV_EVENT_PRESSED);
+    slot.btn->pressed_bg=0xffffff;slot.btn->state=LV_STATE_PRESSED;send(slot.btn,LV_EVENT_PRESSED);
+    theme.surface_sensor=0x212121;power_cards_refresh_theme();
+    assert(slot.btn->bg==0x212121&&slot.btn->pressed_bg==0xffffff);
+    theme.surface_sensor=0xf5f5f5;power_cards_refresh_theme();
     assert(slot.sensor_lbl->color==0x212121&&slot.subpage_lbl->color==0x212121);
     slot.btn->state=0;send(slot.btn,LV_EVENT_RELEASED);
+    assert(slot.btn->bg==0xf5f5f5); // release exposes the refreshed neutral surface
+    slot.btn->flags|=LV_OBJ_FLAG_USER_1;slot.btn->bg=0x212121;
+    power_cards_refresh_theme();
+    assert(slot.btn->bg==0x212121&&slot.text_lbl->color==0xffffff); // explicit custom fill, even a token collision
+    slot.btn->flags&=~LV_OBJ_FLAG_USER_1;power_cards_refresh_theme();
     ha_retained_state_invalidated_handler()();assert(slot.sensor_lbl->text=="--"&&ui.status->text=="Unavailable");
     for(auto id: {"sensor.s","sensor.h","sensor.g","sensor.b"})publish(id,"W","unit_of_measurement");
     publish("sensor.s","1500");publish("sensor.h","1000");publish("sensor.g","0");publish("sensor.b","-500");

@@ -41,6 +41,12 @@ inline void power_card_apply_theme_for_button(lv_obj_t *button) {
                       lv_obj_has_state(button, LV_STATE_PRESSED);
   const bool custom = lv_obj_has_flag(button, LV_OBJ_FLAG_USER_1) &&
                       !lv_obj_has_flag(button, LV_OBJ_FLAG_USER_3);
+  if (!custom) {
+    // A pressed accent can hide the default fill from tree restyling. Keep
+    // Power's explicit neutral role current without changing state selectors.
+    lv_obj_set_style_bg_color(button,
+      lv_color_hex(display_correct_color(current_theme().surface_sensor, ctx->display)), LV_PART_MAIN);
+  }
   const auto rgb = lv_color_to_32(lv_obj_get_style_bg_color(button, LV_PART_MAIN), LV_OPA_COVER);
   const uint32_t background = (uint32_t(rgb.red) << 16) | (uint32_t(rgb.green) << 8) | rgb.blue;
   const uint32_t text = active || custom
