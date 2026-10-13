@@ -70,6 +70,9 @@ scales uniformly and centers inside native panel bounds below the back button
 and above one explanation line. The temporary view owns the bounded point arrays
 until deletion. Existing compiled icon/label fonts are reused; no SVG dependency,
 canvas, framebuffer, animation or polling timer exists.
+The display profile carries the already compiled `font_text_small` as an optional
+compact text role. Power Flow uses it only when three body-font rows would reach
+the fixed ports; the card primary/secondary/value fonts remain unchanged.
 
 Neutral modal chrome follows the shell's existing theme owner. Power's narrow
 foreground refresh runs after shared grid restyling and uses

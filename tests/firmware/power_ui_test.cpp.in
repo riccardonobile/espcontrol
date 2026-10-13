@@ -42,7 +42,7 @@ struct lv_obj_t {
   std::vector<Event> events;
 };
 int objects=0, subscriptions=0, notifications=0, fail_after=-1;
-lv_font_t label_font{16},icon_font{32},sensor_font{24};
+lv_font_t label_font{16},icon_font{32},sensor_font{24},small_font{12};
 lv_obj_t *lv_obj_create(lv_obj_t *parent) {
   if(fail_after==0)return nullptr;
   if(fail_after>0)--fail_after;
@@ -79,6 +79,7 @@ void lv_obj_set_size(lv_obj_t *o,int w,int h){o->w=w;o->h=h;}
 void lv_obj_set_pos(lv_obj_t *o,int x,int y){o->x=x;o->y=y;}
 int lv_obj_get_width(lv_obj_t *o){return o->w;}
 int lv_obj_get_height(lv_obj_t *o){return o->h;}
+lv_obj_t *lv_obj_get_parent(lv_obj_t *o){return o->parent;}
 int lv_obj_get_content_width(lv_obj_t *o){return o->w;}
 int lv_obj_get_content_height(lv_obj_t *o){return o->h;}
 int lv_obj_get_style_max_height(lv_obj_t *o,int){return o->max_h;}
@@ -116,6 +117,7 @@ uint32_t display_correct_color(uint32_t c,const DisplayProfile&){return c;}
 int display_main_width_percent(const DisplayProfile&){return 100;}
 const lv_font_t *display_icon_font(const DisplayProfile&){return &icon_font;}
 const lv_font_t *display_volume_label_font(const DisplayProfile&,const lv_font_t *f){return f;}
+const lv_font_t *display_small_text_font(const DisplayProfile&,const lv_font_t*){return &small_font;}
 struct ControlModalLayout {int sw=480,sh=480,panel_w=472,panel_h=430,inset=8,back_inset_y=4,back_size=36,title_gap=4;};
 struct ControlModalShell {lv_obj_t *overlay=nullptr,*panel=nullptr,*close_btn=nullptr;};
 ControlModalLayout frame;
@@ -193,6 +195,14 @@ int main(){
   publish("sensor.s","1500");publish("sensor.h","1000");publish("sensor.g","0");publish("sensor.b","-500");
   assert(slot.sensor_lbl->text=="1"&&slot.unit_lbl->text=="kW");assert(slot.secondary_lbl->text=="Charging");
   auto *card=power_card_for_button(slot.btn);
+  // Compact portrait's compiled body font would enter the fixed ports.
+  // The existing compact font is selected in place; card typography stays body.
+  label_font.line_height=35;small_font.line_height=30;
+  frame.sw=480;frame.sh=800;frame.panel_w=472;frame.panel_h=750;
+  power_flow_open(card);
+  assert(power_flow_ui().names[3]->font==&small_font);
+  assert(slot.secondary_lbl->font==&label_font);
+  control_modal_force_close_active();label_font.line_height=16;small_font.line_height=12;
   for(auto size: {std::array<int,2>{320,480},{480,480},{800,480},{720,1280}}){
     normal_title="18°C";
     frame.sw=size[0];frame.sh=size[1];frame.panel_w=size[0]-16;frame.panel_h=size[1]-50;

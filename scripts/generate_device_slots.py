@@ -443,6 +443,7 @@ def cfg_lines(device: dict) -> list[str]:
         )
     lines.append(f"            cfg.volume_number_font = id({device['volume_number_font']})->get_lv_font();")
     lines.append(f"            cfg.volume_label_font = id({device['volume_label_font']})->get_lv_font();")
+    lines.append("            cfg.small_text_font = id(font_text_small)->get_lv_font();")
     if device.get("climate_card_icon_font"):
         lines.append(
             f"            cfg.climate_card_icon_font = id({device['climate_card_icon_font']})->get_lv_font();"

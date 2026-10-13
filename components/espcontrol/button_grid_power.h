@@ -89,6 +89,9 @@ struct PowerFlowUi {
   lv_obj_t *area = nullptr;
   lv_obj_t *status = nullptr;
   lv_obj_t *nodes[4]{};
+  lv_obj_t *headings[4]{};
+  lv_obj_t *names[4]{};
+  lv_obj_t *icons[4]{};
   lv_obj_t *values[4]{};
   lv_obj_t *details[4]{};
   lv_obj_t *lines[7]{};
@@ -126,17 +129,28 @@ inline void power_flow_layout() {
   control_modal_style_chrome_button(ui.shell.close_btn, layout, false);
   // Use native content bounds below the back control; HUD already has its
   // reserved panel top. Explanation occupies one existing-label-font line.
-  const auto *font = lv_obj_get_style_text_font(ui.status, LV_PART_MAIN);
-  const int status_h = font ? font->line_height + 2 : 22;
+  const auto *font = display_volume_label_font(ui.card->display,
+    lv_obj_get_style_text_font(ui.card->slot.text_lbl, LV_PART_MAIN));
+  int status_h = font ? font->line_height + 2 : 22;
   const int top = layout.back_inset_y + layout.back_size + layout.title_gap;
   const int width = std::max<int>(1, layout.panel_w - layout.inset * 2);
-  const int height = std::max<int>(1, layout.panel_h - top - layout.inset - status_h);
+  int height = std::max<int>(1, layout.panel_h - top - layout.inset - status_h);
+  auto geometry = espcontrol::power::flow_geometry(width, height,
+    espcontrol::power::flow_family(layout.sw, layout.sh));
+  // Three native text rows must fit between the fixed top/bottom ports.
+  // Reuse the existing compact font rather than adding/scaling font assets.
+  if (font && font->line_height > 36 * geometry.scale) {
+    font = display_small_text_font(ui.card->display, font);
+    status_h = font->line_height + 2;
+    height = std::max<int>(1, layout.panel_h - top - layout.inset - status_h);
+    geometry = espcontrol::power::flow_geometry(width, height,
+      espcontrol::power::flow_family(layout.sw, layout.sh));
+  }
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, layout.inset, top);
   lv_obj_set_size(ui.status, width, status_h);
   lv_obj_set_pos(ui.status, layout.inset, layout.panel_h - layout.inset - status_h);
-  const auto geometry = espcontrol::power::flow_geometry(width, height,
-    espcontrol::power::flow_family(layout.sw, layout.sh));
+  if (font) lv_obj_set_style_text_font(ui.status, font, LV_PART_MAIN);
   for (size_t i = 0; i < 7; ++i) {
     for (size_t j = 0; j < espcontrol::power::FLOW_POINT_COUNT; ++j)
       ui.points[i][j] = {static_cast<lv_value_precise_t>(geometry.paths[i][j].x),
@@ -151,6 +165,15 @@ inline void power_flow_layout() {
     lv_obj_set_style_line_width(ui.arrows[i], stroke, LV_PART_MAIN);
   }
   for (size_t i = 0; i < 4; ++i) {
+    const int line_height = font ? font->line_height : 20;
+    for (auto *label : {ui.names[i], ui.values[i], ui.details[i]})
+      if (font) lv_obj_set_style_text_font(label, font, LV_PART_MAIN);
+    lv_obj_set_height(ui.headings[i], line_height);
+    lv_obj_set_size(lv_obj_get_parent(ui.icons[i]), line_height, line_height);
+    const auto *icon_font = display_icon_font(ui.card->display);
+    if (icon_font && icon_font->line_height)
+      apply_icon_width_compensation(ui.icons[i], 256 * line_height / icon_font->line_height);
+    control_modal_center_tab_icon(ui.icons[i]);
     const int node_w = std::max<int>(1, std::lround(138 * geometry.scale));
     lv_obj_set_width(ui.nodes[i], node_w);
     lv_obj_update_layout(ui.nodes[i]);
@@ -242,6 +265,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
     lv_obj_set_flex_flow(ui.nodes[i], LV_FLEX_FLOW_COLUMN);
     auto *heading = lv_obj_create(ui.nodes[i]);
     if (!heading) { power_flow_hide(); return; }
+    ui.headings[i] = heading;
     lv_obj_remove_style_all(heading);
     lv_obj_clear_flag(heading, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_width(heading, lv_pct(100));
@@ -257,6 +281,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
     const auto *icon_font = display_icon_font(ctx->display);
     auto *icon = power_flow_label(icon_cell, icon_font);
     if (!icon) { power_flow_hide(); return; }
+    ui.icons[i] = icon;
     lv_obj_set_width(icon, LV_SIZE_CONTENT);
     if (icon_font && icon_font->line_height)
       apply_icon_width_compensation(icon, 256 * line_height / icon_font->line_height);
@@ -264,6 +289,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
     control_modal_center_tab_icon(icon);
     auto *name = power_flow_label(heading, label_font);
     if (!name) { power_flow_hide(); return; }
+    ui.names[i] = name;
     lv_obj_set_flex_grow(name, 1);
     power_set_text(name, espcontrol_i18n(names[i]));
     ui.values[i] = power_flow_label(ui.nodes[i], label_font);
