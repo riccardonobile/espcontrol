@@ -10,6 +10,25 @@ add_test(NAME power_flow_model_test COMMAND power_flow_model_test)
 include(CheckCXXSourceCompiles)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(power_flow_layout_test power_flow_layout_test.cpp)
+target_compile_features(power_flow_layout_test PRIVATE cxx_std_17)
+target_compile_options(power_flow_layout_test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(power_flow_layout_test PRIVATE ../../components/espcontrol)
+add_test(NAME power_flow_layout_test COMMAND power_flow_layout_test)
+
+set(POWER_UI_TEST_SOURCE ${CMAKE_CURRENT_BINARY_DIR}/power_ui_test.cpp)
+add_custom_command(OUTPUT ${POWER_UI_TEST_SOURCE}
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/generate_power_ui_test.py
+    --root ${CMAKE_CURRENT_SOURCE_DIR}/../.. --output ${POWER_UI_TEST_SOURCE}
+  DEPENDS generate_power_ui_test.py power_ui_test.cpp.in
+    ../../components/espcontrol/button_grid_layout.h ../../components/espcontrol/clock_bar.h
+  VERBATIM)
+add_executable(power_ui_test ${POWER_UI_TEST_SOURCE})
+target_compile_features(power_ui_test PRIVATE cxx_std_17)
+target_compile_options(power_ui_test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(power_ui_test PRIVATE ../../components/espcontrol)
+add_test(NAME power_ui_test COMMAND power_ui_test)
+
 add_test(NAME gsl3680_startup_test COMMAND
   ${CMAKE_COMMAND} -E env "CXX=${CMAKE_CXX_COMPILER}"
   ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/gsl3680_startup_test.py)

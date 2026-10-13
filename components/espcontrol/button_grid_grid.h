@@ -1035,6 +1035,7 @@ inline bool grid_card_uses_sensor_surface(
   using Driver = espcontrol::card_runtime::CardDriverId;
   switch (context.runtime.driver) {
     case Driver::SENSOR:
+    case Driver::POWER:
     case Driver::STATUS_ENTITY:
     case Driver::WEATHER:
     case Driver::DATE_TIME:

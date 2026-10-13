@@ -59,10 +59,10 @@ inline void power_card_update(PowerCardCtx *ctx) {
   changed |= power_set_text(ctx->slot.secondary_lbl, ctx->data.model.calculation.secondary_label());
   if (changed) {
     layout_button_label_with_secondary(ctx->slot, true, true);
-    notify_dashboard_content_changed();
   }
   power_card_apply_theme_for_button(ctx->slot.btn);
   power_flow_update(ctx);
+  if (changed) notify_dashboard_content_changed();
 }
 inline void power_cards_disconnected() {
   for (auto *ctx = power_card_contexts(); ctx; ctx = ctx->next) {
@@ -167,7 +167,9 @@ inline void power_flow_update(PowerCardCtx *ctx) {
       if (ctx->data.model.battery_soc.valid()) {
         char soc[24];
         format_fixed_decimal(soc, sizeof(soc), ctx->data.model.battery_soc.value, 0);
-        detail += std::string(" \xC2\xB7 ") + soc + "%";
+        // Keep optional SOC visible first even when a long translated status
+        // needs ellipsis; the full status remains on the shared card label.
+        detail = std::string(soc) + "% \xC2\xB7 " + detail;
       }
     }
     power_set_text(ui.details[i], detail);
@@ -241,13 +243,19 @@ inline void power_flow_open(PowerCardCtx *ctx) {
     lv_obj_set_height(heading, line_height);
     lv_obj_set_flex_flow(heading, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(heading, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    auto *icon_cell = lv_obj_create(heading);
+    if (!icon_cell) { power_flow_hide(); return; }
+    lv_obj_remove_style_all(icon_cell);
+    lv_obj_clear_flag(icon_cell, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(icon_cell, line_height, line_height);
     const auto *icon_font = display_icon_font(ctx->display);
-    auto *icon = power_flow_label(heading, icon_font);
+    auto *icon = power_flow_label(icon_cell, icon_font);
     if (!icon) { power_flow_hide(); return; }
-    lv_obj_set_width(icon, line_height);
+    lv_obj_set_width(icon, LV_SIZE_CONTENT);
     if (icon_font && icon_font->line_height)
       apply_icon_width_compensation(icon, 256 * line_height / icon_font->line_height);
     power_set_text(icon, find_icon(icons[i]));
+    control_modal_center_tab_icon(icon);
     auto *name = power_flow_label(heading, label_font);
     if (!name) { power_flow_hide(); return; }
     lv_obj_set_flex_grow(name, 1);

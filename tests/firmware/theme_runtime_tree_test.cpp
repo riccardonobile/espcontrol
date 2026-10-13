@@ -977,4 +977,5 @@ int main() {
   test_pressed_overflow_recovery();
   test_content_collisions();
   test_registry_exhaustion();
+  assert(power_theme_refresh_count > 0); // shared refresh forwards card foreground ownership
 }

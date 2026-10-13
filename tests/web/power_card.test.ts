@@ -25,8 +25,10 @@ export function runPowerCardTests(): void {
     invertGrid: false, invertBattery: false,
   });
   equal(cardRuntimeSpec("power")?.driver, "power");
-  equal(cardRuntimeSpec("power")?.capabilities.actions, false);
-  equal(cardRuntimeSpec("power")?.capabilities.subscriptions, false); // not wired yet
+  equal(cardRuntimeSpec("power")?.capabilities.actions, true); // native modal navigation only
+  equal(cardRuntimeSpec("power")?.capabilities.subscriptions, true);
+  equal(cardRuntimeSpec("power")?.capabilities.modal, true);
+  equal(cardRuntimeSpec("power")?.capabilities.runtimeAllocation, true);
   equal(cardContractHidden("power"), true);
   const registry = createCardRegistry();
   registerPowerCardTypes(registry);
@@ -83,4 +85,9 @@ export function runPowerCardTests(): void {
     serializedConfigLength: length, imageCardCount: 0, imageCardCapacity: 6 });
   equal(save(encoded.length).valid, true);
   equal(save(longEncoded.length).reason, "config-size"); // retain 255-byte protection
+  const realistic = "sensor.house_total_consumption_power;Power Dashboard;Auto;Auto;;;power;;" +
+    "solar_entity=sensor.inverter_solar_output_power,grid_entity=sensor.inverter_grid_exchange_power," +
+    "battery_entity=sensor.inverter_battery_charge_discharge_power,battery_soc_entity=sensor.inverter_battery_state_of_charge";
+  equal(realistic.length, 288);
+  equal(save(realistic.length).reason, "config-size"); // no truncation or storage expansion
 }

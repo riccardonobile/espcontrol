@@ -1,7 +1,8 @@
 # Power Dashboard architecture plan
 
-Status: Phase 1 model/contract implemented with approval; rendering, modal and
-configurator implementation still require separate approval.
+Status: Phase 1 model/contract complete; Phase 2 native card/static detail view
+authorized and implemented. Web controls/preview and final device validation
+remain separate phases.
 Baseline: `a406208906f900058da4c063d1e0c3eeeff9af6a` (merged upstream Theme
 Support, verified 2026-10-08). Work branch: `feature/energy-dashboard`; retain
 the existing document path and fork-only Draft PR #10 without renaming them.
@@ -37,16 +38,57 @@ The new subpage code is `PW`; existing codes and storage versions are unchanged.
 Generated normalizers and typed config views preserve these options in firmware,
 browser serialization, native backups and card transfers.
 
-Power is registered but hidden during Phase 1. Its lifecycle inventory records
-no subscriptions, actions or modal until Phase 2 installs the actual driver.
-No card renderer, HA binding, layout, modal, geometry, preview or editor controls
-are implemented yet. The web registry entry contains only hidden contract
-metadata and normalization. Existing generators own all derived files.
+## Phase 2 implementation boundary
+
+`button_grid_power_driver.h` installs the native sensor-value card, shared
+secondary label and existing chevron on main grids and subpages. Power remains
+hidden/unavailable in the public picker until Phase 3 supplies editor controls.
+Its runtime contract now declares state/attribute subscriptions, modal navigation
+and a card-owned allocation. The nine-field config and Phase 1 calculation model
+are unchanged.
+
+`power_card_data.h` accepts separate state/unit callbacks into one bounded
+card-owned snapshot. `button_grid_power.h` shares that snapshot with one temporary
+Power Flow view. Subscriptions are owner-scoped to the context, retained/deduplicated
+by the existing HA coordinator and released before context disposal. The existing
+HA disconnect event clears live snapshots, including units; reconnect callbacks
+restore valid readings. Stale cached values are not displayed as current. Opening
+or closing the view creates no subscription, timer or extra network request.
+
+Power Flow uses the existing modal shell and its `set_clock_bar_modal_label()`
+mechanism. Its localized **Power Dashboard** title replaces the temperature;
+close/navigation/owner teardown restores the current page title or temperature.
+There is no duplicate modal header. Valid node watts remain visible with
+independent status and optional Battery SOC. The existing label style shows
+**Inferred flows**, **Idle**, **Unavailable** or **Inconsistent readings**;
+unavailable/inconsistent calculations hide all paths without moving ports.
+
+`power_flow_layout.h` preserves v0.32 reference families, node centers, all fixed
+ports, quadratic bends and arrow tangents. Fixed LVGL polylines sample the SVG
+quadratic segments. Grid/Battery share identical points in reverse order. Geometry
+scales uniformly and centers inside native panel bounds below the back button
+and above one explanation line. The temporary view owns the bounded point arrays
+until deletion. Existing compiled icon/label fonts are reused; no SVG dependency,
+canvas, framebuffer, animation or polling timer exists.
+
+Neutral modal chrome follows the shell's existing theme owner. Power's narrow
+foreground refresh runs after shared grid restyling and uses
+`readable_text_color_for_bg()` for current pressed/custom backgrounds. It changes
+no other card's contrast policy. Theme changes preserve the model, graph objects,
+points, navigation and subscriptions. Flow-line colors remain accent-owned.
+
+Host coverage includes shared label/gutter bounds, native driver callbacks,
+partial/inconsistent/recovered data, disconnect/reconnect, all reference families,
+fixed ports/reversed geometry, theme/accent foreground, repeated close/reopen,
+subpage deletion and context disposal. Existing clock-bar title tests exercise
+the actual title restoration helper. Firmware compiles and physical testing are
+reported separately in the Draft PR; a host test does not prove visual legibility.
 
 **Transport constraint for the editor phase:** native record bodies allow 2,048
 bytes, but live main-grid card text and its existing save validation still cap
-the serialized card at 255 bytes. Typical short sensor IDs fit; five long IDs
-can exceed this. The bound is preserved and tested, with no truncation or schema
+the serialized card at 255 bytes. Five representative short IDs plus the default label serialize to 188 bytes;
+five realistic inverter/house IDs serialize to 288 bytes before inversion flags.
+Long IDs therefore can exceed this. The bound is preserved and tested, with no truncation or schema
 bump. Phase 2/3 must keep this validation visible and assess realistic installation
 IDs before exposing the card; native backup capacity alone does not prove a
 configuration can be applied to live text entities. Subpages retain their existing
@@ -68,13 +110,19 @@ toolbar, simulator, overview cards and extra metric tiles are not requirements
 for firmware. Do not copy the complete page, CSS palette or synthetic sensor
 values into the product.
 
-[James's PR #2162](https://github.com/jtenniswood/espcontrol/pull/2162) is still
-open at `b6e9f8c866bdc54e06124f7cf4d12fac7b23603a`. Its final current diff adds
-Climate secondary labels using the same climate entity, with status/actual/target
-display choices and an optional prefix. Earlier generic secondary-entity work
-was removed. Its state and head were rechecked for this refinement on 2026-10-08.
-Reuse its generic label plumbing; do not adopt Climate-specific display options
-or merge that feature branch into this one.
+[James's PR #2162](https://github.com/jtenniswood/espcontrol/pull/2162) was
+closed without merging. Its final head is
+`b0983005c0cced5820f85849e97e598041ea4415` (verified 2026-10-13).
+Phase 2 extracts only its generic secondary-label field, hidden static/dynamic
+label creation/reset, slot generator wiring and shared label-layout helper.
+Power extends that shared helper's optional numeric/chevron bounds. Climate
+options, formatting and subscriptions were not imported.
+
+Latest upstream inspected for Phase 2: `fb904df1b33eae0ed2d1349099436b8360302af8`.
+The existing feature branch remains based on the approved merged-theme baseline;
+no main update/rebase or unrelated upstream changes are included in this phase.
+Upstream's later per-card color, modal/card and artwork changes need reconciliation
+before an eventual upstream PR; they are not a reason to merge the closed Climate PR.
 
 [Theme Support PR #2168](https://github.com/jtenniswood/espcontrol/pull/2168)
 is merged as this plan's baseline. Its final implementation, including the
@@ -675,9 +723,9 @@ firmware, implement sensors/calculations or claim device testing.
    still belong to the eventual card configuration, not guessed defaults.
 2. Confirm the concise estimated-path explanation and imbalance/unavailable
    indication using existing modal styles, without disturbing v0.32 geometry.
-3. Coordinate the minimal generic-label integration with PR #2162 if it remains
-   open; preserve its typography and existing-card behavior when adding the
-   Power secondary-label/chevron layout and theme/contrast hooks.
+3. Reconcile later upstream card/modal/color changes before opening an upstream
+   PR. The minimal generic-label extraction from closed PR #2162 is complete;
+   its Climate feature was not imported.
 
 Card naming, Home value, dynamic Battery/Grid summary, existing fonts, static
 seven-path topology and main/subpage support are approved. Sensor signs are now
@@ -687,4 +735,4 @@ Do not reopen those input conventions or auto-correct them from a residual.
 Measured-edge mapping and animations remain outside this initial proposal
 unless separately approved.
 Keep the fork-only PR Draft, leave `main` untouched and wait for explicit
-Phase 2 approval on `feature/energy-dashboard` and that same PR.
+Phase 3 approval on `feature/energy-dashboard` and that same PR.

@@ -1,0 +1,236 @@
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <cstdio>
+#include <functional>
+#include <map>
+#include <string>
+#include <vector>
+#include "power_flow_model.h"
+#include "control_modal_service.h"
+
+using lv_coord_t=int; using lv_value_precise_t=float;
+struct lv_point_precise_t { float x,y; };
+struct lv_font_t { int line_height=16; };
+constexpr int LV_PART_MAIN=0, LV_SIZE_CONTENT=-1;
+constexpr int LV_STATE_CHECKED=1, LV_STATE_PRESSED=2;
+constexpr int LV_OBJ_FLAG_HIDDEN=1, LV_OBJ_FLAG_USER_1=2, LV_OBJ_FLAG_USER_3=4,
+  LV_OBJ_FLAG_SCROLLABLE=8, LV_OBJ_FLAG_CLICKABLE=16;
+constexpr int LV_LABEL_LONG_WRAP=1, LV_LABEL_LONG_DOT=2;
+constexpr int LV_ALIGN_BOTTOM_LEFT=1, LV_ALIGN_RIGHT_MID=2, LV_TEXT_ALIGN_CENTER=0;
+constexpr int LV_OPA_COVER=255, LV_FLEX_FLOW_COLUMN=1, LV_FLEX_FLOW_ROW=2, LV_FLEX_ALIGN_CENTER=0;
+constexpr int LV_EVENT_DELETE=1, LV_EVENT_SIZE_CHANGED=2, LV_EVENT_PRESSED=3,
+  LV_EVENT_RELEASED=4, LV_EVENT_PRESS_LOST=5, LV_EVENT_CLICKED=6;
+struct lv_color_t { uint32_t full; };
+struct lv_color32_t { uint8_t blue,green,red,alpha; };
+lv_color_t lv_color_hex(uint32_t c) { return {c}; }
+lv_color32_t lv_color_to_32(lv_color_t c,int a) { return {uint8_t(c.full),uint8_t(c.full>>8),uint8_t(c.full>>16),uint8_t(a)}; }
+struct lv_obj_t;
+struct lv_event_t { lv_obj_t *target; int code; void *data; };
+using EventCallback=void (*)(lv_event_t*);
+struct lv_obj_t {
+  std::string text;
+  lv_font_t const *font=nullptr;
+  int x=0,y=0,w=140,h=16,flags=0,state=0,max_h=32767,mode=0,flex=0;
+  uint32_t color=0xffffff,bg=0x313131,line_color=0;
+  const lv_point_precise_t *points=nullptr;
+  size_t point_count=0;
+  lv_obj_t *parent=nullptr;
+  std::vector<lv_obj_t*> children;
+  struct Event { EventCallback cb; int code; void *data; };
+  std::vector<Event> events;
+};
+int objects=0, subscriptions=0, notifications=0, fail_after=-1;
+lv_font_t label_font{16},icon_font{32},sensor_font{24};
+lv_obj_t *lv_obj_create(lv_obj_t *parent) {
+  if(fail_after==0)return nullptr;
+  if(fail_after>0)--fail_after;
+  auto *obj=new lv_obj_t;obj->parent=parent;obj->font=&label_font;
+  if (parent) parent->children.push_back(obj);
+  ++objects;return obj;
+}
+lv_obj_t *lv_label_create(lv_obj_t *p){return lv_obj_create(p);}
+lv_obj_t *lv_line_create(lv_obj_t *p){return lv_obj_create(p);}
+void *lv_event_get_target(lv_event_t *e){return e->target;}
+int lv_event_get_code(lv_event_t *e){return e->code;}
+void *lv_event_get_user_data(lv_event_t *e){return e->data;}
+void lv_obj_add_event_cb(lv_obj_t *o,EventCallback cb,int code,void *data){o->events.push_back({cb,code,data});}
+void lv_obj_remove_event_cb(lv_obj_t *o,EventCallback cb){
+  auto &v=o->events;v.erase(std::remove_if(v.begin(),v.end(),[&](auto e){return e.cb==cb;}),v.end());
+}
+void send(lv_obj_t *o,int code){auto events=o->events;for(auto e:events)if(e.code==code){lv_event_t event{o,code,e.data};e.cb(&event);}}
+void lv_obj_del(lv_obj_t *o){send(o,LV_EVENT_DELETE);while(!o->children.empty())lv_obj_del(o->children.back());
+  if(o->parent){auto &v=o->parent->children;v.erase(std::remove(v.begin(),v.end(),o),v.end());} delete o;--objects;}
+const char *lv_label_get_text(lv_obj_t *o){return o->text.c_str();}
+void lv_label_set_display_text(lv_obj_t *o,const char *s){o->text=s;}
+void lv_obj_set_style_text_font(lv_obj_t *o,const lv_font_t *f,int){o->font=f;}
+const lv_font_t *lv_obj_get_style_text_font(lv_obj_t *o,int){return o->font;}
+void lv_obj_set_style_text_color(lv_obj_t *o,lv_color_t c,int){o->color=c.full;}
+lv_color_t lv_obj_get_style_bg_color(lv_obj_t *o,int){return {o->bg};}
+bool lv_obj_has_state(lv_obj_t *o,int s){return o->state&s;}
+bool lv_obj_has_flag(lv_obj_t *o,int f){return o->flags&f;}
+void lv_obj_add_flag(lv_obj_t *o,int f){o->flags|=f;}
+void lv_obj_clear_flag(lv_obj_t *o,int f){o->flags&=~f;}
+void lv_obj_set_width(lv_obj_t *o,int w){o->w=w;}
+void lv_obj_set_height(lv_obj_t *o,int h){o->h=h;}
+void lv_obj_set_size(lv_obj_t *o,int w,int h){o->w=w;o->h=h;}
+void lv_obj_set_pos(lv_obj_t *o,int x,int y){o->x=x;o->y=y;}
+int lv_obj_get_width(lv_obj_t *o){return o->w;}
+int lv_obj_get_height(lv_obj_t *o){return o->h;}
+int lv_obj_get_content_width(lv_obj_t *o){return o->w;}
+int lv_obj_get_content_height(lv_obj_t *o){return o->h;}
+int lv_obj_get_style_max_height(lv_obj_t *o,int){return o->max_h;}
+int lv_obj_get_style_pad_column(lv_obj_t*,int){return 4;}
+void lv_obj_set_style_max_height(lv_obj_t *o,int h,int){o->max_h=h;}
+void lv_obj_align(lv_obj_t *o,int a,int x,int y){o->x=x;o->y=y;o->mode=a;}
+void lv_label_set_long_mode(lv_obj_t *o,int m){o->mode=m;}
+int lv_pct(int){return 140;}
+void lv_obj_update_layout(lv_obj_t *o){
+  if(o->h==LV_SIZE_CONTENT){o->h=0;for(auto *c:o->children){lv_obj_update_layout(c);o->h+=c->h;}}
+}
+void lv_obj_move_foreground(lv_obj_t*){}
+void lv_obj_remove_style_all(lv_obj_t*){}
+void lv_obj_set_style_text_align(lv_obj_t*,int,int){}
+void lv_obj_set_style_line_width(lv_obj_t*,int,int){}
+void lv_obj_set_style_line_rounded(lv_obj_t*,bool,int){}
+void lv_obj_set_style_line_color(lv_obj_t *o,lv_color_t c,int){o->line_color=c.full;}
+void lv_obj_set_flex_flow(lv_obj_t *o,int f){o->flex=f;}
+void lv_obj_set_flex_grow(lv_obj_t*,int){}
+void lv_obj_set_flex_align(lv_obj_t*,int,int,int){}
+void lv_line_set_points(lv_obj_t *o,const lv_point_precise_t *p,size_t n){o->points=p;o->point_count=n;}
+void apply_icon_width_compensation(lv_obj_t*,int){}
+void notify_dashboard_content_changed(){++notifications;}
+void apply_push_button_transition(lv_obj_t*){}
+const char *find_icon(const char*){return "icon";}
+struct Theme {uint32_t text_primary=0xffffff;};
+Theme theme;
+const Theme &current_theme(){return theme;}
+uint32_t current_button_primary_color(){return 0xff8c00;}
+uint32_t readable_text_color_for_bg(uint32_t c){return ((c>>16)*299+((c>>8)&255)*587+(c&255)*114)/1000>186?0x212121:0xffffff;}
+struct BtnSlot {void *config=nullptr;lv_obj_t *btn=nullptr,*icon_lbl=nullptr,*text_lbl=nullptr,
+  *sensor_container=nullptr,*sensor_lbl=nullptr,*unit_lbl=nullptr,*subpage_lbl=nullptr,*secondary_lbl=nullptr;};
+struct DisplayProfile{};
+int display_main_width_percent(const DisplayProfile&){return 100;}
+const lv_font_t *display_icon_font(const DisplayProfile&){return &icon_font;}
+const lv_font_t *display_volume_label_font(const DisplayProfile&,const lv_font_t *f){return f;}
+struct ControlModalLayout {int sw=480,sh=480,panel_w=472,panel_h=430,inset=8,back_inset_y=4,back_size=36,title_gap=4;};
+struct ControlModalShell {lv_obj_t *overlay=nullptr,*panel=nullptr,*close_btn=nullptr;};
+ControlModalLayout frame;
+ControlModalCloseCallback active_close=nullptr;
+std::string title,normal_title="18°C";
+void set_clock_bar_modal_label(const std::string &s){title=s.empty()?normal_title:s;}
+void control_modal_force_close_active(){if(active_close){auto cb=active_close;active_close=nullptr;cb();}}
+void control_modal_clear_active(ControlModalKind){active_close=nullptr;set_clock_bar_modal_label("");}
+void control_modal_delete_overlay(ControlModalKind,lv_obj_t *&o){auto *old=o;o=nullptr;if(old)lv_obj_del(old);active_close=nullptr;set_clock_bar_modal_label("");}
+ControlModalShell control_modal_open_shell(ControlModalKind,lv_obj_t*,int,const lv_font_t*,ControlModalCloseCallback close){
+  control_modal_force_close_active();active_close=close;
+  ControlModalShell s;s.overlay=lv_obj_create(nullptr);s.panel=lv_obj_create(s.overlay);s.close_btn=lv_obj_create(s.panel);return s;
+}
+ControlModalLayout control_modal_calc_layout(int){return frame;}
+int control_modal_card_radius(lv_obj_t*){return 8;}
+void control_modal_apply_panel_layout(lv_obj_t*,lv_obj_t*,const ControlModalLayout&,int){}
+void control_modal_style_chrome_button(lv_obj_t*,const ControlModalLayout&,bool){}
+void control_modal_center_tab_icon(lv_obj_t*){}
+
+// @production_helpers
+void ha_release_callbacks_for_owner(void *owner);
+#include "button_grid_power.h"
+
+namespace esphome {struct StringRef {std::string value;const char *c_str()const{return value.c_str();}size_t size()const{return value.size();}};}
+struct ParsedCfg {std::string label="Power Dashboard",precision,home="sensor.h",solar="sensor.s",grid="sensor.g",battery="sensor.b",soc="sensor.soc";};
+namespace espcontrol::power {
+struct TestConfig {std::string home_entity,solar_entity,grid_entity,battery_entity,battery_soc_entity;bool invert_grid=false,invert_battery=false;};
+TestConfig decode_config_v1(const ParsedCfg &c){return {c.home,c.solar,c.grid,c.battery,c.soc};}
+}
+void *callback_owner=nullptr;
+struct Binding {void *owner;std::string entity,attribute;std::function<void(esphome::StringRef)> callback;};
+std::vector<Binding> bindings;
+void ha_release_callbacks_for_owner(void *owner){bindings.erase(std::remove_if(bindings.begin(),bindings.end(),[&](auto &b){return b.owner==owner;}),bindings.end());subscriptions=bindings.size();}
+struct HaCallbackOwnerScope {void *previous;HaCallbackOwnerScope(void *o):previous(callback_owner){callback_owner=o;}~HaCallbackOwnerScope(){callback_owner=previous;}};
+constexpr int HA_SUBSCRIPTION_SCOPE_DEFAULT=1;
+bool ha_subscribe_state(const std::string &id,std::function<void(esphome::StringRef)> cb,int,bool){bindings.push_back({callback_owner,id,"",cb});++subscriptions;return true;}
+bool ha_subscribe_attribute(const std::string &id,const std::string &attribute,std::function<void(esphome::StringRef)> cb,int,bool){bindings.push_back({callback_owner,id,attribute,cb});++subscriptions;return true;}
+void (*&ha_retained_state_invalidated_handler())(){static void(*cb)()=nullptr;return cb;}
+int parse_precision(const std::string &s){return s.empty()?0:std::stoi(s);}
+#define ESP_LOGW(...) ((void)0)
+template<class T>T *grid_delete_with_owner(lv_obj_t *o,T *p){lv_obj_add_event_cb(o,[](lv_event_t *e){delete static_cast<T*>(lv_event_get_user_data(e));},LV_EVENT_DELETE,p);return p;}
+std::vector<PowerCardCtx*> main_allocations;
+template<class T>T *grid_track_runtime_allocation(lv_obj_t*,T *p){main_allocations.push_back(p);return p;}
+struct CardPalette{};
+namespace espcontrol::cards {
+namespace card_runtime {enum class CardDriverId {POWER,OTHER};}
+enum class Surface {MAIN_GRID,SUBPAGE};
+struct Context {struct {card_runtime::CardDriverId driver=card_runtime::CardDriverId::POWER;}runtime;Surface surface=Surface::MAIN_GRID;};
+void sensor_driver_apply_background(BtnSlot &s,const CardPalette&){s.btn->bg=0x313131;}
+}
+#include "button_grid_power_driver.h"
+
+BtnSlot make_slot(bool main){
+  BtnSlot s;s.btn=lv_obj_create(nullptr);s.btn->w=180;s.btn->h=128;s.config=main?s.btn:nullptr;
+  s.icon_lbl=lv_label_create(s.btn);s.text_lbl=lv_label_create(s.btn);
+  s.sensor_container=lv_obj_create(s.btn);s.sensor_container->h=24;
+  s.sensor_lbl=lv_label_create(s.sensor_container);s.sensor_lbl->font=&sensor_font;
+  s.unit_lbl=lv_label_create(s.sensor_container);s.unit_lbl->w=24;
+  s.subpage_lbl=lv_label_create(s.btn);s.subpage_lbl->w=16;
+  s.secondary_lbl=lv_label_create(s.btn);return s;
+}
+void publish(std::string id,std::string value,std::string attribute=""){
+  auto copy=bindings;for(auto &b:copy)if(b.entity==id&&b.attribute==attribute)b.callback({value});
+}
+int main(){
+  using namespace espcontrol::cards;
+  auto slot=make_slot(true);ParsedCfg cfg;Context context;DisplayProfile profile;
+  assert(power_driver_setup_visual(slot,cfg,context,{}));
+  assert(!lv_obj_has_flag(slot.subpage_lbl,LV_OBJ_FLAG_HIDDEN));
+  assert(slot.secondary_lbl->font==slot.text_lbl->font);
+  assert(slot.text_lbl->w==slot.secondary_lbl->w&&slot.text_lbl->w<slot.btn->w);
+  assert(slot.text_lbl->max_h<=slot.btn->h-slot.sensor_container->h-slot.text_lbl->font->line_height-6);
+  assert(power_driver_bind_data(slot,cfg,context,profile));assert(subscriptions==10);
+  for(auto id: {"sensor.s","sensor.h","sensor.g","sensor.b"})publish(id,"W","unit_of_measurement");
+  publish("sensor.s","1500");publish("sensor.h","1000");publish("sensor.g","0");publish("sensor.b","-500");
+  assert(slot.sensor_lbl->text=="1"&&slot.unit_lbl->text=="kW");assert(slot.secondary_lbl->text=="Charging");
+  auto *card=power_card_for_button(slot.btn);
+  for(auto size: {std::array<int,2>{320,480},{480,480},{800,480},{720,1280}}){
+    normal_title="18°C";
+    frame.sw=size[0];frame.sh=size[1];frame.panel_w=size[0]-16;frame.panel_h=size[1]-50;
+    power_flow_open(card);assert(subscriptions==10&&title=="Power Dashboard");
+    auto &ui=power_flow_ui();assert(ui.lines[0]->points==ui.points[0]);
+    auto *area=ui.area;const int count=objects;const auto point=ui.points[0][0];
+    assert(count<=56); // 9 permanent card objects + 47 bounded view objects
+    publish("sensor.s","unknown");assert(ui.lines[0]->flags&LV_OBJ_FLAG_HIDDEN);assert(ui.values[1]->text=="1 kW");
+    assert(ui.status->text=="Unavailable");assert(slot.secondary_lbl->text=="Charging");
+    publish("sensor.s","900");assert(ui.status->text=="Inconsistent readings");
+    publish("sensor.s","1500");assert(ui.status->text=="Inferred flows");
+    theme.text_primary=0x212121;power_cards_refresh_theme();
+    assert(slot.text_lbl->color==0x212121&&ui.area==area&&objects==count);
+    assert(ui.points[0][0].x==point.x&&ui.points[0][0].y==point.y);
+    slot.btn->bg=0xffffff;slot.btn->state=LV_STATE_PRESSED;send(slot.btn,LV_EVENT_PRESSED);
+    assert(slot.sensor_lbl->color==0x212121&&slot.subpage_lbl->color==0x212121);
+    slot.btn->state=0;send(slot.btn,LV_EVENT_RELEASED);
+    ha_retained_state_invalidated_handler()();assert(slot.sensor_lbl->text=="--"&&ui.status->text=="Unavailable");
+    for(auto id: {"sensor.s","sensor.h","sensor.g","sensor.b"})publish(id,"W","unit_of_measurement");
+    publish("sensor.s","1500");publish("sensor.h","1000");publish("sensor.g","0");publish("sensor.b","-500");
+    control_modal_force_close_active();assert(title=="18°C"&&subscriptions==10);
+    normal_title="Subpage";power_flow_open(card);control_modal_force_close_active();assert(title=="Subpage");
+  }
+  fail_after=9;const int base_objects=objects;power_flow_open(card);
+  assert(!power_flow_ui().card&&objects==base_objects&&subscriptions==10);fail_after=-1;
+  power_flow_open(card);lv_obj_del(power_flow_ui().shell.overlay);
+  assert(!power_flow_ui().card&&title=="Subpage"&&subscriptions==10);
+  power_flow_open(card);delete main_allocations.back();main_allocations.clear();
+  assert(!power_flow_ui().card&&!power_card_contexts()&&subscriptions==0);
+  // Same permanent slot rebuilt under Light: no manual theme transition.
+  assert(power_driver_setup_visual(slot,cfg,context,{}));
+  assert(power_driver_bind_data(slot,cfg,context,profile));
+  assert(subscriptions==10&&slot.text_lbl->color==theme.text_primary);
+  assert(slot.btn->events.size()==4); // old event handlers replaced, no dangling userdata
+  delete main_allocations.back();main_allocations.clear();
+  lv_obj_del(slot.btn);
+  auto sub=make_slot(false);context.surface=Surface::SUBPAGE;
+  power_driver_setup_visual(sub,cfg,context,{});power_driver_bind_data(sub,cfg,context,profile);
+  send(sub.btn,LV_EVENT_CLICKED);assert(power_flow_ui().card&&subscriptions==10);
+  publish("sensor.soc","78");publish("sensor.soc","%","unit_of_measurement");
+  assert(power_flow_ui().details[3]->text.find("78%") == 0);
+  lv_obj_del(sub.btn);assert(subscriptions==0&&objects==0&&!power_flow_ui().card&&!power_card_contexts());
+}

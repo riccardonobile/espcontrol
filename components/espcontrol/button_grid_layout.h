@@ -477,7 +477,8 @@ inline void layout_button_label_with_secondary(
     lv_obj_set_width(s.sensor_container, width);
     lv_obj_update_layout(s.unit_lbl);
     lv_obj_set_width(s.sensor_lbl,
-      std::max<lv_coord_t>(1, width - lv_obj_get_width(s.unit_lbl) - 4));
+      std::max<lv_coord_t>(1, width - lv_obj_get_width(s.unit_lbl) -
+        lv_obj_get_style_pad_column(s.sensor_container, LV_PART_MAIN)));
     lv_label_set_long_mode(s.sensor_lbl, LV_LABEL_LONG_DOT);
   }
   if (navigation && s.subpage_lbl) {
