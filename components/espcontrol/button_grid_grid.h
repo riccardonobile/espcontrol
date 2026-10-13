@@ -292,7 +292,7 @@ inline void apply_card_label_line_clamp(lv_obj_t *label, const GridConfig &cfg,
 
 inline bool card_slot_static_child(const BtnSlot &s, lv_obj_t *child) {
   return child == s.icon_lbl || child == s.sensor_container ||
-         child == s.text_lbl || child == s.subpage_lbl;
+         child == s.text_lbl || child == s.subpage_lbl || child == s.secondary_lbl;
 }
 
 inline void reset_card_slot_dynamic_children(BtnSlot &s) {
@@ -304,6 +304,10 @@ inline void reset_card_slot_dynamic_children(BtnSlot &s) {
   lv_obj_set_style_opa(s.btn, LV_OPA_COVER, LV_PART_MAIN);
   if (s.icon_lbl) lv_obj_clear_flag(s.icon_lbl, LV_OBJ_FLAG_HIDDEN);
   if (s.sensor_container) lv_obj_set_user_data(s.sensor_container, nullptr);
+  if (s.secondary_lbl) {
+    lv_label_set_display_text(s.secondary_lbl, "");
+    lv_obj_add_flag(s.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+  }
   if (s.text_lbl) {
     lv_obj_set_style_bg_opa(s.text_lbl, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_pad_all(s.text_lbl, 0, LV_PART_MAIN);
