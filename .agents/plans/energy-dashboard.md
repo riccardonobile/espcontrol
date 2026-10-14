@@ -1,8 +1,8 @@
 # Power Dashboard architecture plan
 
 Status: Phases 1 and 2 complete; Phase 3 web configurator/preview implemented.
-Phase 4 public-documentation completion, compatibility review and physical
-validation remain pending.
+Phase 4A factory/OTA builds and hardware test preparation are complete.
+Physical validation and Phase 4B upstream reconciliation remain pending.
 Baseline: `a406208906f900058da4c063d1e0c3eeeff9af6a` (merged upstream Theme
 Support, verified 2026-10-08). Work branch: `feature/energy-dashboard`; retain
 the existing document path and fork-only Draft PR #10 without renaming them.
@@ -799,3 +799,91 @@ Measured-edge mapping and animations remain outside this initial proposal
 unless separately approved.
 Keep the fork-only PR Draft, leave `main` untouched and wait for explicit
 Phase 4 approval on `feature/energy-dashboard` and that same PR.
+
+## Phase 4A build and physical-test record (2026-10-14)
+
+All three factory configuration checks and fresh sequential compiles passed from
+`c2b855863ed7c81c09081ccdc1652a314db98b8f`. No application/configuration changes,
+upstream integration or hardware access were needed. A later notes-only commit
+records these results; the binaries intentionally identify this verified source.
+
+Repository pin: ESPHome 2026.9.1; resolved ESP-IDF v5.5.5; GNU 14.2.0
+(esp-14.2.0_20260121, RISC-V P4 / Xtensa S3). Native image generation used esptool
+4.12.0; independent image inspection used esptool 5.3.1. Each build used its
+existing `builds/<target>.factory.yaml`, with the exact component ref above.
+A fresh application build volume was used, not older application artifacts.
+
+| Target | Application/OTA bytes | OTA slot bytes | Free bytes | Free |
+| --- | ---: | ---: | ---: | ---: |
+| `guition-esp32-p4-jc1060p470` | 5,364,544 | 7,274,496 | 1,909,952 | 26.26% |
+| `guition-esp32-p4-jc4880p443` | 5,325,552 | 7,274,496 | 1,948,944 | 26.79% |
+| `guition-esp32-s3-4848s040` | 4,954,032 | 7,274,496 | 2,320,464 | 31.90% |
+
+Artifacts are local, ignored outputs (not Git/release assets). Actual Windows root:
+`D:\Projects\espcontrol\.worktrees\energy-dashboard\build\power-dashboard-phase4a\c2b855863`.
+Under each device-named subdirectory, the exact artifact names/checksums are:
+
+| Filename (inside matching target directory) | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `guition-esp32-p4-jc1060p470-pr10-c2b855863-ota.bin` | 5,364,544 | `855793d9e5dde54a15717cfa30e28f35ad1a573958d27633ffa54e4d29d5c4b5` |
+| `guition-esp32-p4-jc1060p470-pr10-c2b855863-factory.bin` | 5,495,616 | `e045661343f5274740094f90e56384200408c1e8da7f6b76cca6ecd1e49b48a2` |
+| `guition-esp32-p4-jc4880p443-pr10-c2b855863-ota.bin` | 5,325,552 | `a5f6c7ac2ebbe201e266b09ca93eb2502370dae27472e96d87aa0cc82e09f47a` |
+| `guition-esp32-p4-jc4880p443-pr10-c2b855863-factory.bin` | 5,456,624 | `8b3becc09a399b9eed4a53f4f415951f7a169c76498a35fcc4222e476c4b1e31` |
+| `guition-esp32-s3-4848s040-pr10-c2b855863-ota.bin` | 4,954,032 | `27e8e93d9d31933239b05c516a639a16ad94923976cf36b47f36d81f36b60e51` |
+| `guition-esp32-s3-4848s040-pr10-c2b855863-factory.bin` | 5,085,104 | `ef15078a2a7f9847acc87e53dcd88f22b7a0ec82048f2e75af969e2f948ca5f0` |
+
+`*-ota.bin` is the application-only OTA image; `*-factory.bin` is the merged
+USB/UART image at flash base 0x0. Factory is not an OTA payload. All use 16 MB
+flash, app0 at 0x20000, app1 at 0x710000, each 0x6f0000 bytes. Partition table,
+factory application contents and OTA size were checked; factory and OTA contain
+the same application. ESPTool image checksum/hash and Windows SHA-256 checks
+passed. Critical compiled Power headers and embedded web asset matched the exact
+Git source. Do not use these original P4 targets for the alternate V2/V3 models.
+
+Each device directory contains configuration/compile logs, `manifest.json`,
+`SHA256SUMS.txt`, partition/flash metadata and `ota-image-info.log`. Root manifest,
+validation logs, `HARDWARE-TEST-CHECKLIST.md` and the adjacent
+`power-dashboard-pr10-c2b855863.zip` support copying/retrieval with Explorer.
+No public download URL is claimed.
+
+Warnings match Phase 2 logs: P4 experimental-IDF warning; S3 GPIO19/GPIO20
+USB-Serial-JTAG pin warnings. P4 bootloader has 6% free (separate from the ample
+application OTA headroom); S3 bootloader 36%. No new Power-specific compile
+warnings or firmware failures remain. Existing factory version is 0.0.0;
+use artifact filename/checksum/source manifest to identify this test build.
+
+Automated validation at c2b855863: `npm run prepare:ci` passed (85 firmware host
+checks, 154 web unit tests, 113 web smoke checks, 260 serialization parity cases,
+product/generated checks, docs and mocked installer). Focused CTest model/layout/
+UI/tree/title tests: 5/5; focused Power web test passed; generated-browser Power
+journeys passed all nine layouts, including main/subpage and restore-size guards.
+`git diff --check` passed. These results do not establish physical correctness.
+
+### Manual validation before Phase 4B
+
+- Export a backup; use the correct OTA/factory file and hardware revision. Keep
+  the branch build installed while testing (avoid official update actions).
+- Card: Home W/kW, default/custom label, Battery-first/Grid-second status, Idle
+  only for two known idle readings, fonts/spans and chevron. Preview placeholders
+  must be distinguished from device measurements.
+- Detail: Solar top/Home right/Grid left/Battery bottom; centering/proportions,
+  SOC, all seven directed paths, fixed ports and exact reversed Grid/Battery
+  centerline. No moving animation is expected.
+- Navigation/theme: main and subpage; top-bar Power Dashboard replaces temperature
+  and restores current content on close; repeat opens/closes; Dark/Light/effective
+  Auto with view open/pressed; bright/dark Primary and readable foreground; no
+  state/navigation reset.
+- HA: confirm signs/units, real charging/discharging/import/export; reconnect and
+  unknown inputs; keep valid readings/status and hide all inferred arrows for
+  incomplete/inconsistent data. Recover without reopening.
+- Assess the 1 W idle/arrow threshold and max(10 W, 2% of larger source/sink total)
+  tolerance with real losses/asynchronous updates; record flicker/readings/timing.
+- Save/reload and backup/restore under Light, including subpages. Confirm the
+  size limit rejects unsupported main-grid configurations without truncation.
+- Controlled disposable HA sensor-state fixtures and the fuller optional
+  rotation/long-label/inversion/near-zero checklist are in the local test guide.
+  Use these to exercise rare flow directions without actuator commands.
+
+Physical testing is pending. Report hardware revision, artifact/checksum,
+sensor conventions/readings, theme/page, screenshots and device logs. Do not
+start Phase 4B upstream reconciliation until hardware feedback and approval.
