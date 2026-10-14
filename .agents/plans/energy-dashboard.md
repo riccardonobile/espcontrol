@@ -1,7 +1,8 @@
 # Power Dashboard architecture plan
 
 Status: Phases 1 and 2 complete; Phase 3 web configurator/preview implemented.
-Phase 4A factory/OTA builds and hardware test preparation are complete.
+Phase 4A includes representative compiles and separate actual-device factory/OTA
+builds; see the corrected physical-device record below.
 Physical validation and Phase 4B upstream reconciliation remain pending.
 Baseline: `a406208906f900058da4c063d1e0c3eeeff9af6a` (merged upstream Theme
 Support, verified 2026-10-08). Work branch: `feature/energy-dashboard`; retain
@@ -800,8 +801,10 @@ unless separately approved.
 Keep the fork-only PR Draft, leave `main` untouched and wait for explicit
 Phase 4 approval on `feature/energy-dashboard` and that same PR.
 
-## Phase 4A build and physical-test record (2026-10-14)
+## Phase 4A representative compile record (2026-10-14)
 
+These are compile-skill representatives, not the user's physical devices.
+Do not install their binaries on JC8012P4A1 or ESP32-P4-86.
 All three factory configuration checks and fresh sequential compiles passed from
 `c2b855863ed7c81c09081ccdc1652a314db98b8f`. No application/configuration changes,
 upstream integration or hardware access were needed. A later notes-only commit
@@ -859,7 +862,7 @@ UI/tree/title tests: 5/5; focused Power web test passed; generated-browser Power
 journeys passed all nine layouts, including main/subpage and restore-size guards.
 `git diff --check` passed. These results do not establish physical correctness.
 
-### Manual validation before Phase 4B
+### Shared manual validation before Phase 4B
 
 - Export a backup; use the correct OTA/factory file and hardware revision. Keep
   the branch build installed while testing (avoid official update actions).
@@ -887,3 +890,84 @@ journeys passed all nine layouts, including main/subpage and restore-size guards
 Physical testing is pending. Report hardware revision, artifact/checksum,
 sensor conventions/readings, theme/page, screenshots and device logs. Do not
 start Phase 4B upstream reconciliation until hardware feedback and approval.
+
+## Phase 4A corrected physical-device record (2026-10-15)
+
+The actual test devices are ESP32-P4-86 and the 10.1-inch JC8012P4A1 V2.
+The user confirmed **non-v3 P4 silicon and rear-case marking >=2628**. This
+selects `guition-esp32-p4-jc8012p4a1-v2`; no similar model is substituted.
+Revision selection follows the current screen documentation:
+
+| Evidence | Exact supported target |
+| --- | --- |
+| P4 v3.x production silicon, regardless of case date | `guition-esp32-p4-jc8012p4a1-v3` |
+| Non-v3 silicon, case marking <=2627 | `guition-esp32-p4-jc8012p4a1` (V1/original; no suffix) |
+| Non-v3 silicon, case marking >=2628 | `guition-esp32-p4-jc8012p4a1-v2` |
+
+Use an existing ESPHome/esptool chip-information log and rear-case marking/photo;
+chip revision takes priority over case date. These builds do not query hardware.
+V3 also has different installation restrictions (USB initially, native ESPHome
+OTA afterward; browser firmware upload disabled), so V2 artifacts must never
+be treated as interchangeable. See `docs/screens/jc8012p4a1.md` and its V1/V2/V3
+pages for authoritative revision guidance.
+
+### Device-specific mandatory layout checks
+
+- **JC8012P4A1 V2:** 10.1-inch, 1280x800 landscape, 5x4 / 20 cards. Check default
+  and supported wider/taller Power spans, long primary/secondary labels, Home
+  value and chevron without overlap. Check the wide modal's centering and
+  proportions, Solar top/Home right/Grid left/Battery bottom, SOC, seven paths,
+  three fixed ports per node and exact reversed Grid/Battery centerline.
+- **ESP32-P4-86:** 4-inch, 720x720 square, 3x3 / 9 cards. Check compact wrapping/
+  ellipsis, numeric/SOC clipping, chevron spacing, square-modal fit and touch
+  targets. Target is the repository-supported ETH-2RO panel; normal factory
+  profile uses Wi-Fi, not the optional Ethernet-only manual variant.
+- On **both**, repeat main/subpage navigation and modal open/close; verify HUD
+  title restoration, open/pressed Dark/Light/Auto switching, bright/dark accent,
+  no value/subscription/navigation reset, reconnect, and Light-mode backup
+  restore. Compare the same settled HA snapshot, validity recovery and reversible
+  geometry. No animation is expected. The shared controlled-flow checklist above
+  remains applicable; physical success is still pending.
+
+Fresh outputs and the expanded local `HARDWARE-TEST-CHECKLIST.md` belong under
+`build/power-dashboard-user-builds/4e49ca05e/`, separate from representatives.
+Application source: `4e49ca05e07667c48be50336f81d239aca222c58`; a later notes-only
+commit records results without changing the compiled Power code.
+
+Both existing `builds/<target>.factory.yaml` configuration checks and fresh
+sequential compiles passed with ESPHome 2026.9.1, ESP-IDF v5.5.5 and GCC 14.2.0.
+No device/partition/application source changes were necessary.
+
+| Actual target | OTA/app bytes | Factory bytes | OTA slot bytes | Free bytes | Free |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `esp32-p4-86` | 6,869,344 | 7,000,416 | 15,663,104 | 8,793,760 | 56.14% |
+| `guition-esp32-p4-jc8012p4a1-v2` | 5,697,968 | 5,829,040 | 7,274,496 | 1,576,528 | 21.67% |
+
+P4-86 uses 32 MB flash, app0 0x20000 / app1 0xf10000, each 0xef0000 bytes.
+JC8012 V2 uses 16 MB, app0 0x20000 / app1 0x710000, each 0x6f0000 bytes.
+The compiled partition tables match each target's authored CSV. OTA requires
+that the installed layout already matches; it does not update partitions.
+Factory files are merged USB/UART images at base 0x0, not OTA payloads.
+
+All four files have independently verified Windows SHA-256 checksums. Both OTA
+image checksum/hash checks passed, and each factory contains the identical
+application and compiled partition table. Critical compiled Power headers and
+embedded web assets match the exact source commit. Each target directory holds
+`manifest.json`, `SHA256SUMS.txt`, configuration/compile logs, partition/flash
+metadata and `ota-image-info.log`. Root manifest, checksum/report/checklist and
+validation logs are included in `power-dashboard-user-pr10-4e49ca05e.zip` in the
+parent output directory. No binaries/logs/build scripts are committed.
+
+Existing P4 experimental-IDF warnings remain. P4-86's fresh configuration also
+emitted CMake warnings (including missing kconfig); automatic reconfiguration
+recovered, with no source change/build failure. These messages were not present
+in the earlier representative logs, so they are recorded rather than labelled
+pre-existing. Bootloader headroom is 4% for P4-86 and 6% for JC8012 V2, separate
+from application headroom. No Power-specific compiler warning/failure was found.
+
+`npm run prepare:ci` passed at 4e49ca05e: 85 host tests, 154 web unit tests,
+113 smoke checks, 260 serialization parity cases, generated checks, docs and
+mocked installer. No generated-source churn; `git diff --check` passed.
+The local guide covers the two actual layouts, controlled seven-path cases,
+theme/accent, validity/reconnect, navigation/lifecycle and save/restore.
+Physical testing is pending; no flash, rebase or Phase 4B work was performed.
