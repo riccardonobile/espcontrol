@@ -1,3 +1,4 @@
+import { powerCardConfigError, powerStoredConfigError } from "../model/power_card";
 import type { PanelIdentityBackup } from "../model/panel_identity";
 import type { PanelIdentityFeature } from "./panel_identity";
 import { state } from "../state/app_instance";
@@ -386,6 +387,17 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     backedUpNativeConfig.device_profile === controllers.layout.deviceId) {
                     nativeDocument = EspControlModel.decodePanelConfig(
                         EspControlModel.decodePanelConfigBackupPayload(backedUpNativeConfig));
+                }
+                // Validate the authoritative restore payload before any layout writes.
+                for (const value of Object.values(nativeDocument.buttons)) {
+                    const error = powerStoredConfigError(value);
+                    if (error) throw new Error(error);
+                }
+                for (const value of Object.values(nativeDocument.subpages)) {
+                    for (const card of parseSubpageConfig(value).buttons) {
+                        const error = powerCardConfigError(card, false);
+                        if (error) throw new Error(error);
+                    }
                 }
                 nativeDocument.settings.button_order = String(nativeDocument.settings.button_order || backupPlan.button_order || "");
                 nativeDocument.settings.button_on_color = String(nativeDocument.settings.button_on_color || backupPlan.config.button_on_color || "");

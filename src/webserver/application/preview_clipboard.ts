@@ -370,7 +370,7 @@ export function createPreviewClipboardFeature(
             if (placement.size !== requestedSize)
                 resized++;
             var buttonConfig: any = clipboardButtonConfig(entry);
-            if (serializeButtonConfig(buttonConfig).length > 255) {
+            if (EspControlModel.utf8ByteLength(serializeButtonConfig(buttonConfig)) > 255) {
                 return { error: "A copied card's settings are too large for this controller." };
             }
             nextButtons[newSlot - 1] = buttonConfig;

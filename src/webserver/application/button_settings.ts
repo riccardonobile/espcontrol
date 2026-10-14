@@ -362,11 +362,13 @@ export function createButtonSettingsFeature(
         }
         function validateSaveLimits(this: any) {
             var validation: any = cardEditorValidationController.validateSave({
-                fields: [], isSubpage: c.isSub, serializedConfigLength: serializeButtonConfig(b).length,
+                fields: [], isSubpage: c.isSub, serializedConfigLength: EspControlModel.utf8ByteLength(serializeButtonConfig(b)),
                 imageCardCount: 0, imageCardCapacity: imageSlotCapacity(),
             });
             if (validation.reason === "config-size") {
-                showBanner("Card settings are too large to save. Shorten confirmation text, labels, or entity IDs.", "error");
+                showBanner(b.type === "power"
+                    ? "Power settings exceed the 255-byte main-grid limit. Shorten entity IDs or the label, omit optional SOC, or use a subpage. No settings were saved."
+                    : "Card settings are too large to save. Shorten confirmation text, labels, or entity IDs.", "error");
             }
             return validation;
         }
@@ -778,6 +780,7 @@ export function createButtonSettingsFeature(
             cardSize: c.sizes[slot] || 1,
             idPrefix: idPrefix,
             isSub: c.isSub,
+            serializeCardConfig: serializeButtonConfig,
         };
         if (typeDef && typeDef.renderSettingsBeforeLabel &&
             (!c.isSub || buttonTypeRegistryValue(typeDef, "allowInSubpage", false))) {

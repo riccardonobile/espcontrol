@@ -4067,7 +4067,7 @@ export const CARD_CONTRACT_CARDS: Readonly<Record<string, CardTypeSpec>> = {
   },
   "power": {
     "label": "Power",
-    "hidden": true,
+    "hidden": false,
     "allowInSubpage": true,
     "domains": [
       "sensor"
@@ -4103,13 +4103,13 @@ export const CARD_CONTRACT_CARDS: Readonly<Record<string, CardTypeSpec>> = {
       },
       {
         "name": "invert_grid",
-        "label": "Invert Grid polarity",
+        "label": "Invert Grid power sign",
         "kind": "flag",
         "omitDefault": true
       },
       {
         "name": "invert_battery",
-        "label": "Invert Battery polarity",
+        "label": "Invert Battery power sign",
         "kind": "flag",
         "omitDefault": true
       }

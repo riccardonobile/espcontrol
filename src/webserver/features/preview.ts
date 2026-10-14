@@ -55,6 +55,7 @@ const INFO_ONLY_CARD_TYPES = new Set([
 ]);
 
 const CARD_TYPE_PICKER_DETAILS: Readonly<Record<string, PickerDetails>> = {
+  power: { icon: "transmission-tower", description: "Show Home power and open inferred Solar, Grid and Battery flows." },
   "": { icon: "toggle-switch", description: "Toggle lights, switches, helpers, or fans." },
   action: { icon: "flash", description: "Run a Home Assistant or local action." },
   alarm: { icon: "shield-home", description: "Control or trigger alarm panel actions." },

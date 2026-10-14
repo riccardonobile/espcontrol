@@ -22,7 +22,7 @@ import type { GridFeature } from "./grid";
 import type { ButtonSettingsSelectionFeature } from "./button_settings_selection";
 
 const SENSOR_SURFACE_CARD_TYPES: ReadonlySet<string> = new Set([
-    "sensor", "local_sensor", "door_window", "presence", "weather",
+    "power", "sensor", "local_sensor", "door_window", "presence", "weather",
     "weather_forecast", "calendar", "clock", "timezone",
 ]);
 export interface PreviewRenderDependencies {

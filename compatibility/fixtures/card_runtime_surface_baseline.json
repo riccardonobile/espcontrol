@@ -2881,13 +2881,13 @@
       "web": {
         "registration": "power",
         "picker": {
-          "main": false,
-          "subpage": false,
-          "infoOnly": false
+          "main": true,
+          "subpage": true,
+          "infoOnly": true
         },
         "preview": {
-          "available": false,
-          "fingerprint": ""
+          "available": true,
+          "fingerprint": "ee35b0cfe1e57999"
         }
       },
       "firmware": {
@@ -2913,13 +2913,13 @@
       "web": {
         "registration": "power",
         "picker": {
-          "main": false,
-          "subpage": false,
-          "infoOnly": false
+          "main": true,
+          "subpage": true,
+          "infoOnly": true
         },
         "preview": {
-          "available": false,
-          "fingerprint": ""
+          "available": true,
+          "fingerprint": "ee35b0cfe1e57999"
         }
       },
       "firmware": {

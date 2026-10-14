@@ -893,8 +893,8 @@ const powerCard = buttonShape(hooks.parseButtonConfig(
 ));
 assertSubpageRoundTrip(hooks, "Power legacy subpage with all bindings", { order: ["1", "B"], buttons: [powerCard], backLabel: "Back" }, false);
 assertSubpageRoundTrip(hooks, "Power compact subpage with custom label", { order: ["1", "B"], buttons: [{ ...powerCard, label: "House:Power" }], backLabel: "Back" }, true);
-assert.strictEqual(hooks.buttonTypeVisibleInPickerFor("power", false), false, "Phase 1 Power is not selectable before a renderer/editor exists");
-assert.strictEqual(hooks.buttonTypeVisibleInPickerFor("power", true), false, "Phase 1 Power is not selectable in subpages yet");
+assert.strictEqual(hooks.buttonTypeVisibleInPickerFor("power", false), true, "Power is selectable with native rendering and editor controls");
+assert.strictEqual(hooks.buttonTypeVisibleInPickerFor("power", true), true, "Power is selectable in subpages");
 Object.entries(current.compactSubpageStrings).forEach(([name, value]) => {
   assertSubpageRoundTrip(hooks, `current compact subpage ${name}`, value.expected, true);
   assert.deepStrictEqual(

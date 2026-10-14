@@ -1,14 +1,16 @@
 import { cardContractDefaultConfig, cardContractHidden, cardContractSubpageTypeCode, cardContractSubpageTypeFromCode, cardRuntimeSpec } from "../../src/webserver/generated/card_contract";
 import { normalizeSavedConfigPower } from "../../src/webserver/generated/saved_config_power";
-import { decodePowerCardConfigV1, normalizePowerOptions } from "../../src/webserver/model/power_card";
+import { decodePowerCardConfigV1, normalizePowerOptions, validPowerEntity, powerCardConfigError, powerStoredConfigError } from "../../src/webserver/model/power_card";
 import { parseRawButtonConfig, CARD_CONFIG_FIELDS } from "../../src/webserver/model/card";
 import { createPanelConfigBackupPayload, decodePanelConfigBackupPayload, encodePanelConfig, decodePanelConfig } from "../../src/webserver/model/panel_config";
 import { createCardTransferCode, parseCardTransferCode } from "../../src/webserver/model/card_transfer";
 import { CARD_SIZE_SINGLE } from "../../src/webserver/model/grid";
-import { parseCompactSubpageConfig, serializeCompactSubpageConfig } from "../../src/webserver/model/subpage";
+import { parseCompactSubpageConfig, serializeCompactSubpageConfig, splitSubpageConfigChunks, utf8ByteLength } from "../../src/webserver/model/subpage";
 import { encodeConfigField } from "../../src/webserver/model/config_primitives";
 import { createCardEditorValidationController } from "../../src/webserver/features/card_editor_validation_controller";
 import { createCardRegistry } from "../../src/webserver/application/card_registry";
+import { cardTypePickerOptions } from "../../src/webserver/features/preview";
+import { previewEffectiveTheme, PREVIEW_THEME_COLORS } from "../../src/webserver/state/preview_theme";
 import { registerPowerCardTypes } from "../../src/webserver/cards/power";
 
 function equal(actual: unknown, expected: unknown): void {
@@ -29,12 +31,34 @@ export function runPowerCardTests(): void {
   equal(cardRuntimeSpec("power")?.capabilities.subscriptions, true);
   equal(cardRuntimeSpec("power")?.capabilities.modal, true);
   equal(cardRuntimeSpec("power")?.capabilities.runtimeAllocation, true);
-  equal(cardContractHidden("power"), true);
+  equal(cardContractHidden("power"), false);
   const registry = createCardRegistry();
-  registerPowerCardTypes(registry);
-  equal(registry.definitions.power?.isAvailable?.(), false);
-  equal(registry.definitions.power?.renderSettings, null);
-  equal(registry.definitions.power?.renderPreview, null);
+  registerPowerCardTypes(registry, { cardSensorPreviewHtml: () => "sensor-preview" });
+  equal(registry.definitions.power?.isAvailable, null);
+  equal(typeof registry.definitions.power?.renderSettings, "function");
+  equal(typeof registry.definitions.power?.renderPreview, "function");
+  for (const sub of [false, true]) {
+    equal(cardTypePickerOptions(registry.definitions, [], false, sub, null).some(option => option.key === "power"), true);
+    equal(cardTypePickerOptions(registry.definitions, ["power"], false, sub, null).some(option => option.key === "power"), false);
+  }
+  equal(validPowerEntity("sensor.home"), true);
+  for (const id of ["switch.home", "sensor.", "sensor.bad;injection", "sensor.home,grid", "sensor.UPPER", ""]) equal(validPowerEntity(id), false);
+  equal(powerCardConfigError(defaults) !== null, true);
+  // Old saved partial configurations retain unavailable readings on restore.
+  equal(powerCardConfigError(defaults, false), null);
+  const preview = registry.definitions.power!.renderPreview!(defaults, { escHtml: (s: string) => s.replace(/</g, "&lt;"), cardSize: 1 }) as { iconHtml: string; buttonClass: string; labelHtml: string };
+  equal(preview.iconHtml, "sensor-preview");
+  equal(preview.buttonClass, "sp-power-card");
+  equal(preview.labelHtml.includes("Power Dashboard"), true);
+  equal(preview.labelHtml.includes("Unavailable"), true); // never fake Idle
+  equal(preview.labelHtml.includes("mdi-chevron-right"), true);
+  const escaped = registry.definitions.power!.renderPreview!({ ...defaults, label: "<script>" }, { escHtml: (s: string) => s.replace(/</g, "&lt;"), cardSize: 1 }) as { iconHtml: string; buttonClass: string; labelHtml: string };
+  equal(escaped.labelHtml.includes("<script>"), false);
+  for (const mode of ["Dark", "Light", "Auto"] as const) {
+    equal(previewEffectiveTheme({ themeMode: mode, themeActive: "Light" }), mode === "Dark" ? "Dark" : "Light");
+  }
+  equal(PREVIEW_THEME_COLORS.Light.surfaceSensor, "F5F5F5");
+  equal(PREVIEW_THEME_COLORS.Dark.surfaceSensor, "212121");
   equal(cardContractSubpageTypeCode("power"), "PW");
   equal(cardContractSubpageTypeFromCode("PW"), "power");
   // Existing compact codes must not move when a new card is registered.
@@ -47,6 +71,14 @@ export function runPowerCardTests(): void {
     homeEntity: "sensor.home", solarEntity: "sensor.solar", gridEntity: "sensor.grid",
     batteryEntity: "sensor.battery", batterySocEntity: "sensor.soc", invertGrid: true, invertBattery: true,
   });
+  equal(powerCardConfigError(card), null);
+  for (const field of ["solar_entity", "grid_entity", "battery_entity"]) {
+    equal(powerCardConfigError({ ...card, options: card.options.split(",").filter(value => !value.startsWith(field + "=")).join(",") }) !== null, true);
+  }
+  equal(powerCardConfigError({ ...card, options: normalizePowerOptions(card.options.replace("battery_soc_entity=sensor.soc,", "")) }), null);
+  equal(powerCardConfigError({ ...card, options: card.options + ",invert_grid=true" }) !== null, true);
+  equal(powerCardConfigError({ ...card, options: card.options.replace("sensor.soc", "number.soc") }) !== null, true);
+  equal(powerStoredConfigError(encoded), null);
   const canonical = { ...card };
   normalizeSavedConfigPower(card, normalizePowerOptions);
   equal(card, canonical); // normalization is idempotent
@@ -89,5 +121,14 @@ export function runPowerCardTests(): void {
     "solar_entity=sensor.inverter_solar_output_power,grid_entity=sensor.inverter_grid_exchange_power," +
     "battery_entity=sensor.inverter_battery_charge_discharge_power,battery_soc_entity=sensor.inverter_battery_state_of_charge";
   equal(realistic.length, 288);
+  equal(utf8ByteLength("\u00e9".repeat(128)), 256);
+  equal(save(255).valid, true);
+  equal(save(256).reason, "config-size");
+  equal(powerStoredConfigError(realistic) !== null, true);
+  equal(powerStoredConfigError(realistic, true), null);
+  equal(splitSubpageConfigChunks(subpage, 4) !== null, true);
+  const longSubpage = serializeCompactSubpageConfig(["1", "B"], [["PW", ...[longCard.entity, longCard.label, "", "", "", "", "", longCard.options].map(encodeConfigField)]]);
+  equal(splitSubpageConfigChunks(longSubpage, 4), null); // aggregate capacity enforced
+  equal(splitSubpageConfigChunks(longSubpage, 8) !== null, true);
   equal(save(realistic.length).reason, "config-size"); // no truncation or storage expansion
 }

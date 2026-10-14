@@ -1,6 +1,6 @@
 {
   "label": "Power",
-  "hidden": true,
+  "hidden": false,
   "allowInSubpage": true,
   "domains": ["sensor"],
   "options": [
@@ -8,8 +8,8 @@
     {"name": "grid_entity", "label": "Grid power", "kind": "text", "defaultValue": "", "omitDefault": true},
     {"name": "battery_entity", "label": "Battery power", "kind": "text", "defaultValue": "", "omitDefault": true},
     {"name": "battery_soc_entity", "label": "Battery SOC", "kind": "text", "defaultValue": "", "omitDefault": true},
-    {"name": "invert_grid", "label": "Invert Grid polarity", "kind": "flag", "omitDefault": true},
-    {"name": "invert_battery", "label": "Invert Battery polarity", "kind": "flag", "omitDefault": true}
+    {"name": "invert_grid", "label": "Invert Grid power sign", "kind": "flag", "omitDefault": true},
+    {"name": "invert_battery", "label": "Invert Battery power sign", "kind": "flag", "omitDefault": true}
   ],
   "normalization": {
     "fields": {
