@@ -38,3 +38,33 @@ Choose **Lit When Active** when an active status should use the on colour. It is
 | `sensor.ups_battery_runtime` | Time |
 | `binary_sensor.laundry_running` | Icon |
 | `text_sensor.washing_machine_status` | Text |
+
+## Power Dashboard
+
+Choose **Power** to show instantaneous Home consumption in W/kW. Tap the card
+on the panel to open **Power Flow**. The label defaults to **Power Dashboard**;
+the secondary line summarizes Battery and Grid activity.
+
+Configure four Home Assistant `sensor.*` entities reporting W or kW:
+
+| Reading | Default sign convention |
+|---|---|
+| Home power | Positive consumption |
+| Solar power | Positive production |
+| Grid power | Positive importing; negative exporting |
+| Battery power | Positive discharging; negative charging |
+
+**Battery SOC** is optional and must report a percentage. Enable the Grid or
+Battery sign inversion only if your sensors use the opposite convention.
+Unknown or invalid readings are not treated as zero. Flow arrows are inferred
+allocations, not measured physical routes; incomplete or inconsistent readings
+hide the arrows while retaining valid readings.
+
+The web card preview uses placeholders, not live measurements. It follows the
+selected Dark/Light theme, or Active Theme in Auto mode.
+
+Main-grid settings must fit **255 UTF-8 bytes**. The editor shows the byte count
+and rejects oversized saves without truncating them. Shorter entity IDs/labels
+or omitting optional SOC can help; a subpage uses shared chunked storage and
+can hold larger individual cards within its overall capacity. A configuration
+that fits a subpage may still be too large to move back to the main grid.

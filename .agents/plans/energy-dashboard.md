@@ -1,8 +1,8 @@
 # Power Dashboard architecture plan
 
-Status: Phase 1 model/contract complete; Phase 2 native card/static detail view
-authorized and implemented. Web controls/preview and final device validation
-remain separate phases.
+Status: Phases 1 and 2 complete; Phase 3 web configurator/preview implemented.
+Phase 4 public-documentation completion, compatibility review and physical
+validation remain pending.
 Baseline: `a406208906f900058da4c063d1e0c3eeeff9af6a` (merged upstream Theme
 Support, verified 2026-10-08). Work branch: `feature/energy-dashboard`; retain
 the existing document path and fork-only Draft PR #10 without renaming them.
@@ -19,6 +19,66 @@ the existing document path and fork-only Draft PR #10 without renaming them.
 - Reuse existing card drivers, modal lifecycle, theme palette, fonts,
   display profiles, Home Assistant subscriptions and configuration contracts.
 - Keep authored/generated boundaries and existing backups compatible.
+
+## Phase 3 implementation boundary
+
+Power is available in the existing main/subpage picker. The shared editor owns
+label, four required sensor selectors, optional SOC, precision and two explicit
+inversion toggles. All selectors use the existing sensor autocomplete; no new
+service or storage schema. Power does not draw a card icon, so no ineffective
+icon setting is exposed. Its pressed accent remains the existing global Primary.
+
+The grid preview uses existing sensor-value/label fonts, layout/profile variables,
+neutral sensor surfaces and chevron glyph. It shows `-- W` and `Unavailable`;
+an explanatory editor note identifies these as placeholders. The browser has
+no live HA power channels, so it does not reimplement calculation/status logic
+or infer Idle from missing data. No detail-preview mechanism exists to reuse;
+Phase 2 native Power Flow remains unchanged. Dark/Light/manual and Auto Active
+Theme use the existing preview theme infrastructure. Preview is neutral, not
+an accent-filled active-state simulation, so it needs no second contrast policy.
+
+Web editor labels are English like existing cards. Option labels come from the
+authored product contract and generated metadata. The current translation
+catalogue/generator applies only to physical firmware; existing translated
+Power status remains unchanged. Do not create an independent web localization
+system in this phase.
+
+### Storage investigation and compatibility decision
+
+- `common/config/button_template.yaml` and `_4chunk.yaml` persist each main
+  card in an ESPHome text entity with max_length 255. Native PanelConfig records
+  can hold 2,048 bytes, but reconciliation still writes the bounded text entity;
+  a larger native record/backup is not a supported larger main card.
+- The parser uses strings and does not independently impose 255. Every main
+  card type shares the text-entity bound. Existing semicolon/escaped nine-field
+  formats, option keys, firmware normalization and backup version are unchanged.
+- Subpages use existing 4/8 text chunks (device-dependent), 255 bytes each,
+  shared by the complete subpage. A larger Power card can fit there if the full
+  serialized/escaped subpage fits. Moving/pasting back to main rechecks 255.
+- Save and main-grid paste now count UTF-8 bytes using the existing subpage
+  helper, rather than characters. The Power editor shows the exact serialized
+  count; unsupported main-grid saves are rejected with actionable feedback.
+  Restore validates the authoritative Power main/subpage payload before writes;
+  old partial Power configurations can still restore missing readings.
+- Existing encoding already omits unused tails/default fields where supported.
+  Renaming option keys, abbreviating sensor domains or adding aliases would need
+  matching firmware/parser changes and would break old-firmware compatibility;
+  no such change is approved. Omitting the default stored label could save
+  space but would not reliably make long IDs fit and changes canonical output.
+- Concrete raw nine-field fixture: five short IDs/default label 188 bytes; the
+  realistic five inverter/house IDs 288 bytes (before inversions). Removing SOC
+  from that fixture gives 229 bytes; both inversions give 256 bytes. A longer
+  label or longer IDs can exceed it again. A subpage is the existing alternative.
+- If long main-grid IDs are a requirement, choices needing separate approval
+  are shorter entity IDs upstream in HA (renaming automation references), a new
+  compatible alias encoding (new firmware support, older firmware cannot use
+  it), or increasing storage (migration/device-memory/backup review). Validation
+  does not solve that installation constraint; physical setup must confirm fit.
+
+Latest upstream reviewed for this phase: `9987b6c3e` (11 commits after Phase 2's
+`fb904df1b`). Overlap includes card colours/Global naming, soft corners, Device
+tab/settings, preview resizing and dependency updates. No unrelated changes were
+rebased/merged; reconcile these before the eventual upstream contribution.
 
 ## Phase 1 implementation boundary
 
@@ -41,8 +101,8 @@ browser serialization, native backups and card transfers.
 ## Phase 2 implementation boundary
 
 `button_grid_power_driver.h` installs the native sensor-value card, shared
-secondary label and existing chevron on main grids and subpages. Power remains
-hidden/unavailable in the public picker until Phase 3 supplies editor controls.
+secondary label and existing chevron on main grids and subpages. Phase 2 kept
+Power hidden; Phase 3 now enables it with the editor controls described above.
 Its runtime contract now declares state/attribute subscriptions, modal navigation
 and a card-owned allocation. The nine-field config and Phase 1 calculation model
 are unchanged.
@@ -584,8 +644,8 @@ question, not permission to rewrite existing card codes or silently drop fields.
 
 ## Implementation phases and acceptance gates
 
-Phase 1 is approved and implemented. Further implementation requires explicit
-approval; retain the remaining presentation/integration decisions below.
+Phases 1–3 are approved and implemented. Phase 4 requires explicit approval;
+retain the remaining physical-validation/compatibility decisions below.
 Prefer these small phases/commits, including focused tests and generator output
 in the phase that owns them:
 
@@ -738,4 +798,4 @@ Do not reopen those input conventions or auto-correct them from a residual.
 Measured-edge mapping and animations remain outside this initial proposal
 unless separately approved.
 Keep the fork-only PR Draft, leave `main` untouched and wait for explicit
-Phase 3 approval on `feature/energy-dashboard` and that same PR.
+Phase 4 approval on `feature/energy-dashboard` and that same PR.

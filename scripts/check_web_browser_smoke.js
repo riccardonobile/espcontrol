@@ -14,6 +14,7 @@ const {
   createPanelConfigBackupPayload,
   decodePanelConfig,
   encodePanelConfig,
+  serializeLegacySubpageConfig,
 } = loadTypeScriptModule(path.join(ROOT, "src", "webserver", "model", "index.ts"));
 const MANIFEST_PATH = path.join(ROOT, "devices", "manifest.json");
 const WEB_OUTPUT_DIR = freshWebOutputDir();
@@ -5785,6 +5786,141 @@ async function assertTimerEntityValidation(page) {
     !document.querySelector(".sp-settings-overlay.sp-visible"));
 }
 
+async function assertPowerDashboard(browser, testCase) {
+  const context = await browser.newContext({ viewport: testCase.viewport });
+  await installRoutes(context, testCase.slug);
+  const page = await context.newPage();
+  const errors = [];
+  const posts = [];
+  page.on("request", request => { if (request.method() === "POST") posts.push(postRecord(request.url())); });
+  page.on("pageerror", error => errors.push(error.message));
+  await installFakeEventSource(page);
+  try {
+    await page.goto(`http://espcontrol.test/${testCase.slug}?events=1`, { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.__eventSources?.length > 0);
+    await page.evaluate(events => window.__seedEspState(events), seededEvents().concat([
+      { id: "text-button_order", state: "" },
+    ]));
+    await page.locator(".sp-main .sp-empty-cell").first().click();
+    await page.getByRole("button", { name: "Power card type", exact: true }).click();
+    const save = page.locator(".sp-settings-modal .sp-save-btn");
+    assert.equal(await page.locator("#sp-inp-label").inputValue(), "Power Dashboard");
+    assert.equal(await page.locator("#sp-inp-power-invert_grid").isChecked(), false);
+    assert.equal(await page.locator("#sp-inp-power-invert_battery").isChecked(), false);
+    await save.click();
+    await page.getByText("Choose a sensor entity (sensor.*) for Home power.", { exact: true }).waitFor();
+    const home = page.locator("#sp-inp-power-entity");
+    await home.fill("switch.home");
+    await save.click();
+    assert(await home.getAttribute("aria-invalid"));
+    await home.fill("sensor.home");
+    const settings = page.locator(".sp-settings-modal .sp-disclosure").filter({ hasText: "Card Settings" }).first();
+    if (!(await settings.evaluate(el => el.classList.contains("sp-open")))) await settings.locator(".sp-disclosure-button").click();
+    for (const [key, value] of [["solar_entity", "sensor.solar"], ["grid_entity", "sensor.grid"], ["battery_entity", "sensor.battery"]])
+      await page.locator("#sp-inp-power-" + key).fill(value);
+    const soc = page.locator("#sp-inp-power-battery_soc_entity");
+    await soc.fill("number.soc");
+    await save.click();
+    await page.getByText("Choose a sensor entity (sensor.*) for Battery SOC (optional).", { exact: true }).waitFor();
+    await soc.fill("");
+    const longId = "sensor." + "very_long_house_power_".repeat(4);
+    await home.fill(longId);
+    await page.locator("#sp-inp-power-solar_entity").fill(longId);
+    assert((await page.locator("#sp-inp-power-config-size").textContent()).includes("Too large"));
+    await save.click();
+    await page.getByText("Power settings exceed the 255-byte main-grid limit. Shorten entity IDs or the label, omit optional SOC, or use a subpage. No settings were saved.", { exact: true }).waitFor();
+    assert(await page.locator(".sp-settings-overlay.sp-visible").count());
+    await home.fill("sensor.home");
+    await page.locator("#sp-inp-power-solar_entity").fill("sensor.solar");
+    await soc.fill("sensor.soc");
+    await page.locator("#sp-inp-power-invert_grid + .sp-toggle-track").click();
+    await page.locator("#sp-inp-power-invert_battery + .sp-toggle-track").click();
+    await page.locator("#sp-inp-label").fill("House Power");
+    await save.click();
+    await page.waitForFunction(() => !document.querySelector(".sp-settings-overlay.sp-visible"));
+    const power = page.locator(".sp-main .sp-power-card");
+    assert.equal(await power.locator(".sp-sensor-value").textContent(), "--");
+    assert.equal(await power.locator(".sp-sensor-unit").textContent(), "W");
+    assert.equal(await power.locator(".sp-power-secondary").textContent(), "Unavailable");
+    assert(await power.locator(".sp-power-chevron").isVisible());
+    for (const [mode, active, background, foreground] of [
+      ["Dark", "Light", "rgb(33, 33, 33)", "rgb(255, 255, 255)"],
+      ["Light", "Dark", "rgb(245, 245, 245)", "rgb(51, 51, 51)"],
+      ["Auto", "Light", "rgb(245, 245, 245)", "rgb(51, 51, 51)"],
+      ["Auto", "Dark", "rgb(33, 33, 33)", "rgb(255, 255, 255)"],
+    ]) {
+      await page.evaluate(([mode, active]) => window.__seedEspState([
+        { id: "select/Screen: Theme Mode", state: mode, value: mode, option: ["Dark", "Light", "Auto"] },
+        { id: "text_sensor-screen__active_theme", state: active, value: active },
+      ]), [mode, active]);
+      await page.waitForFunction(bg => document.querySelector(".sp-power-card")?.style.backgroundColor === bg, background);
+      assert.equal(await power.locator(".sp-sensor-value").evaluate(el => getComputedStyle(el).color), foreground);
+      const bounds = await power.evaluate(card => {
+        const value = card.querySelector(".sp-sensor-preview").getBoundingClientRect();
+        const primary = card.querySelector(".sp-power-labels > .sp-btn-label").getBoundingClientRect();
+        const secondary = card.querySelector(".sp-power-secondary").getBoundingClientRect();
+        const chevron = card.querySelector(".sp-power-chevron").getBoundingClientRect();
+        return { overlap: value.bottom > primary.top + 1 || primary.bottom > secondary.top + 1,
+          rightOverlap: Math.max(value.right, primary.right, secondary.right) > chevron.left + 1 };
+      });
+      assert(!bounds.overlap && !bounds.rightOverlap, `${testCase.name}: Power label/value/chevron bounds ${JSON.stringify(bounds)}`);
+    }
+    const saved = posts.find(post => post.domain === "text" && post.value?.includes("solar_entity=sensor.solar"));
+    assert(saved?.value.includes("invert_grid,invert_battery"), "Power UI persists both inversion flags");
+    assert(saved?.value.includes("battery_soc_entity=sensor.soc"), "Power UI persists optional SOC");
+    if (process.env.ESPCONTROL_POWER_SCREENSHOTS) {
+      fs.mkdirSync(process.env.ESPCONTROL_POWER_SCREENSHOTS, { recursive: true });
+      await power.screenshot({ path: path.join(process.env.ESPCONTROL_POWER_SCREENSHOTS, testCase.slug + ".png") });
+    }
+    // Device event reload uses the same normalized nine-field config and flags.
+    await page.evaluate(() => window.__seedEspState([
+      { id: "text-button_1_config", state: "sensor.home;Reloaded Power;Auto;Auto;;;power;;solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,invert_grid,invert_battery" },
+      { id: "text-button_order", state: "1" },
+    ]));
+    await power.getByText("Reloaded Power", { exact: true }).waitFor();
+    await power.click();
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    assert.equal(await page.locator("#sp-inp-power-entity").inputValue(), "sensor.home");
+    assert(await page.locator("#sp-inp-power-invert_grid").isChecked());
+    assert(await page.locator("#sp-inp-power-invert_battery").isChecked());
+    await page.locator(".sp-settings-close").click();
+    if (testCase.slug === "esp32-p4-86") {
+      const subpage = serializeLegacySubpageConfig(["1", "B"], [[
+        "sensor.home", "Subpage Power", "Auto", "Auto", "", "", "power", "",
+        "solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,invert_grid,invert_battery",
+      ]]);
+      await page.evaluate(sub => {
+        window.__seedEspState([
+          { id: "text-button_1_config", state: ";Power Page;Chevron Right;Auto;;;subpage" },
+          { id: "text-subpage_1_config", state: sub },
+          { id: "text-button_order", state: "1" },
+        ]);
+      }, subpage);
+      await page.locator(".sp-main .sp-subpage-badge").click();
+      await power.getByText("Subpage Power", { exact: true }).waitFor();
+      await power.click();
+      await page.getByRole("button", { name: "Edit", exact: true }).click();
+      assert.equal(await page.locator("#sp-sp-inp-power-entity").inputValue(), "sensor.home");
+      const disclosure = page.locator(".sp-settings-modal .sp-disclosure").filter({ hasText: "Card Settings" }).first();
+      if (!(await disclosure.evaluate(el => el.classList.contains("sp-open")))) await disclosure.locator(".sp-disclosure-button").click();
+      assert(await page.locator("#sp-sp-inp-power-invert_battery").isChecked());
+      const longer = "sensor." + "house_inverter_".repeat(4);
+      await page.locator("#sp-sp-inp-power-grid_entity").fill(longer);
+      await page.locator(".sp-settings-modal .sp-save-btn").click();
+      await page.waitForFunction(() => !document.querySelector(".sp-settings-overlay.sp-visible"));
+      assert(posts.some(post => post.name.startsWith("subpage_") && post.value?.includes(longer)), "Subpage save preserves a longer Power binding");
+      const backup = backupFixture(testCase.slug, testCase.slots);
+      backup.buttons[0] = { entity: longer, label: "Power Dashboard", icon: "Auto", icon_on: "Auto", sensor: "", unit: "", type: "power", precision: "", options: "solar_entity=" + longer + ",grid_entity=" + longer + ",battery_entity=" + longer };
+      const before = posts.length;
+      await importBackup(page, backup, "power-oversized-main");
+      await page.getByText("Power settings exceed the 255-byte main-grid limit. Shorten entity IDs or the label, omit optional SOC, or use a subpage.", { exact: true }).waitFor();
+      assert.equal(posts.length, before, "Unsupported Power restore is rejected before configuration writes");
+    }
+    assert.deepEqual(errors, [], `${testCase.name}: Power browser errors`);
+    console.log(`Power editor/preview passed: ${testCase.slug}`);
+  } finally { await context.close(); }
+}
+
 async function runCase(browser, testCase) {
   const context = await browser.newContext({ viewport: testCase.viewport });
   await installRoutes(context, testCase.slug);
@@ -6215,6 +6351,11 @@ async function assertPanelNaming(browser) {
   const browser = await chromium.launch();
   const acceptanceOnly = process.env.ESPCONTROL_BROWSER_ACCEPTANCE_ONLY === "1";
   try {
+    if (process.env.ESPCONTROL_POWER_ONLY === "1") {
+      for (const testCase of ACTIVE_CASES) await assertPowerDashboard(browser, testCase);
+      console.log("Power configurator browser checks passed.");
+      return;
+    }
     await assertNamingOfflineBackups(browser);
     await assertPanelNaming(browser);
     if (process.env.ESPCONTROL_NAMING_ONLY === "1") { console.log("Panel naming browser checks passed."); return; }
@@ -6226,6 +6367,7 @@ async function assertPanelNaming(browser) {
     await assertFirmwareRetryFeedback(browser);
     await assertResetControls(browser);
     for (const testCase of ACTIVE_CASES) {
+      await assertPowerDashboard(browser, testCase);
       if (!acceptanceOnly) await runCase(browser, testCase);
       await assertNativeProfileJourney(browser, testCase);
       await assertLegacyProfileFallback(browser, testCase);
