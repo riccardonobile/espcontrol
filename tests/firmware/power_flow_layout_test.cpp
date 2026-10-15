@@ -23,6 +23,8 @@ int main() {
         assert(same(g.paths[4][j],g.paths[6][FLOW_POINT_COUNT-1-j]));
       for (size_t i=0;i<7;++i) {
         assert(same(g.heads[i][1],g.paths[i].back()));
+        const auto head=g.heads[i][0], tip=g.heads[i][1];
+        assert(std::abs(std::hypot(head.x-tip.x,head.y-tip.y)/g.scale - std::hypot(11,5.5))<1e-7);
         for (auto p:g.paths[i]) assert(p.x>=0 && p.x<=size[0] && p.y>=0 && p.y<=size[1]);
       }
       assert(g.heads[6][0].y < g.heads[6][1].y); // arrow into Battery points down

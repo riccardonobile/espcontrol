@@ -70,16 +70,16 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
   out.paths[4] = bend(out.ports[3][0], out.ports[2][2], -1, false);
   out.paths[5] = straight(out.ports[2][1], out.ports[1][1]);
   std::reverse_copy(out.paths[4].begin(), out.paths[4].end(), out.paths[6].begin());
-  const std::array<Point, 7> directions = {{{1,0}, {0,1}, {-1,0}, {1,0}, {-1,0}, {1,0}, {0,1}}};
-  for (size_t i = 0; i < 7; ++i) {
-    const Point end = out.paths[i].back(), dir = directions[i];
-    const Point base{end.x - dir.x * 11, end.y - dir.y * 11};
-    out.heads[i] = {{{base.x - dir.y * 5.5, base.y + dir.x * 5.5}, end,
-                     {base.x + dir.y * 5.5, base.y - dir.x * 5.5}}};
-  }
   const double ref_w = family == FlowFamily::LANDSCAPE ? 620 : 520;
   const double ref_h = family == FlowFamily::PORTRAIT ? 620 : 430;
   out.scale = std::max(0.0, std::min(width / ref_w, height / ref_h));
+  const std::array<Point, 7> directions = {{{1,0}, {0,1}, {-1,0}, {1,0}, {-1,0}, {1,0}, {0,1}}};
+  for (size_t i = 0; i < 7; ++i) {
+    const Point end = out.paths[i].back(), dir = directions[i];
+    const Point base{end.x - dir.x * 11 * out.scale, end.y - dir.y * 11 * out.scale};
+    out.heads[i] = {{{base.x - dir.y * 5.5 * out.scale, base.y + dir.x * 5.5 * out.scale}, end,
+                     {base.x + dir.y * 5.5 * out.scale, base.y - dir.x * 5.5 * out.scale}}};
+  }
   return out;
 }
 } // namespace espcontrol::power
