@@ -103,6 +103,7 @@ export {
   serializeLegacySubpageConfig,
   serializeSubpageGrid,
   splitSubpageConfigChunks,
+  utf8ByteLength,
   structuredSubpageFromParsed,
   subpageOrderForSerialize,
 } from "./subpage";

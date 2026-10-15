@@ -23,6 +23,7 @@
 #include "button_grid_saved_config_webhook_generated.h"
 #include "button_grid_saved_config_subpage_generated.h"
 #include "button_grid_saved_config_switch_generated.h"
+#include "button_grid_saved_config_power_generated.h"
 #include "button_grid_saved_config_date_time_generated.h"
 #include "button_grid_saved_config_fan_generated.h"
 #include "button_grid_saved_config_media_generated.h"
@@ -323,6 +324,7 @@ inline std::string trim_saved_option_value(const std::string &value) {
 }
 
 #include "button_grid_media_config.h"
+#include "power_card_config.h"
 
 inline std::string media_card_options_normalized(const std::string &options,
                                                  const std::string &mode) {
@@ -1302,6 +1304,7 @@ inline std::string normalize_saved_config_subpage_options(
 }
 
 inline ParsedCfg normalize_parsed_cfg(ParsedCfg p) {
+  const bool normalized_saved_power = normalize_saved_config_power(p, espcontrol::power::normalize_options);
   migrate_saved_config_action_legacy(p);
   const bool was_legacy_text_sensor = p.type == "text_sensor";
   migrate_saved_config_sensor_legacy(p);
@@ -1348,7 +1351,7 @@ inline ParsedCfg normalize_parsed_cfg(ParsedCfg p) {
   const bool normalized_saved_occupancy = normalize_saved_config_occupancy(
       p, normalize_saved_config_occupancy_fields,
       normalize_saved_config_occupancy_options);
-  if (!normalized_saved_static && !normalized_saved_fan && !normalized_saved_mower && !normalized_saved_occupancy && !normalized_saved_access && !p.type.empty() && p.type != "action" && p.type != "alarm" && p.type != "alarm_action" && !climate_card_type(p.type) && p.type != "webhook" && p.type != "sensor" && p.type != "media" && p.type != "subpage" && p.type != "image" && p.type != "wifi_qr" && p.type != "wifi_qr_card" && p.type != "light_control" && p.type != "vacuum" && !card_large_numbers_supported(p)) {
+  if (!normalized_saved_power && !normalized_saved_static && !normalized_saved_fan && !normalized_saved_mower && !normalized_saved_occupancy && !normalized_saved_access && !p.type.empty() && p.type != "action" && p.type != "alarm" && p.type != "alarm_action" && !climate_card_type(p.type) && p.type != "webhook" && p.type != "sensor" && p.type != "media" && p.type != "subpage" && p.type != "image" && p.type != "wifi_qr" && p.type != "wifi_qr_card" && p.type != "light_control" && p.type != "vacuum" && !card_large_numbers_supported(p)) {
     p.options.clear();
   }
   if ((p.type == "wifi_qr" || p.type == "wifi_qr_card") && p.label.empty()) {

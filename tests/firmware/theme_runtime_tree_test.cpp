@@ -153,6 +153,8 @@ void sync_card_checked_text_color(lv_obj_t *button) {
   for (auto *child : button->children) child->text = lv_obj_get_style_text_color(button, LV_PART_MAIN);
 }
 void set_card_content_disabled(lv_obj_t *, bool) {}
+int power_theme_refresh_count = 0;
+void power_cards_refresh_theme() { ++power_theme_refresh_count; }
 #include "theme_runtime_ui.h"
 
 void register_theme_grid(lv_obj_t *page, BtnSlot *slots, const bool *neutral, int count,
@@ -975,4 +977,5 @@ int main() {
   test_pressed_overflow_recovery();
   test_content_collisions();
   test_registry_exhaustion();
+  assert(power_theme_refresh_count > 0); // shared refresh forwards card foreground ownership
 }

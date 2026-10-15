@@ -38,3 +38,42 @@ Choose **Lit When Active** when an active status should use the on colour. It is
 | `sensor.ups_battery_runtime` | Time |
 | `binary_sensor.laundry_running` | Icon |
 | `text_sensor.washing_machine_status` | Text |
+
+## Power Dashboard
+
+Choose **Power** to show instantaneous Home consumption in **watts (W)**. Tap the card
+on the panel to open **Power Flow**. The label defaults to **Power Dashboard**;
+the secondary line summarizes Battery and Grid activity. Power is a navigation
+card: tapping opens the view without toggling an entity or calling a service.
+
+Power needs **at least two grid columns** on the main grid and subpages. The
+editor only expands into free space; move neighboring cards yourself if needed.
+Previously saved narrow cards retain label-only navigation until resized, without
+moving or deleting any card. Unsupported narrow saves/restores are rejected
+before writes. Existing precision settings now mean decimal places in watts;
+input sensors may still report W or kW. Grid/Battery values in Power Flow show
+absolute watts, with their direction shown by the muted status caption.
+
+Configure four Home Assistant `sensor.*` entities reporting W or kW:
+
+| Reading | Default sign convention |
+|---|---|
+| Home power | Positive consumption |
+| Solar power | Positive production |
+| Grid power | Positive importing; negative exporting |
+| Battery power | Positive discharging; negative charging |
+
+**Battery SOC** is optional and must report a percentage. Enable the Grid or
+Battery sign inversion only if your sensors use the opposite convention.
+Unknown or invalid readings are not treated as zero. Flow arrows are inferred
+allocations, not measured physical routes; incomplete or inconsistent readings
+hide the arrows while retaining valid readings.
+
+The web card preview uses placeholders, not live measurements. It follows the
+selected Dark/Light theme, or Active Theme in Auto mode.
+
+Main-grid settings must fit **255 UTF-8 bytes**. The editor shows the byte count
+and rejects oversized saves without truncating them. Shorter entity IDs/labels
+or omitting optional SOC can help; a subpage uses shared chunked storage and
+can hold larger individual cards within its overall capacity. A configuration
+that fits a subpage may still be too large to move back to the main grid.

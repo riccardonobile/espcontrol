@@ -324,7 +324,7 @@ def button_slot_macro() -> str:
     return (
         "#define BTN_SLOT(n) { button_##n##_config, button_##n, button_##n##_icon_label, "
         "button_##n##_text_label, button_##n##_sensor_container, button_##n##_sensor_label, "
-        "button_##n##_unit_label, button_##n##_subpage_label }"
+        "button_##n##_unit_label, button_##n##_subpage_label, button_##n##_secondary_label }"
     )
 
 
@@ -443,6 +443,7 @@ def cfg_lines(device: dict) -> list[str]:
         )
     lines.append(f"            cfg.volume_number_font = id({device['volume_number_font']})->get_lv_font();")
     lines.append(f"            cfg.volume_label_font = id({device['volume_label_font']})->get_lv_font();")
+    lines.append("            cfg.small_text_font = id(font_text_small)->get_lv_font();")
     if device.get("climate_card_icon_font"):
         lines.append(
             f"            cfg.climate_card_icon_font = id({device['climate_card_icon_font']})->get_lv_font();"

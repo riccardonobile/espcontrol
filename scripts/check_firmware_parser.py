@@ -110,6 +110,7 @@ struct BtnSlot {
   lv_obj_t *sensor_lbl = nullptr;
   lv_obj_t *unit_lbl = nullptr;
   lv_obj_t *subpage_lbl = nullptr;
+  lv_obj_t *secondary_lbl = nullptr;
 };
 struct lv_disp_t {};
 struct lv_font_t { int line_height = 16; };
@@ -133,6 +134,7 @@ constexpr int LV_STATE_DEFAULT = 0;
 constexpr int LV_STATE_DISABLED = 4;
 constexpr int LV_LABEL_LONG_WRAP = 0;
 constexpr int LV_LABEL_LONG_CLIP = 1;
+constexpr int LV_LABEL_LONG_DOT = 2;
 constexpr int LV_TEXT_ALIGN_LEFT = 0;
 constexpr int LV_TEXT_ALIGN_CENTER = 1;
 constexpr int LV_TEXT_ALIGN_RIGHT = 2;
@@ -140,6 +142,7 @@ constexpr int LV_SIZE_CONTENT = -1;
 constexpr int LV_ALIGN_TOP_LEFT = 0;
 constexpr int LV_ALIGN_TOP_MID = 1;
 constexpr int LV_ALIGN_TOP_RIGHT = 2;
+constexpr int LV_ALIGN_RIGHT_MID = 3;
 constexpr int LV_ALIGN_BOTTOM_LEFT = 0;
 [[maybe_unused]] constexpr int LV_ALIGN_BOTTOM_RIGHT = 1;
 constexpr int LV_GRID_ALIGN_START = 0;
@@ -170,6 +173,9 @@ inline const lv_font_t *lv_obj_get_style_text_font(lv_obj_t *, lv_style_selector
   static const lv_font_t font;
   return &font;
 }
+inline void lv_obj_set_style_text_font(lv_obj_t *, const lv_font_t *, lv_style_selector_t) {}
+inline int lv_obj_get_style_max_height(lv_obj_t *, lv_style_selector_t) { return 32767; }
+inline void lv_obj_set_style_max_height(lv_obj_t *, int, lv_style_selector_t) {}
 inline void lv_obj_set_style_opa(lv_obj_t *, int, int) {}
 inline void lv_obj_set_style_text_opa(lv_obj_t *, int, int) {}
 inline void lv_obj_add_state(lv_obj_t *, int) {}
@@ -182,6 +188,8 @@ inline uint32_t lv_obj_get_child_cnt(lv_obj_t *) { return 0; }
 inline lv_obj_t *lv_obj_get_child(lv_obj_t *, uint32_t) { return nullptr; }
 inline int lv_obj_get_width(lv_obj_t *obj) { return obj ? obj->width : 480; }
 inline int lv_obj_get_height(lv_obj_t *) { return 480; }
+inline int lv_obj_get_content_width(lv_obj_t *obj) { return lv_obj_get_width(obj); }
+inline int lv_obj_get_content_height(lv_obj_t *obj) { return lv_obj_get_height(obj); }
 inline int lv_obj_get_style_pad_left(lv_obj_t *, int) { return 0; }
 inline int lv_obj_get_style_pad_right(lv_obj_t *, int) { return 0; }
 inline int lv_obj_get_style_pad_top(lv_obj_t *, int) { return 0; }
@@ -243,6 +251,19 @@ inline void lv_obj_move_background(lv_obj_t *) { lv_obj_move_background_calls++;
 #include "button_grid_layout.h"
 
 int main() {
+  auto power_saved = parse_cfg("sensor.home;Power Dashboard;Auto;Auto;;;power;;solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,battery_soc_entity=sensor.soc,invert_grid,invert_battery");
+  const auto power_config = espcontrol::power::decode_config_v1(power_saved);
+  assert(power_config.home_entity == "sensor.home");
+  assert(power_config.solar_entity == "sensor.solar");
+  assert(power_config.grid_entity == "sensor.grid");
+  assert(power_config.battery_entity == "sensor.battery");
+  assert(power_config.battery_soc_entity == "sensor.soc");
+  assert(power_config.invert_grid && power_config.invert_battery);
+  const auto power_defaults = espcontrol::power::decode_config_v1(parse_cfg(";;;;;;power;;"));
+  assert(power_defaults.home_entity.empty() && power_defaults.solar_entity.empty());
+  assert(power_defaults.grid_entity.empty() && power_defaults.battery_entity.empty());
+  assert(power_defaults.battery_soc_entity.empty());
+  assert(!power_defaults.invert_grid && !power_defaults.invert_battery);
   int row_span = 0;
   int col_span = 0;
   grid_token_spans('\0', row_span, col_span);
@@ -1059,6 +1080,8 @@ def main() -> int:
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         shutil.copy2(PARSER_HEADER, tmp_path / "button_grid_config_parser.h")
+        for name in ("power_card_config.h", "button_grid_saved_config_power_generated.h"):
+            shutil.copy2(ROOT / "components" / "espcontrol" / name, tmp_path / name)
         shutil.copy2(MEDIA_CONFIG_HEADER, tmp_path / "button_grid_media_config.h")
         shutil.copy2(ROOT / "components" / "espcontrol" / "temperature_unit.h", tmp_path / "temperature_unit.h")
         shutil.copy2(ROOT / "components" / "espcontrol" / "sun_calc.h", tmp_path / "sun_calc.h")

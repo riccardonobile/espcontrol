@@ -51,6 +51,7 @@ inline std::string decode_compact_subpage_field(const std::string &value, size_t
 }
 
 inline SubpageBtn normalize_subpage_btn(SubpageBtn b) {
+  if (normalize_saved_config_power(b, espcontrol::power::normalize_options)) return b;
   if (brightness_slider_type(b.type) && !b.sensor.empty()) b.sensor.clear();
   if (fan_card_type(b.type)) {
     b.sensor.clear();
@@ -363,6 +364,16 @@ inline BtnSlot create_dynamic_card_slot(lv_obj_t *btn,
   lv_label_set_display_text(slot.text_lbl, espcontrol_i18n("Configure"));
   lv_obj_align(slot.text_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   configure_button_label_wrap(slot.text_lbl);
+
+  slot.secondary_lbl = lv_label_create(btn);
+  if (label_font) lv_obj_set_style_text_font(slot.secondary_lbl, label_font, LV_PART_MAIN);
+  lv_obj_set_style_text_color(slot.secondary_lbl, text_color, LV_PART_MAIN);
+  lv_obj_set_style_text_opa(slot.secondary_lbl, LV_OPA_70, LV_PART_MAIN);
+  lv_label_set_display_text(slot.secondary_lbl, "");
+  lv_label_set_long_mode(slot.secondary_lbl, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(slot.secondary_lbl, lv_pct(100));
+  lv_obj_align(slot.secondary_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+  lv_obj_add_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
 
   slot.subpage_lbl = lv_label_create(btn);
   const lv_font_t *chevron_font = subpage_icon_font ? subpage_icon_font : icon_font;
