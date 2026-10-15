@@ -148,7 +148,7 @@ inline void power_flow_layout() {
   auto measure = [&](const lv_font_t *text, const lv_font_t *value) {
     int w = 0;
     for (auto *label : ui.names)
-      w = std::max(w, power_flow_text_width(lv_label_get_text(label), text) + text->line_height + 4);
+      w = std::max<int>(w, power_flow_text_width(lv_label_get_text(label), text) + text->line_height + 4);
     for (const char *state : {"Charging", "Discharging", "Importing", "Exporting", "Idle", "Unavailable"})
       w = std::max(w, power_flow_text_width(espcontrol_i18n(state), text));
     // Fixed measurement envelope: live values never move the geometry.
@@ -167,7 +167,7 @@ inline void power_flow_layout() {
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, layout.inset, top);
   // Only exceptional/idle state uses the existing back-control row. No footer.
-  lv_obj_set_size(ui.status, std::max(1, width - layout.back_size - layout.title_gap), text_h);
+  lv_obj_set_size(ui.status, std::max<int>(1, width - layout.back_size - layout.title_gap), text_h);
   lv_obj_set_pos(ui.status, layout.inset + layout.back_size + layout.title_gap, layout.back_inset_y);
   if (text_font) lv_obj_set_style_text_font(ui.status, text_font, LV_PART_MAIN);
   lv_obj_set_style_text_color(ui.status, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);

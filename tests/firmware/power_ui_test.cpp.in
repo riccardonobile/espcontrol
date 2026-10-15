@@ -12,7 +12,8 @@
 
 using lv_coord_t=int; using lv_value_precise_t=float;
 struct lv_point_precise_t { float x,y; };
-struct lv_font_t { int line_height=16; };
+// Exercise ESP-IDF targets where LVGL int32_t metrics differ from host int.
+struct lv_font_t { long line_height=16; };
 constexpr int LV_PART_MAIN=0, LV_SIZE_CONTENT=-1;
 constexpr int LV_STATE_CHECKED=1, LV_STATE_PRESSED=2;
 constexpr int LV_OBJ_FLAG_HIDDEN=1, LV_OBJ_FLAG_USER_1=2, LV_OBJ_FLAG_USER_3=4,
@@ -132,7 +133,7 @@ int display_main_width_percent(const DisplayProfile&){return 100;}
 const lv_font_t *display_icon_font(const DisplayProfile&){return &icon_font;}
 const lv_font_t *display_volume_label_font(const DisplayProfile&,const lv_font_t *f){return f;}
 const lv_font_t *display_small_text_font(const DisplayProfile&,const lv_font_t*){return &small_font;}
-struct ControlModalLayout {int sw=480,sh=480,panel_w=472,panel_h=430,inset=8,back_inset_y=4,back_size=36,title_gap=4;};
+struct ControlModalLayout {long sw=480,sh=480,panel_w=472,panel_h=430,inset=8,back_inset_y=4,back_size=36,title_gap=4;};
 struct ControlModalShell {lv_obj_t *overlay=nullptr,*panel=nullptr,*close_btn=nullptr;};
 ControlModalLayout frame;
 ControlModalCloseCallback active_close=nullptr;
