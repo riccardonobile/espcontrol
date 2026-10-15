@@ -1,3 +1,5 @@
+import { powerMinimumSize, powerPlacementError } from "../model/power_card";
+import { coveredCells, markSpannedCells } from "../model/grid";
 import { state } from "../state/app_instance";
 import * as EspControlModel from "../model";
 import { applySpans, CARD_SIZE_SINGLE, clearSpans } from "../model/grid";
@@ -375,6 +377,18 @@ export function createButtonSettingsFeature(
         function applyCardSizeConstraint(this: any, savedButton?: any) {
             var currentSize: any = c.sizes[slot] || CARD_SIZE_SINGLE;
             var nextSize: any = normalizeCardSizeForConfig(savedButton, currentSize);
+            if (savedButton.type === "power") {
+                nextSize = powerMinimumSize(nextSize);
+                const pos = c.grid.indexOf(slot);
+                const error = powerPlacementError(savedButton, nextSize, pos, c.grid, c.sizes, slot, c.maxSlots, layout.gridCols);
+                if (error) throw new Error(error);
+                if (nextSize === currentSize) return false;
+                for (const cell of coveredCells(pos, currentSize, c.maxSlots, layout.gridCols, false))
+                    if (c.grid[cell] === -1) c.grid[cell] = 0;
+                c.sizes[slot] = nextSize;
+                markSpannedCells(c.grid, pos, nextSize, c.maxSlots, layout.gridCols);
+                return true;
+            }
             if (nextSize === currentSize)
                 return false;
             if (nextSize === CARD_SIZE_SINGLE)
@@ -425,7 +439,13 @@ export function createButtonSettingsFeature(
                 return Promise.resolve(false);
             }
             var savedButton: any = saved.button;
-            var sizeChanged: any = applyCardSizeConstraint(savedButton);
+            var sizeChanged: any;
+            try { sizeChanged = applyCardSizeConstraint(savedButton); }
+            catch (error) {
+                restoreDraftState();
+                showBanner(error instanceof Error ? error.message : "Power needs two columns.", "error");
+                return Promise.resolve(false);
+            }
             var orderChanged: any = !saved.saveSubpage && (saved.saveGrid || sizeChanged);
             var persistence: any;
             if (saved.saveSubpage)

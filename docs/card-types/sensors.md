@@ -41,9 +41,18 @@ Choose **Lit When Active** when an active status should use the on colour. It is
 
 ## Power Dashboard
 
-Choose **Power** to show instantaneous Home consumption in W/kW. Tap the card
+Choose **Power** to show instantaneous Home consumption in **watts (W)**. Tap the card
 on the panel to open **Power Flow**. The label defaults to **Power Dashboard**;
-the secondary line summarizes Battery and Grid activity.
+the secondary line summarizes Battery and Grid activity. Power is a navigation
+card: tapping opens the view without toggling an entity or calling a service.
+
+Power needs **at least two grid columns** on the main grid and subpages. The
+editor only expands into free space; move neighboring cards yourself if needed.
+Previously saved narrow cards retain label-only navigation until resized, without
+moving or deleting any card. Unsupported narrow saves/restores are rejected
+before writes. Existing precision settings now mean decimal places in watts;
+input sensors may still report W or kW. Grid/Battery values in Power Flow show
+absolute watts, with their direction shown by the muted status caption.
 
 Configure four Home Assistant `sensor.*` entities reporting W or kW:
 

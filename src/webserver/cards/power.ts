@@ -1,5 +1,6 @@
 import type { CardRegistry } from "../application/card_registry";
 import { cardContractAllowInSubpage, cardContractCardLabel, cardContractDefaultConfig, cardContractHidden, cardContractOptions } from "../generated/card_contract";
+import { sizeColSpan } from "../model/grid";
 import { normalizeSavedConfigPower } from "../generated/saved_config_power";
 import { decodePowerCardConfigV1, normalizePowerOptions, validPowerEntity } from "../model/power_card";
 import { setConfigOption, setConfigOptionValue } from "../model/config_primitives";
@@ -63,7 +64,7 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
       panel.appendChild(precision.field);
       const note = document.createElement("div");
       note.className = "sp-apply-note";
-      note.textContent = "Preview uses placeholders, not live Home Assistant measurements. The device shows live Home power and Battery/Grid status. The card uses your shared accent when pressed; it does not display an icon.";
+      note.textContent = "Requires at least two grid columns. Precision is decimal places in watts (never kW). Arrows are inferred allocations from aggregate readings, not measured individual routes. Preview uses placeholders, not live Home Assistant measurements. The device shows live Home power and Battery/Grid status. The card uses your shared accent when pressed; it does not display an icon.";
       panel.appendChild(note);
       const sizeNote = document.createElement("div");
       sizeNote.className = "sp-apply-note";
@@ -81,12 +82,16 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
       panel.addEventListener("change", updateSize);
       updateSize();
     },
-    renderPreview: (card, helpers) => ({
-      buttonClass: "sp-power-card",
-      iconHtml: fields.cardSensorPreviewHtml(card, helpers, "--", "W"),
-      labelHtml: '<span class="sp-power-labels"><span class="sp-btn-label">' + helpers.escHtml(card.label || "Power Dashboard") +
-        '</span><span class="sp-btn-label sp-power-secondary">Unavailable</span></span>' +
-        '<span class="sp-power-chevron mdi mdi-chevron-right" aria-hidden="true"></span>',
-    }),
+    renderPreview: (card, helpers) => {
+      const narrow = sizeColSpan(helpers.cardSize) < 2;
+      const label = '<span class="sp-btn-label">' + helpers.escHtml(card.label || "Power Dashboard") + '</span>';
+      const arrow = '<span class="sp-navigation-chevron sp-power-chevron mdi mdi-chevron-right" aria-hidden="true"></span>';
+      return {
+        buttonClass: "sp-power-card" + (narrow ? " sp-power-narrow" : ""),
+        iconHtml: narrow ? "" : fields.cardSensorPreviewHtml(card, helpers, "--", "W"),
+        labelHtml: narrow ? '<span class="sp-btn-label-row">' + label + arrow + '</span>'
+          : '<span class="sp-power-labels">' + label + '<span class="sp-btn-label-row"><span class="sp-btn-label sp-power-secondary">Unavailable</span>' + arrow + '</span></span>',
+      };
+    },
   });
 }

@@ -1,6 +1,6 @@
 import { cardContractDefaultConfig, cardContractHidden, cardContractSubpageTypeCode, cardContractSubpageTypeFromCode, cardRuntimeSpec } from "../../src/webserver/generated/card_contract";
 import { normalizeSavedConfigPower } from "../../src/webserver/generated/saved_config_power";
-import { decodePowerCardConfigV1, normalizePowerOptions, validPowerEntity, powerCardConfigError, powerStoredConfigError } from "../../src/webserver/model/power_card";
+import { decodePowerCardConfigV1, normalizePowerOptions, validPowerEntity, powerCardConfigError, powerStoredConfigError, powerMinimumSize, powerPlacementError, powerGridLayoutError } from "../../src/webserver/model/power_card";
 import { parseRawButtonConfig, CARD_CONFIG_FIELDS } from "../../src/webserver/model/card";
 import { createPanelConfigBackupPayload, decodePanelConfigBackupPayload, encodePanelConfig, decodePanelConfig } from "../../src/webserver/model/panel_config";
 import { createCardTransferCode, parseCardTransferCode } from "../../src/webserver/model/card_transfer";
@@ -46,19 +46,33 @@ export function runPowerCardTests(): void {
   equal(powerCardConfigError(defaults) !== null, true);
   // Old saved partial configurations retain unavailable readings on restore.
   equal(powerCardConfigError(defaults, false), null);
-  const preview = registry.definitions.power!.renderPreview!(defaults, { escHtml: (s: string) => s.replace(/</g, "&lt;"), cardSize: 1 }) as { iconHtml: string; buttonClass: string; labelHtml: string };
+  const preview = registry.definitions.power!.renderPreview!(defaults, { escHtml: (s: string) => s.replace(/</g, "&lt;"), cardSize: 3 }) as { iconHtml: string; buttonClass: string; labelHtml: string };
   equal(preview.iconHtml, "sensor-preview");
   equal(preview.buttonClass, "sp-power-card");
   equal(preview.labelHtml.includes("Power Dashboard"), true);
   equal(preview.labelHtml.includes("Unavailable"), true); // never fake Idle
   equal(preview.labelHtml.includes("mdi-chevron-right"), true);
-  const escaped = registry.definitions.power!.renderPreview!({ ...defaults, label: "<script>" }, { escHtml: (s: string) => s.replace(/</g, "&lt;"), cardSize: 1 }) as { iconHtml: string; buttonClass: string; labelHtml: string };
+  const escaped = registry.definitions.power!.renderPreview!({ ...defaults, label: "<script>" }, { escHtml: (s: string) => s.replace(/</g, "&lt;"), cardSize: 3 }) as { iconHtml: string; buttonClass: string; labelHtml: string };
   equal(escaped.labelHtml.includes("<script>"), false);
   for (const mode of ["Dark", "Light", "Auto"] as const) {
     equal(previewEffectiveTheme({ themeMode: mode, themeActive: "Light" }), mode === "Dark" ? "Dark" : "Light");
   }
   equal(PREVIEW_THEME_COLORS.Light.surfaceSensor, "F5F5F5");
   equal(PREVIEW_THEME_COLORS.Dark.surfaceSensor, "212121");
+  for (const size of [1, 2, 5]) equal(powerMinimumSize(size) > 1, true);
+  const grid = [1, 0, 2, 0, 0, 0, 0, 0, 0];
+  const snapshot = JSON.stringify(grid);
+  equal(powerPlacementError(defaults, 1, 0, grid, {}, 1, 9, 3) !== null, true);
+  equal(powerPlacementError(defaults, 3, 0, grid, {}, 1, 9, 3), null);
+  equal(powerPlacementError(defaults, 6, 0, grid, {}, 1, 9, 3) !== null, true); // neighbor protected
+  equal(powerPlacementError(defaults, 3, 2, grid, {}, 2, 9, 3) !== null, true); // row edge
+  equal(powerPlacementError(defaults, 3, 0, grid, {}, 1, 9, 1) !== null, true); // actual subpage cols
+  equal(powerPlacementError({ type: "sensor" }, 1, 0, grid, {}, 1, 9, 3), null);
+  equal(powerGridLayoutError([defaults], grid, { 1: 3 }, 9, 3), null);
+  equal(powerGridLayoutError([defaults], grid, {}, 9, 3) !== null, true);
+  equal(JSON.stringify(grid), snapshot); // no allocation/movement as a side effect
+  const narrow = registry.definitions.power!.renderPreview!(defaults, { escHtml: (s: string) => s, cardSize: 1 }) as { iconHtml: string; labelHtml: string };
+  equal(narrow.iconHtml, ""); equal(narrow.labelHtml.includes("Unavailable"), false);
   equal(cardContractSubpageTypeCode("power"), "PW");
   equal(cardContractSubpageTypeFromCode("PW"), "power");
   // Existing compact codes must not move when a new card is registered.

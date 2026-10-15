@@ -1,3 +1,4 @@
+import { powerPlacementError } from "../model/power_card";
 import { state } from "../state/app_instance";
 import {
     CARD_SIZE_EXTRA_LARGE,
@@ -35,7 +36,7 @@ export interface PreviewContextMenuDependencies {
     readonly cards: CardRegistry;
     readonly codec: ConfigCodecFeature;
     readonly clockBar: Pick<ClockBarFeature, "setItemVisible">;
-    readonly shell: Pick<ControlsShellFeature, "isConfigLocked">;
+    readonly shell: Pick<ControlsShellFeature, "isConfigLocked" | "showBanner">;
     readonly statusPreview: Pick<AppStatusPreviewFeature, "clockBarItemActive" | "clockBarItemLabel" | "clockBarItems" | "isClockBarTemperatureItem" | "updateClockBarItemUi">;
     readonly grid: Pick<GridFeature, "ctx" | "scheduleMainGridSave">;
     readonly selection: Pick<ButtonSettingsSelectionFeature, "hideSettingsOverlay" | "openClockBarTemperatureSettings">;
@@ -66,7 +67,7 @@ export interface PreviewContextMenuFeature {
 export function createPreviewContextMenuFeature(dependencies: PreviewContextMenuDependencies): PreviewContextMenuFeature {
     const document = dependencies.document;
     const window = dependencies.window;
-    const { isConfigLocked } = dependencies.shell;
+    const { isConfigLocked, showBanner } = dependencies.shell;
     const { setItemVisible: setClockBarItemVisible } = dependencies.clockBar;
     const { clockBarItemActive, clockBarItemLabel, clockBarItems, isClockBarTemperatureItem, updateClockBarItemUi } = dependencies.statusPreview;
     const { ctx, scheduleMainGridSave } = dependencies.grid;
@@ -165,6 +166,9 @@ export function createPreviewContextMenuFeature(dependencies: PreviewContextMenu
             return;
         var button: any = slot === -2 ? null : c.buttons[slot - 1];
         targetSz = normalizeCardSizeForConfig(button, targetSz);
+        const placementError = powerPlacementError(button || { type: "" }, targetSz,
+            slotPos, c.grid, c.sizes, slot, c.maxSlots, dependencies.layout.gridCols);
+        if (placementError) { showBanner(placementError, "error"); return; }
         var curSz: any = c.sizes[slot] || 1;
         if (curSz === targetSz)
             return;
@@ -225,7 +229,7 @@ export function createPreviewContextMenuFeature(dependencies: PreviewContextMenu
             options.push({ size: CARD_SIZE_LANDSCAPE_LARGE, label: "Massive Wide (3x4)" });
         if (cardSupportsPortraitLargeSize(b))
             options.push({ size: CARD_SIZE_PORTRAIT_LARGE, label: "Massive (4x3)" });
-        return options;
+        return b && b.type === "power" ? options.filter((option: any) => sizeColSpan(option.size) >= 2) : options;
     }
     function addSingleCardMenuItems(this: any, slot?: any) {
         if (slot === -2) {

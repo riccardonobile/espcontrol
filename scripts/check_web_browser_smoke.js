@@ -5844,10 +5844,10 @@ async function assertPowerDashboard(browser, testCase) {
     assert.equal(await power.locator(".sp-power-secondary").textContent(), "Unavailable");
     assert(await power.locator(".sp-power-chevron").isVisible());
     for (const [mode, active, background, foreground] of [
-      ["Dark", "Light", "rgb(33, 33, 33)", "rgb(255, 255, 255)"],
-      ["Light", "Dark", "rgb(245, 245, 245)", "rgb(51, 51, 51)"],
-      ["Auto", "Light", "rgb(245, 245, 245)", "rgb(51, 51, 51)"],
-      ["Auto", "Dark", "rgb(33, 33, 33)", "rgb(255, 255, 255)"],
+      ["Dark", "Light", "rgb(49, 49, 49)", "rgb(255, 255, 255)"],
+      ["Light", "Dark", "rgb(255, 255, 255)", "rgb(51, 51, 51)"],
+      ["Auto", "Light", "rgb(255, 255, 255)", "rgb(51, 51, 51)"],
+      ["Auto", "Dark", "rgb(49, 49, 49)", "rgb(255, 255, 255)"],
     ]) {
       await page.evaluate(([mode, active]) => window.__seedEspState([
         { id: "select/Screen: Theme Mode", state: mode, value: mode, option: ["Dark", "Light", "Auto"] },
@@ -5861,13 +5861,39 @@ async function assertPowerDashboard(browser, testCase) {
         const secondary = card.querySelector(".sp-power-secondary").getBoundingClientRect();
         const chevron = card.querySelector(".sp-power-chevron").getBoundingClientRect();
         return { overlap: value.bottom > primary.top + 1 || primary.bottom > secondary.top + 1,
-          rightOverlap: Math.max(value.right, primary.right, secondary.right) > chevron.left + 1 };
+          rightOverlap: secondary.right > chevron.left + 1 };
       });
       assert(!bounds.overlap && !bounds.rightOverlap, `${testCase.name}: Power label/value/chevron bounds ${JSON.stringify(bounds)}`);
     }
+    // Real generated layout with long titles/statuses and four-digit watts.
+    const originalText = await power.evaluate(card => ({ title: card.querySelector(".sp-power-labels > .sp-btn-label").textContent,
+      value: card.querySelector(".sp-sensor-value").textContent, secondary: card.querySelector(".sp-power-secondary").textContent }));
+    for (const title of ["Power Dashboard", "Household photovoltaic consumption dashboard", "Stromverbrauch und Batteriestatus"]) {
+      for (const status of ["Charging · Exporting", "Discharging · Importing", "Unavailable"]) {
+        const bounds = await power.evaluate((card, [title, status]) => {
+          const primary = card.querySelector(".sp-power-labels > .sp-btn-label"); primary.textContent = title;
+          const secondary = card.querySelector(".sp-power-secondary"); secondary.textContent = status;
+          const value = card.querySelector(".sp-sensor-value"); value.textContent = "1042";
+          const a=value.getBoundingClientRect(), b=primary.getBoundingClientRect(), c=secondary.getBoundingClientRect(), d=card.querySelector(".sp-power-chevron").getBoundingClientRect();
+          return { overlap: a.bottom > b.top + 1 || b.bottom > c.top + 1 || c.right > d.left + 1, valueBottom:a.bottom, primaryTop:b.top, primaryBottom:b.bottom, secondaryTop:c.top, secondaryRight:c.right, chevronLeft:d.left };
+        }, [title, status]);
+        assert(!bounds.overlap, `${testCase.name}: long Power label/status overlap ${JSON.stringify(bounds)}`);
+      }
+    }
+    await power.evaluate((card, original) => {
+      card.querySelector(".sp-power-labels > .sp-btn-label").textContent=original.title;
+      card.querySelector(".sp-sensor-value").textContent=original.value;
+      card.querySelector(".sp-power-secondary").textContent=original.secondary;
+    }, originalText);
+    await power.click({button:"right"});
+    await page.locator(".sp-ctx-sub").filter({hasText:"Size"}).hover();
+    assert.equal(await page.getByText("Single (1x1)", {exact:true}).count(),0);
+    assert.equal(await page.getByText("Tall (2x1)", {exact:true}).count(),0);
+    await page.mouse.click(0,0);
     const saved = posts.find(post => post.domain === "text" && post.value?.includes("solar_entity=sensor.solar"));
     assert(saved?.value.includes("invert_grid,invert_battery"), "Power UI persists both inversion flags");
     assert(saved?.value.includes("battery_soc_entity=sensor.soc"), "Power UI persists optional SOC");
+    assert(await power.evaluate(card => card.classList.contains("sp-btn-wide")), "New Power card uses two columns");
     if (process.env.ESPCONTROL_POWER_SCREENSHOTS) {
       fs.mkdirSync(process.env.ESPCONTROL_POWER_SCREENSHOTS, { recursive: true });
       await power.screenshot({ path: path.join(process.env.ESPCONTROL_POWER_SCREENSHOTS, testCase.slug + ".png") });
@@ -5885,7 +5911,31 @@ async function assertPowerDashboard(browser, testCase) {
     assert(await page.locator("#sp-inp-power-invert_battery").isChecked());
     await page.locator(".sp-settings-close").click();
     if (testCase.slug === "esp32-p4-86") {
-      const subpage = serializeLegacySubpageConfig(["1", "B"], [[
+      // A legacy 1-column Power next to an occupied card must never expand over it.
+      await page.evaluate(() => window.__seedEspState([
+        { id: "text-button_2_config", state: "light.neighbor;Protected neighbor;Auto;Auto;;;;;" },
+        { id: "text-button_order", state: "1,2" },
+      ]));
+      assert(await power.locator(".sp-sensor-preview").count()===0);
+      await power.click();await page.getByRole("button",{name:"Edit",exact:true}).click();
+      const labelSection = page.locator(".sp-disclosure").filter({has: page.locator("#sp-inp-label")});
+      if (!(await labelSection.evaluate(el => el.classList.contains("sp-open")))) await labelSection.locator(".sp-disclosure-button").click();
+      await page.locator("#sp-inp-label").fill("Cannot overwrite neighbor");
+      const beforeBlocked = posts.length;
+      await page.locator(".sp-settings-modal .sp-save-btn").click();
+      await page.getByText("Power needs at least two columns. Choose Wide or larger in an empty area, or move neighboring cards yourself. No cards were moved or overwritten.",{exact:true}).waitFor();
+      assert.equal(posts.length,beforeBlocked,"Blocked Power expansion performs no configuration writes");
+      assert(await page.locator('.sp-main [data-slot="2"][data-pos="1"]').count());
+      await page.locator(".sp-settings-close").click();
+      const beforePaste = posts.length;
+      await power.click({button:"right"});
+      await page.locator(".sp-ctx-menu").getByText("Copy",{exact:true}).click();
+      await page.locator(".sp-main .sp-empty-cell").first().click({button:"right"});
+      await page.locator(".sp-ctx-menu").getByText("Paste",{exact:true}).click();
+      await page.getByText("Power needs at least two columns. Choose Wide or larger in an empty area, or move neighboring cards yourself. No cards were moved or overwritten.",{exact:true}).waitFor();
+      assert.equal(await power.count(),1,"Narrow copied Power is rejected before local mutation");
+      assert.equal(posts.length,beforePaste,"Narrow Power paste performs no partial writes");
+      const subpage = serializeLegacySubpageConfig(["1w", "B"], [[
         "sensor.home", "Subpage Power", "Auto", "Auto", "", "", "power", "",
         "solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,invert_grid,invert_battery",
       ]]);

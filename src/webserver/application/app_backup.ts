@@ -1,4 +1,4 @@
-import { powerCardConfigError, powerStoredConfigError } from "../model/power_card";
+import { powerCardConfigError, powerStoredConfigError, powerGridLayoutError } from "../model/power_card";
 import type { PanelIdentityBackup } from "../model/panel_identity";
 import type { PanelIdentityFeature } from "./panel_identity";
 import { state } from "../state/app_instance";
@@ -406,6 +406,16 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     controllers.layout.numSlots,
                     importedGridCols,
                     {});
+                const powerMainError = powerGridLayoutError(
+                    Array.from({ length: controllers.layout.numSlots }, (_, i) => parseButtonConfig(nativeDocument.buttons[i + 1] || "")),
+                    parsedButtonOrder.grid, parsedButtonOrder.sizes, controllers.layout.numSlots, importedGridCols);
+                if (powerMainError) throw new Error(powerMainError);
+                for (const value of Object.values(nativeDocument.subpages)) {
+                    const sub = parseSubpageConfig(value);
+                    const geometry = EspControlModel.buildSubpageGrid(sub, controllers.layout.totalSlots, importedGridCols);
+                    const error = powerGridLayoutError(sub.buttons, geometry.grid, geometry.sizes, controllers.layout.totalSlots, importedGridCols);
+                    if (error) throw new Error(error);
+                }
                 nativeDocument.settings.button_order = EspControlModel.serializeGridOrder(
                     parsedButtonOrder.grid,
                     parsedButtonOrder.sizes);

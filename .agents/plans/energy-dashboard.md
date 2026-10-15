@@ -971,3 +971,41 @@ mocked installer. No generated-source churn; `git diff --check` passed.
 The local guide covers the two actual layouts, controlled seven-path cases,
 theme/accent, validity/reconnect, navigation/lifecycle and save/restore.
 Physical testing is pending; no flash, rebase or Phase 4B work was performed.
+
+## Hardware refinement implementation (2026-10-15)
+
+- Power reuses the native navigable card surface (`surface_card`), geometry,
+  padding/radius, pressed accent, standard chevron object/font/profile offsets
+  and shared secondary-label gutter. Borrowing the numeric widget no longer
+  opts it into the passive sensor surface, including the theme refresh registry.
+  It explicitly remains clickable, non-checkable and navigation-only; no HA
+  service calls or duplicate data subscriptions are introduced.
+- Full Power content requires two columns. Editor creation expands only into
+  genuinely free cells, size menus exclude narrow spans, and save/restore
+  validation rejects unsupported footprints before writes. Existing narrow
+  firmware cards retain label-only navigation until safely resized, with no
+  neighbor movement/deletion or runtime auto-expansion. Main/subpage geometry
+  uses the actual profile column count. The preview mirrors this fallback.
+- The subpage-entry chevron helper previously ignored all visibility/profile
+  arguments and always hid the glyph. This was already present in upstream
+  base a4062089, rather than introduced by the Power label helper. Restoring the
+  setting-controlled helper exposes only intended navigation arrows; Power
+  uses the same bottom-right profile alignment instead of a custom center arrow.
+- Flow retains v0.32 topology, seven directions and exact reverse Grid/Battery
+  centerline. Node centers now fit outward to the actual content rectangle and
+  fixed measured text envelope. Ports depend on geometry/configured fonts,
+  never active paths/readings/status/SOC availability. No animation/timer added.
+- Heading icon/name sizing uses existing fonts and centered native layout.
+  Single-line value/status rows and a separate SOC row reserve a stable four-row
+  envelope. Activity and idle captions use `text_muted`; values/SOC/names remain
+  primary. The permanent inferred-flow footer is removed. Existing exceptional
+  and idle indicators use the back-control row; inferred provenance remains
+  explicit in configurator help and public documentation.
+- All Power numbers are W, including values >=1000 W; saved precision continues
+  as decimal places in watts. Grid/Battery display absolute magnitude while
+  signed model readings/allocation remain unchanged. The model's existing
+  numeric bounds still protect the shared formatter.
+- No palette, display correction, schema, compact fields, configuration version,
+  device profile, font asset or allocation algorithm changed. Modal ownership,
+  title restoration and card-owned subscriptions are retained. Physical recheck
+  is required on ESP32-P4-86 and user-confirmed JC8012P4A1 V2 (non-v3, case >=2628).
