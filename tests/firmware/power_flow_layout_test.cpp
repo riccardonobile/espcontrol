@@ -31,13 +31,21 @@ int main() {
       assert(std::abs((g.nodes[1].x+g.nodes[2].x)/2-size[0]/2.0)<1e-8);
     }
   }
-  // Golden prototype v0.32 coordinates and quadratic controls.
+  // Outward placement uses all actual content bounds, retaining the topology.
   const auto g=flow_geometry(520,430,FlowFamily::SQUARE);
-  assert(same(g.nodes[0],{260,83})); assert(same(g.nodes[2],{102,215}));
-  assert(same(g.ports[0][0],{242,137})); assert(same(g.ports[2][2],{171,233}));
-  const double r=std::min({30.0,60*.42,71*.42});
-  assert(same(g.paths[4][1],{242,233+r}));
-  assert(same(g.paths[4][9],{242-r,233}));
+  assert(g.nodes[0].y<83 && g.nodes[2].x<102);
+  const auto wide=flow_geometry(1200,650,FlowFamily::LANDSCAPE,220,140);
+  assert(wide.nodes[2].x<130 && wide.nodes[1].x>1070);
+  assert(wide.nodes[0].y<90 && wide.nodes[3].y>560);
+  assert(same(wide.paths[6].front(),wide.paths[4].back()));
+  // Real content/font envelopes: every path stays outside node text bounds.
+  for (auto box : {std::array<int,4>{264,300,110,80}, {440,350,140,101},
+                    {680,550,210,145}, {1200,650,240,150}}) {
+    const auto actual=flow_geometry(box[0],box[1],flow_family(box[0],box[1]),box[2],box[3]);
+    for (auto &path:actual.paths) for(auto p:path) for(auto n:actual.nodes)
+      assert(!(p.x>n.x-box[2]/2.0 && p.x<n.x+box[2]/2.0 &&
+               p.y>n.y-box[3]/2.0 && p.y<n.y+box[3]/2.0));
+  }
   CardData data;
   data.model.set_polarity({true,false});
   data.state(1,"1"); assert(!data.model.readings[1].valid()); // no assumed W

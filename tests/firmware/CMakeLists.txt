@@ -22,6 +22,7 @@ add_custom_command(OUTPUT ${POWER_UI_TEST_SOURCE}
     --root ${CMAKE_CURRENT_SOURCE_DIR}/../.. --output ${POWER_UI_TEST_SOURCE}
   DEPENDS generate_power_ui_test.py power_ui_test.cpp.in
     ../../components/espcontrol/button_grid_layout.h ../../components/espcontrol/clock_bar.h
+    ../../components/espcontrol/button_grid_navigation_driver.h
   VERBATIM)
 add_executable(power_ui_test ${POWER_UI_TEST_SOURCE})
 target_compile_features(power_ui_test PRIVATE cxx_std_17)

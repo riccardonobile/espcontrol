@@ -590,7 +590,7 @@ inline void setup_card_visual(BtnSlot &s, const ParsedCfg &p,
   if (context.known) screen_lock_register_controlled_button(s.btn);
 
   if (espcontrol::cards::timer_driver_setup_visual(s, p, context)) return;
-  if (espcontrol::cards::power_driver_setup_visual(s, p, context, palette)) return;
+  if (espcontrol::cards::power_driver_setup_visual(s, p, context, palette, cfg, col_span)) return;
   if (espcontrol::cards::image_driver_setup_visual(s, p, context)) {
     espcontrol::cards::image_driver_attach_interaction(s, p, context);
     espcontrol::cards::image_driver_refresh_layout(s, p, context);
@@ -929,7 +929,7 @@ inline void refresh_card_layout(BtnSlot &s, const ParsedCfg &p,
   display_apply_main_width(s.icon_lbl, display);
   control_modal_register_card_label(s);
   display_apply_slot_text_width(s, display);
-  if (espcontrol::cards::power_driver_refresh_layout(s, context)) return;
+  if (espcontrol::cards::power_driver_refresh_layout(s, context, cfg, col_span)) return;
   if (espcontrol::cards::navigation_driver_refresh_layout(
         s, p, context, cfg)) return;
 
@@ -1037,7 +1037,6 @@ inline bool grid_card_uses_sensor_surface(
   using Driver = espcontrol::card_runtime::CardDriverId;
   switch (context.runtime.driver) {
     case Driver::SENSOR:
-    case Driver::POWER:
     case Driver::STATUS_ENTITY:
     case Driver::WEATHER:
     case Driver::DATE_TIME:

@@ -8,9 +8,15 @@ inline bool power_driver_matches(const Context &context) {
   return context.runtime.driver == card_runtime::CardDriverId::POWER;
 }
 inline bool power_driver_setup_visual(BtnSlot &slot, const ParsedCfg &config,
-                                       const Context &context, const CardPalette &palette) {
+                                       const Context &context, const CardPalette &,
+                                       const GridConfig &grid, int col_span) {
   if (!power_driver_matches(context)) return false;
-  sensor_driver_apply_background(slot, palette);
+  // Borrow sensor value widgets, not the passive sensor surface/interaction.
+  lv_obj_add_flag(slot.btn, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(slot.btn, LV_OBJ_FLAG_CHECKABLE);
+  lv_obj_clear_state(slot.btn, LV_STATE_CHECKED);
+  set_subpage_chevron_visible(slot, true, grid.subpage_chevron_x,
+    grid.subpage_chevron_y, grid.subpage_chevron_text_width_percent);
   lv_obj_add_flag(slot.icon_lbl, LV_OBJ_FLAG_HIDDEN);
   lv_obj_clear_flag(slot.sensor_container, LV_OBJ_FLAG_HIDDEN);
   lv_obj_clear_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
@@ -20,13 +26,30 @@ inline bool power_driver_setup_visual(BtnSlot &slot, const ParsedCfg &config,
   power_set_text(slot.sensor_lbl, "--");
   power_set_text(slot.unit_lbl, "");
   power_set_text(slot.secondary_lbl, espcontrol_i18n("Unavailable"));
-  layout_button_label_with_secondary(slot, true, true);
+  if (col_span < 2) {
+    // Legacy narrow cards stay in their cells. Keep safe label-only navigation
+    // until resized; never claim an occupied neighbor or reset HA bindings.
+    lv_obj_add_flag(slot.sensor_container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+    ESP_LOGW("power", "Power needs two columns; resize the label-only navigation card in web settings");
+  }
+  layout_button_label_with_secondary(slot, col_span >= 2, true);
   apply_push_button_transition(slot.btn);
   return true;
 }
-inline bool power_driver_refresh_layout(BtnSlot &slot, const Context &context) {
+inline bool power_driver_refresh_layout(BtnSlot &slot, const Context &context,
+                                         const GridConfig &grid, int col_span) {
   if (!power_driver_matches(context)) return false;
-  layout_button_label_with_secondary(slot, true, true);
+  if (col_span < 2) {
+    lv_obj_add_flag(slot.sensor_container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_clear_flag(slot.sensor_container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_clear_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+  }
+  set_subpage_chevron_visible(slot, true, grid.subpage_chevron_x,
+    grid.subpage_chevron_y, grid.subpage_chevron_text_width_percent);
+  layout_button_label_with_secondary(slot, col_span >= 2, true);
   return true;
 }
 inline void power_driver_event(lv_event_t *event) {
@@ -46,6 +69,7 @@ inline bool power_driver_bind_data(BtnSlot &slot, const ParsedCfg &config,
   ctx->display = display;
   ctx->precision = parse_precision(config.precision);
   const auto bindings = espcontrol::power::decode_config_v1(config);
+  ctx->has_soc = !bindings.battery_soc_entity.empty();
   ctx->data.model.set_polarity({bindings.invert_grid, bindings.invert_battery});
   ctx->next = power_card_contexts();
   power_card_contexts() = ctx;

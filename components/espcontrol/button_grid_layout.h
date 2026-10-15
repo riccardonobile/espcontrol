@@ -448,10 +448,6 @@ inline void layout_button_label_with_secondary(
     BtnSlot &s, bool reserve_value = false, bool navigation = false) {
   if (!s.text_lbl) return;
   configure_button_label_wrap(s.text_lbl);
-  if (!s.secondary_lbl || lv_obj_has_flag(s.secondary_lbl, LV_OBJ_FLAG_HIDDEN)) {
-    lv_obj_align(s.text_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-    return;
-  }
   lv_obj_update_layout(s.btn);
   const lv_font_t *font = lv_obj_get_style_text_font(s.text_lbl, LV_PART_MAIN);
   const lv_coord_t line = font && font->line_height > 0 ? font->line_height : 16;
@@ -459,6 +455,10 @@ inline void layout_button_label_with_secondary(
     ? lv_obj_get_width(s.subpage_lbl) + 6 : 0;
   const lv_coord_t width = std::max<lv_coord_t>(1, lv_obj_get_content_width(s.btn) - gutter);
   lv_obj_set_width(s.text_lbl, width);
+  if (!s.secondary_lbl || lv_obj_has_flag(s.secondary_lbl, LV_OBJ_FLAG_HIDDEN)) {
+    lv_obj_align(s.text_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+    return;
+  }
   lv_obj_set_width(s.secondary_lbl, width);
   lv_obj_set_style_text_font(s.secondary_lbl, font, LV_PART_MAIN);
   lv_label_set_long_mode(s.secondary_lbl, LV_LABEL_LONG_DOT);
@@ -483,7 +483,7 @@ inline void layout_button_label_with_secondary(
   }
   if (navigation && s.subpage_lbl) {
     lv_obj_clear_flag(s.subpage_lbl, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_align(s.subpage_lbl, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_move_foreground(s.subpage_lbl);
   }
   lv_obj_move_foreground(s.text_lbl);
   lv_obj_move_foreground(s.secondary_lbl);

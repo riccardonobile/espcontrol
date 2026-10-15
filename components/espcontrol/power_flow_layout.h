@@ -7,7 +7,7 @@
 
 namespace espcontrol::power {
 
-// v0.32 flowDiagram geometry only, independent of readings and LVGL.
+// v0.32 topology with outward placement in actual content bounds; no data/LVGL.
 enum class FlowFamily { LANDSCAPE, SQUARE, PORTRAIT };
 struct Point { double x = 0, y = 0; };
 constexpr size_t FLOW_POINT_COUNT = 11;
@@ -23,18 +23,23 @@ inline FlowFamily flow_family(int width, int height) {
   return width * 5 > height * 6 ? FlowFamily::LANDSCAPE
        : height * 5 > width * 6 ? FlowFamily::PORTRAIT : FlowFamily::SQUARE;
 }
-inline FlowGeometry flow_geometry(int width, int height, FlowFamily family) {
+inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
+                                  double node_width = 138, double node_height = 108) {
   FlowGeometry out;
-  const bool landscape = family == FlowFamily::LANDSCAPE;
-  const bool square = family == FlowFamily::SQUARE;
-  const double w = landscape ? 620 : 520, h = landscape || square ? 430 : 620;
-  const double dx = landscape ? 192 : 158, dy = landscape ? 143 : square ? 132 : 174;
-  const double cx = w / 2, cy = h / 2;
+  const double cx = width / 2.0, cy = height / 2.0;
+  const double margin = std::max(4.0, std::min(width, height) * .02);
+  const double hw = std::min(node_width / 2, width * .24);
+  const double hh = std::min(node_height / 2, height * .24);
+  const double dx = std::max(0.0, cx - hw - margin);
+  const double dy = std::max(0.0, cy - hh - margin);
+  const double port = std::min(18.0, std::min(hw, hh) / 3), gap = 4;
   out.nodes = {{{cx, cy - dy}, {cx + dx, cy}, {cx - dx, cy}, {cx, cy + dy}}};
-  out.ports = {{{{{cx - 18, cy - dy + 54}, {cx, cy - dy + 54}, {cx + 18, cy - dy + 54}}},
-                {{{cx + dx - 69, cy - 18}, {cx + dx - 69, cy}, {cx + dx - 69, cy + 18}}},
-                {{{cx - dx + 69, cy - 18}, {cx - dx + 69, cy}, {cx - dx + 69, cy + 18}}},
-                {{{cx - 18, cy + dy - 54}, {cx, cy + dy - 54}, {cx + 18, cy + dy - 54}}}}};
+  // Attachment points depend only on the content rectangle and compiled text
+  // metrics, never readings, activity, SOC availability or edge visibility.
+  out.ports = {{{{{cx - port, cy - dy + hh + gap}, {cx, cy - dy + hh + gap}, {cx + port, cy - dy + hh + gap}}},
+                {{{cx + dx - hw - gap, cy - port}, {cx + dx - hw - gap, cy}, {cx + dx - hw - gap, cy + port}}},
+                {{{cx - dx + hw + gap, cy - port}, {cx - dx + hw + gap, cy}, {cx - dx + hw + gap, cy + port}}},
+                {{{cx - port, cy + dy - hh - gap}, {cx, cy + dy - hh - gap}, {cx + port, cy + dy - hh - gap}}}}};
   auto straight = [](Point a, Point b) {
     FlowPath path{};
     for (size_t i = 0; i < path.size(); ++i) {
@@ -72,13 +77,9 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family) {
     out.heads[i] = {{{base.x - dir.y * 5.5, base.y + dir.x * 5.5}, end,
                      {base.x + dir.y * 5.5, base.y - dir.x * 5.5}}};
   }
-  out.scale = std::max(0.0, std::min(width / w, height / h));
-  const double ox = (width - w * out.scale) / 2, oy = (height - h * out.scale) / 2;
-  auto transform = [&](Point &p) { p = {ox + p.x * out.scale, oy + p.y * out.scale}; };
-  for (auto &p : out.nodes) transform(p);
-  for (auto &ports : out.ports) for (auto &p : ports) transform(p);
-  for (auto &path : out.paths) for (auto &p : path) transform(p);
-  for (auto &head : out.heads) for (auto &p : head) transform(p);
+  const double ref_w = family == FlowFamily::LANDSCAPE ? 620 : 520;
+  const double ref_h = family == FlowFamily::PORTRAIT ? 620 : 430;
+  out.scale = std::max(0.0, std::min(width / ref_w, height / ref_h));
   return out;
 }
 } // namespace espcontrol::power
