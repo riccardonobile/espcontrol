@@ -1009,3 +1009,51 @@ Physical testing is pending; no flash, rebase or Phase 4B work was performed.
   device profile, font asset or allocation algorithm changed. Modal ownership,
   title restoration and card-owned subscriptions are retained. Physical recheck
   is required on ESP32-P4-86 and user-confirmed JC8012P4A1 V2 (non-v3, case >=2628).
+
+
+### Refinement verification and physical retest builds
+
+Final firmware source: `f6af57923e0c77435021b45a6d9086c2ef691982`.
+The initial device compile exposed two `std::max(int, int32_t)` deductions
+that host `int` doubles did not exercise. Explicit bounded pixel conversion
+and host font/layout doubles using a distinct integer type reproduce the
+failure before the fix and pass afterwards. No palette/geometry value changed.
+
+`npm run prepare:ci` passed cleanly at this source: all 48 tasks, 85 firmware
+host tests, 154 web unit tests, 113 smoke checks, 260 parity cases, generated
+checks, docs and mocked installer. Four focused geometry/UI/theme-tree/HUD
+tests passed again. Expanded Power browser journeys passed all nine layouts;
+blocked expansion/paste and narrow save/restore reject before writes.
+Only two reviewed Power preview fingerprints changed in the runtime fixture;
+existing generators own the refreshed embedded/immutable web assets. Complete
+contribution and working-tree `git diff --check` passed.
+
+Fresh sequential factory config/compile checks passed with pinned ESPHome
+2026.9.1, ESP-IDF v5.5.5 and GCC 14.2.0 for the actual devices:
+
+| Device | OTA/app bytes | OTA slot bytes | Free bytes | Free |
+| --- | ---: | ---: | ---: | ---: |
+| ESP32-P4-86 | 6,871,920 | 15,663,104 | 8,791,184 | 56.13% |
+| JC8012P4A1 V2 | 5,700,672 | 7,274,496 | 1,573,824 | 21.63% |
+
+Factory sizes are 7,002,992 and 5,831,744 bytes respectively. User confirmation
+remains non-v3 silicon/case >=2628 for V2; no device substitution. Existing
+32 MB/16 MB partitions and device profiles are unchanged. Compiled Power/shared
+headers and embedded web match the exact source; factory app/partition bytes,
+OTA image checksum/hash, Windows SHA-256 and ZIP contents are verified.
+Warning sets match the previous actual-device builds: experimental IDF,
+RISC-V header sign conversions and recovered P4-86 CMake/kconfig warnings.
+Bootloader headroom is 4%/6%, separate from the application figures.
+
+Local artifacts: `build/power-dashboard-hardware-refinement/f6af57923/` with
+target folders, OTA/factory binaries, manifests, SHA256SUMS, logs, validation
+summary and `HARDWARE-TEST-CHECKLIST.md`. Adjacent archive:
+`power-dashboard-refined-pr10-f6af57923.zip`. Previous physical-test binaries
+are superseded for this refinement retest. OTA requires the existing compatible
+partition layout; factory is the merged USB/UART image at offset 0x0.
+
+Physical validation of the refined presentation remains pending on both
+devices, especially native touch/pressed contrast, wide/legacy card layout,
+parent subpage chevron, four-digit W/long labels, outward flow/SOC/status fit,
+open-modal themes, HUD restoration and reconnect/rebuild cleanup. No device
+was flashed, no rebase/main changes occurred, and Phase 4B has not started.
