@@ -1,6 +1,12 @@
 import { state } from "../state/app_instance";
 import * as EspControlModel from "../model";
-import { configOptionEnabled, configOptionValue, setConfigOptionValue } from "../model/config_primitives";
+import {
+    configOptionEnabled,
+    configOptionValue,
+    normalizedCardColorOptions,
+    setConfigOptionValue,
+    withoutCardColorOptions,
+} from "../model/config_primitives";
 import {
     CARD_SIZE_EXTRA_LARGE,
     CARD_SIZE_LANDSCAPE_LARGE,
@@ -449,8 +455,9 @@ export function createConfigCodecFeature(
         return normalizeSubpageOptions(options || "", b && b.sensor, b && b.precision);
     }
     function normalizeButtonConfig(this: any, b?: any) {
+        var cardColorOptions: any = b ? normalizedCardColorOptions(b.options) : "";
         if (b)
-            b.options = b.options || "";
+            b.options = withoutCardColorOptions(b.options || "");
         if (b)
             migrateSavedConfigActionLegacy(b);
         var wasLegacyTextSensor: any = !!(b && b.type === "text_sensor");
@@ -493,6 +500,7 @@ export function createConfigCodecFeature(
         if (b && !normalizedSavedPower && !normalizedSavedSensor && !normalizedSavedSwitch && !normalizedSavedAccess && !normalizedSavedOccupancy && !normalizedSavedStatic && !normalizedSavedFan && !normalizedSavedMower && b.type !== "action" && b.type !== "alarm" && b.type !== "alarm_action" && !isClimateCardType(b.type) && b.type !== "webhook" && b.type !== "media" && b.type !== "subpage" && b.type !== "image" && b.type !== "wifi_qr" && b.type !== "wifi_qr_card" && b.type !== "light_control" && b.type !== "vacuum" && !cardLargeNumbersSupported(b)) {
             b.options = "";
         }
+        if (b && cardColorOptions) b.options = [b.options || "", cardColorOptions].filter(Boolean).join(",");
         return b;
     }
     function isBrightnessSliderType(this: any, type?: any) {
@@ -620,6 +628,8 @@ export function createConfigCodecFeature(
         if (type === "door_window")
             precision = normalizeDoorWindowSubtype(precision);
         var options: any = b && b.options || "";
+        var cardColorOptions: any = normalizedCardColorOptions(options);
+        options = withoutCardColorOptions(options);
         if (type === "") {
             options = normalizeSwitchConfirmationOptions(options);
         }
@@ -658,8 +668,11 @@ export function createConfigCodecFeature(
             precision = webhookButton.precision || "";
             options = webhookButton.options || "";
         }
-        else if (type === "lock" || type === "screen_lock") {
+        else if (type === "lock") {
             options = "";
+        }
+        else if (type === "screen_lock") {
+            options = configOptionEnabled(options, "screensaver_on_lock") ? "screensaver_on_lock" : "";
         }
         else if (type === "calendar" || type === "clock" || type === "timezone") {
             options = normalizeDateTimeOptions(type, options, precision);
@@ -749,6 +762,7 @@ export function createConfigCodecFeature(
             unit = "";
             precision = "";
         }
+        if (cardColorOptions) options = [options || "", cardColorOptions].filter(Boolean).join(",");
         return trimConfigFields([
             (type === "door_window" || type === "presence" || type === "screen_lock") ? "" : (b && b.entity || ""),
             label,
@@ -804,7 +818,7 @@ export function createConfigCodecFeature(
         return EspControlModel.parseSubpageOrder(orderStr);
     }
     function subpageOrderForSerialize(this: any, sp?: any) {
-        return EspControlModel.subpageOrderForSerialize((sp && sp.order) || [], sp && sp.backLabel);
+        return EspControlModel.subpageOrderForSerialize((sp && sp.order) || [], sp && sp.backLabel, sp && sp.backColor);
     }
     function subpageSerializedOrder(this: any, sp?: any) {
         if (!sp)
@@ -981,7 +995,7 @@ export function createConfigCodecFeature(
         return JSON.stringify(sp.order) !== previousOrder;
     }
     function serializeSubpageGrid(this: any, sp?: any) {
-        return EspControlModel.serializeSubpageGrid(sp.grid, sp.sizes || {}, sp.backLabel || "Back");
+        return EspControlModel.serializeSubpageGrid(sp.grid, sp.sizes || {}, sp.backLabel || "Back", sp.backColor);
     }
     function enterSubpage(this: any, homeSlot?: any) {
         state.editingSubpage = homeSlot;

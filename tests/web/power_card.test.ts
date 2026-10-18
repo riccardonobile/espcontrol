@@ -140,6 +140,12 @@ export function runPowerCardTests(): void {
   equal(save(256).reason, "config-size");
   equal(powerStoredConfigError(realistic) !== null, true);
   equal(powerStoredConfigError(realistic, true), null);
+  // Upstream #2237 advertises 4 KiB; legacy firmware retains its 255-byte limit.
+  equal(powerStoredConfigError(realistic, false, 4096), null);
+  equal(validator.validateSave({ fields: [], isSubpage: false,
+    serializedConfigLength: realistic.length, configByteLimit: 4096,
+    imageCardCount: 0, imageCardCapacity: 6 }).valid, true);
+  equal(powerStoredConfigError(realistic + "x".repeat(4096), false, 4096) !== null, true);
   equal(splitSubpageConfigChunks(subpage, 4) !== null, true);
   const longSubpage = serializeCompactSubpageConfig(["1", "B"], [["PW", ...[longCard.entity, longCard.label, "", "", "", "", "", longCard.options].map(encodeConfigField)]]);
   equal(splitSubpageConfigChunks(longSubpage, 4), null); // aggregate capacity enforced

@@ -59,6 +59,8 @@ script:
           cfg.cols = portrait ? 3 : 5;
           cfg.width_compensation_vertical = portrait;
           cfg.subpage_chevrons_enabled = id(subpage_chevrons_enabled).state;
+          cfg.card_corner_radius = card_curve_radius(32, id(card_curve_select).current_option(), 8, 20);
+          cfg.continuous_card_corners = true;
           cfg.wrap_tall_labels = true;
           cfg.label_lines = 2;
           cfg.label_lines_tall = 3;
@@ -111,16 +113,16 @@ script:
           register_webhook_sender([](const std::string &url, const std::string &method, const std::string &body, const std::vector<esphome::http_request::Header> &headers) {
             auto response = id(http_req).start(url, method, body, headers);
             if (response == nullptr) {
-              ESP_LOGW("webhook", "Webhook request failed to start: %s", url.c_str());
+              ESP_LOGW("webhook", "Webhook %s request failed to start", method.c_str());
               return false;
             }
             int status = response->status_code;
             response->end();
             if (!esphome::http_request::is_success(status)) {
-              ESP_LOGW("webhook", "Webhook %s returned HTTP %d", url.c_str(), status);
+              ESP_LOGW("webhook", "Webhook %s returned HTTP %d", method.c_str(), status);
               return false;
             }
-            ESP_LOGI("webhook", "Webhook %s returned HTTP %d", url.c_str(), status);
+            ESP_LOGI("webhook", "Webhook %s returned HTTP %d", method.c_str(), status);
             return true;
           });
           set_width_compensation_vertical_axis(cfg.width_compensation_vertical);
@@ -237,6 +239,8 @@ script:
           cfg.cols = portrait ? 3 : 5;
           cfg.width_compensation_vertical = portrait;
           cfg.subpage_chevrons_enabled = id(subpage_chevrons_enabled).state;
+          cfg.card_corner_radius = card_curve_radius(32, id(card_curve_select).current_option(), 8, 20);
+          cfg.continuous_card_corners = true;
           cfg.wrap_tall_labels = true;
           cfg.label_lines = 2;
           cfg.label_lines_tall = 3;
@@ -289,16 +293,16 @@ script:
           register_webhook_sender([](const std::string &url, const std::string &method, const std::string &body, const std::vector<esphome::http_request::Header> &headers) {
             auto response = id(http_req).start(url, method, body, headers);
             if (response == nullptr) {
-              ESP_LOGW("webhook", "Webhook request failed to start: %s", url.c_str());
+              ESP_LOGW("webhook", "Webhook %s request failed to start", method.c_str());
               return false;
             }
             int status = response->status_code;
             response->end();
             if (!esphome::http_request::is_success(status)) {
-              ESP_LOGW("webhook", "Webhook %s returned HTTP %d", url.c_str(), status);
+              ESP_LOGW("webhook", "Webhook %s returned HTTP %d", method.c_str(), status);
               return false;
             }
-            ESP_LOGI("webhook", "Webhook %s returned HTTP %d", url.c_str(), status);
+            ESP_LOGI("webhook", "Webhook %s returned HTTP %d", method.c_str(), status);
             return true;
           });
           set_width_compensation_vertical_axis(cfg.width_compensation_vertical);
@@ -454,6 +458,8 @@ esphome:
             cfg.cols = portrait ? 3 : 5;
             cfg.width_compensation_vertical = portrait;
             cfg.subpage_chevrons_enabled = id(subpage_chevrons_enabled).state;
+            cfg.card_corner_radius = card_curve_radius(32, id(card_curve_select).current_option(), 8, 20);
+            cfg.continuous_card_corners = true;
             cfg.wrap_tall_labels = true;
             cfg.label_lines = 2;
             cfg.label_lines_tall = 3;
@@ -506,16 +512,16 @@ esphome:
             register_webhook_sender([](const std::string &url, const std::string &method, const std::string &body, const std::vector<esphome::http_request::Header> &headers) {
               auto response = id(http_req).start(url, method, body, headers);
               if (response == nullptr) {
-                ESP_LOGW("webhook", "Webhook request failed to start: %s", url.c_str());
+                ESP_LOGW("webhook", "Webhook %s request failed to start", method.c_str());
                 return false;
               }
               int status = response->status_code;
               response->end();
               if (!esphome::http_request::is_success(status)) {
-                ESP_LOGW("webhook", "Webhook %s returned HTTP %d", url.c_str(), status);
+                ESP_LOGW("webhook", "Webhook %s returned HTTP %d", method.c_str(), status);
                 return false;
               }
-              ESP_LOGI("webhook", "Webhook %s returned HTTP %d", url.c_str(), status);
+              ESP_LOGI("webhook", "Webhook %s returned HTTP %d", method.c_str(), status);
               return true;
             });
             set_width_compensation_vertical_axis(cfg.width_compensation_vertical);
@@ -623,6 +629,8 @@ esphome:
             cfg.cols = portrait ? 3 : 5;
             cfg.width_compensation_vertical = portrait;
             cfg.subpage_chevrons_enabled = id(subpage_chevrons_enabled).state;
+            cfg.card_corner_radius = card_curve_radius(32, id(card_curve_select).current_option(), 8, 20);
+            cfg.continuous_card_corners = true;
             cfg.wrap_tall_labels = true;
             cfg.label_lines = 2;
             cfg.label_lines_tall = 3;
@@ -675,16 +683,16 @@ esphome:
             register_webhook_sender([](const std::string &url, const std::string &method, const std::string &body, const std::vector<esphome::http_request::Header> &headers) {
               auto response = id(http_req).start(url, method, body, headers);
               if (response == nullptr) {
-                ESP_LOGW("webhook", "Webhook request failed to start: %s", url.c_str());
+                ESP_LOGW("webhook", "Webhook %s request failed to start", method.c_str());
                 return false;
               }
               int status = response->status_code;
               response->end();
               if (!esphome::http_request::is_success(status)) {
-                ESP_LOGW("webhook", "Webhook %s returned HTTP %d", url.c_str(), status);
+                ESP_LOGW("webhook", "Webhook %s returned HTTP %d", method.c_str(), status);
                 return false;
               }
-              ESP_LOGI("webhook", "Webhook %s returned HTTP %d", url.c_str(), status);
+              ESP_LOGI("webhook", "Webhook %s returned HTTP %d", method.c_str(), status);
               return true;
             });
             set_width_compensation_vertical_axis(cfg.width_compensation_vertical);

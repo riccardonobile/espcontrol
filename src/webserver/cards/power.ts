@@ -73,10 +73,7 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
       panel.appendChild(sizeNote);
       const updateSize = () => {
         const bytes = utf8ByteLength(helpers.serializeCardConfig(card));
-        sizeNote.textContent = helpers.isSub
-          ? "Subpage storage is shared across its cards; Save checks the complete chunked configuration."
-          : "Main-grid configuration: " + bytes + " / 255 bytes." + (bytes > 255
-            ? " Too large: shorten entity IDs or the label, omit optional SOC, or use a subpage. Nothing will be truncated." : "");
+        sizeNote.textContent = "Configuration size: " + bytes + " bytes. Save validates this panel's advertised card/subpage capacity. Older firmware may support less.";
       };
       panel.addEventListener("input", updateSize);
       panel.addEventListener("change", updateSize);

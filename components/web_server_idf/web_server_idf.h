@@ -4,6 +4,7 @@
 #include "esphome/core/defines.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/string_ref.h"
+#include "esphome/core/version.h"
 #include <esp_http_server.h>
 
 #include <atomic>
@@ -266,6 +267,7 @@ class AsyncWebHandler {
   // NOLINTNEXTLINE(readability-identifier-naming)
   virtual void handleUpload(AsyncWebServerRequest *request, const std::string &filename, size_t index, uint8_t *data,
                             size_t len, bool final) {}
+  virtual void handleUploadAbort(AsyncWebServerRequest *request) {}
   // NOLINTNEXTLINE(readability-identifier-naming)
   virtual void handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {}
   virtual size_t maximumBodySize() const { return SIZE_MAX; }
@@ -278,7 +280,11 @@ class AsyncWebHandler {
 class AsyncEventSource;
 class AsyncEventSourceResponse;
 
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2026, 10, 0)
+using message_generator_t = void(esphome::web_server::WebServer *, void *, json::JsonBuilder &);
+#else
 using message_generator_t = json::SerializationBuffer<>(esphome::web_server::WebServer *, void *);
+#endif
 
 /*
   This class holds a pointer to the source component that wants to publish a state event, and a pointer to a function
@@ -319,8 +325,11 @@ class AsyncEventSourceResponse {
                            esphome::web_server::WebServer *ws);
 
   void deq_push_back_with_dedup_(void *source, message_generator_t *message_generator);
+  json::SerializationBuffer<> generate_state_json_(void *source, message_generator_t *message_generator);
   void process_deferred_queue_();
   void process_buffer_();
+  void close_();
+  static void close_callback_(void *arg);
 
   static void destroy(void *p);
   AsyncEventSource *server_;
@@ -330,8 +339,11 @@ class AsyncEventSourceResponse {
   esphome::web_server::WebServer *web_server_;
   esphome::web_server::ListEntitiesIterator entities_iterator_;
   std::string event_buffer_{""};
-  size_t event_bytes_sent_;
+  size_t event_bytes_sent_{0};
   uint16_t consecutive_send_failures_{0};
+  bool close_requested_{false};
+  bool close_queued_{false};
+  std::atomic<bool> close_work_pending_{false};
   static constexpr uint16_t MAX_CONSECUTIVE_SEND_FAILURES = 2500;  // ~20 seconds at 125Hz loop rate
 };
 

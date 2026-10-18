@@ -1057,3 +1057,42 @@ devices, especially native touch/pressed contrast, wide/legacy card layout,
 parent subpage chevron, four-digit W/long labels, outward flow/SOC/status fit,
 open-modal themes, HUD restoration and reconnect/rebuild cleanup. No device
 was flashed, no rebase/main changes occurred, and Phase 4B has not started.
+
+
+## Phase 4B: upstream reconciliation (2026-10-18)
+
+The original base was `a406208906f900058da4c063d1e0c3eeeff9af6a`.
+The verified upstream integration target is
+`7c92df26cc8b95cd89780b366ae812bb8af169de` (93 commits later).
+Merge upstream into the published feature branch; do not rebase or force-push.
+Remote recovery tag `archive/energy-dashboard-pre-phase4b-20261018` preserves
+`f09cf4dd6b0abaeffd106a3ef316059bf61a9818`. Fork/main remains unchanged.
+
+| Overlap | Resolution |
+| --- | --- |
+| Card colors/contrast/corners | Retain upstream palettes, color options, contrast events and continuous corners; adapt Power consumers. |
+| Parser/subpages | Strip/preserve upstream shared colors around Power normalization; no early return losing custom colors. |
+| Weather/action dispatch/modal enum | Keep new forecast driver, lifecycle and modal alongside Power; neither replaces the other. |
+| Theme refresh | Preserve upstream image/card behavior and Power ownership until shared contrast adaptation. |
+| Web persistence/backup | Keep upstream native APIs, reset/session/PIN behavior and advertised byte capacity; layer Power placement/entity checks. |
+| Resize handles | Reuse upstream handles; filter unsupported Power targets and retain commit-time neighbor/width checks. |
+| Editor/preview CSS | Keep upstream foreground variables, color controls, naming and scaling, plus narrow Power content/layout extension. |
+| Fonts/device generation | Use upstream conditional small-text role instead of assuming a font exists on every profile. |
+| Translations/contract/runtime inventory | Retain both upstream additions and Power definitions; regenerate with existing tools. |
+| Native/browser tests | Keep upstream P4, weather, upload, speaker, PIN and lifecycle coverage together with Power cases. |
+| Generated output | Rebuild contracts, i18n, device profiles, runtime fixtures, web assets and snapshot; do not copy stale feature output. |
+
+Upstream #2237 deliberately increased card/subpage capacity to 4 KiB. Power
+must use advertised capacity, preserving the 255-byte fallback for older firmware.
+This supersedes earlier Phase 1-4A storage notes; the compact format stays nine
+fields and oversized input is still rejected, never truncated. Public docs and
+Power editor help now describe the current contract rather than imposing 255
+bytes on new firmware. Added tests cover both advertised and legacy limits.
+
+The generic secondary-label extension remains necessary: current upstream has
+no equivalent shared helper. The setting-controlled subpage-chevron correction
+is retained; no global unconditional-chevron rule is introduced. New upstream
+forecast, media, unavailable sensor, display timing, web upload and connection
+fixes are preserved. Windows CRLF import affected the captive-portal hash check;
+normalizing the local HTML line endings and regenerating its existing headers
+restored parity without changing provisioning behavior or weakening the test.

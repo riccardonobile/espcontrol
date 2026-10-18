@@ -51,7 +51,10 @@ inline std::string decode_compact_subpage_field(const std::string &value, size_t
 }
 
 inline SubpageBtn normalize_subpage_btn(SubpageBtn b) {
-  if (normalize_saved_config_power(b, espcontrol::power::normalize_options)) return b;
+  // Shared colours must survive the card-specific option cleanup below.
+  const std::string card_colors = card_color_options_normalized(b.options);
+  b.options = options_without_card_colors(b.options);
+  const bool normalized_power = normalize_saved_config_power(b, espcontrol::power::normalize_options);
   if (brightness_slider_type(b.type) && !b.sensor.empty()) b.sensor.clear();
   if (fan_card_type(b.type)) {
     b.sensor.clear();
@@ -87,17 +90,17 @@ inline SubpageBtn normalize_subpage_btn(SubpageBtn b) {
                b.sensor != "playlist") {
       b.sensor = "play_pause";
     }
-    if (b.sensor == "previous" && b.label == "Skip Previous") b.label = "Previous";
-    if (b.sensor == "next" && b.label == "Skip Next") b.label = "Next";
+    if (b.sensor == "previous" && b.label == "Skip Previous") b.label = espcontrol_i18n("Previous");
+    if (b.sensor == "next" && b.label == "Skip Next") b.label = espcontrol_i18n("Next");
     if (b.sensor == "volume") {
-      if (b.label.empty() || b.label == "Media") b.label = "Volume";
+      if (b.label.empty() || b.label == "Media") b.label = espcontrol_i18n("Volume");
       b.icon = "Auto";
     }
     if (b.sensor == "playlist") {
-      if (b.label.empty() || b.label == "Media") b.label = "Playlist";
+      if (b.label.empty() || b.label == "Media") b.label = espcontrol_i18n("Playlist");
       if (b.icon.empty() || b.icon == "Auto") b.icon = "Music";
     }
-    if (b.sensor == "position" && (b.label.empty() || b.label == "Track")) b.label = "Position";
+    if (b.sensor == "position" && (b.label.empty() || b.label == "Track")) b.label = espcontrol_i18n("Position");
     if (b.sensor == "now_playing") {
       b.precision = (b.precision == "progress" || b.precision == "play_pause") ? b.precision : "";
     } else if (b.sensor == "cover_art") {
@@ -148,10 +151,12 @@ inline SubpageBtn normalize_subpage_btn(SubpageBtn b) {
     b.precision.clear();
     b.icon_on.clear();
     b.options = alarm_card_options_normalized(b.options);
-    if (b.label.empty()) {
-      if (b.sensor == "home") b.label = "Arm Home";
-      else if (b.sensor == "disarm") b.label = "Disarm";
-      else b.label = "Arm Away";
+    const char *label_key = b.sensor == "home" ? "arm_home"
+      : b.sensor == "night" ? "arm_night"
+      : b.sensor == "vacation" ? "arm_vacation"
+      : b.sensor == "disarm" ? "disarm" : "arm_away";
+    if (b.label.empty() || b.label == espcontrol_i18n_key_en(label_key)) {
+      b.label = espcontrol_i18n_key(label_key);
     }
     if (b.icon.empty() || b.icon == "Auto" || alarm_action_legacy_icon_name(b.sensor, b.icon)) {
       b.icon = alarm_action_icon_name(b.sensor);
@@ -216,7 +221,7 @@ inline SubpageBtn normalize_subpage_btn(SubpageBtn b) {
   ParsedCfg p;
   p.type = b.type;
   p.precision = b.precision;
-  if (!b.type.empty() && b.type != "action" && b.type != "alarm" &&
+  if (!normalized_power && !b.type.empty() && b.type != "action" && b.type != "alarm" &&
       b.type != "alarm_action" &&
       !climate_card_type(b.type) && b.type != "cover" && b.type != "garage" && b.type != "gate" &&
       b.type != "webhook" && b.type != "wifi_qr" && b.type != "wifi_qr_card" &&
@@ -228,6 +233,10 @@ inline SubpageBtn normalize_subpage_btn(SubpageBtn b) {
   }
   if (b.type == "sensor") {
     b.options = sensor_card_options_normalized(b.options, b.precision);
+  }
+  if (!card_colors.empty()) {
+    if (!b.options.empty()) b.options += ",";
+    b.options += card_colors;
   }
   return b;
 }
@@ -294,9 +303,10 @@ inline std::vector<SubpageBtn> parse_subpage_config(const std::string &sp_cfg) {
 inline lv_obj_t *create_grid_card_button(lv_obj_t *parent, lv_coord_t radius,
                                          lv_coord_t pad,
                                          const lv_font_t *label_font,
-                                         lv_color_t text_color) {
+                                         lv_color_t text_color,
+                                         bool continuous_corners = false) {
   lv_obj_t *btn = lv_btn_create(parent);
-  lv_obj_set_style_radius(btn, radius, LV_PART_MAIN);
+  apply_grid_card_corners(btn, radius, continuous_corners);
   lv_obj_set_style_pad_all(btn, pad, LV_PART_MAIN);
   if (label_font) lv_obj_set_style_text_font(btn, label_font, LV_PART_MAIN);
   lv_obj_set_style_text_color(btn, text_color, LV_PART_MAIN);
@@ -421,7 +431,9 @@ inline std::string get_subpage_back_label(const std::string &order_str) {
       size_t label_start = std::string::npos;
       if (subpage_back_token_span(order_str, st, cm, suffix, &label_start)) {
         if (label_start != std::string::npos) {
-          std::string label = decode_compact_subpage_field(order_str, label_start, cm - label_start);
+          size_t label_end = order_str.find(':', label_start);
+          if (label_end == std::string::npos || label_end > cm) label_end = cm;
+          std::string label = decode_compact_subpage_field(order_str, label_start, label_end - label_start);
           return label.empty() ? espcontrol_i18n(std::string("Back")) : label;
         }
         return espcontrol_i18n(std::string("Back"));
@@ -430,6 +442,25 @@ inline std::string get_subpage_back_label(const std::string &order_str) {
     st = cm + 1;
   }
   return espcontrol_i18n(std::string("Back"));
+}
+
+// A colour suffix follows the encoded label: B=Return%3AHome:FF8C00.
+inline std::string get_subpage_back_color(const std::string &order_str) {
+  size_t start = 0;
+  while (start < order_str.size()) {
+    size_t end = order_str.find(',', start);
+    if (end == std::string::npos) end = order_str.size();
+    char suffix = '\0';
+    size_t label_start = std::string::npos;
+    if (subpage_back_token_span(order_str, start, end, suffix, &label_start)) {
+      if (label_start == std::string::npos) return "";
+      const size_t separator = order_str.find(':', label_start);
+      if (separator == std::string::npos || separator >= end) return "";
+      return normalize_card_color_value(order_str.substr(separator + 1, end - separator - 1));
+    }
+    start = end + 1;
+  }
+  return "";
 }
 
 // Subpage grid layout with support for a back button token ("B")

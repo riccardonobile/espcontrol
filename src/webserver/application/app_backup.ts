@@ -1,4 +1,6 @@
 import { powerCardConfigError, powerStoredConfigError, powerGridLayoutError } from "../model/power_card";
+import { clearScreensaverPinForRestore } from "./screensaver_pin";
+import { resetAwareFetch } from "../api/reset_session";
 import type { PanelIdentityBackup } from "../model/panel_identity";
 import type { PanelIdentityFeature } from "./panel_identity";
 import { state } from "../state/app_instance";
@@ -28,6 +30,8 @@ import {
     parseThemeSunOffset,
 } from "../model/settings";
 import { syncThemeSettingsUi } from "./theme_settings_ui";
+import { normalizeCardCurve } from "../model/settings";
+import { syncCardCurveUi } from "./card_curve_ui";
 import type { BackupImportController } from "../features/backup_import_controller";
 import type { BackupExportController } from "../features/backup_export_controller";
 import type { BackupFileController } from "../features/backup_file_controller";
@@ -283,10 +287,12 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                 screensaver_camera_entity: state.screensaverCameraEntity,
                 screensaver_metadata_entity: state.screensaverMetadataEntity,
                 metadata_overlay: state.metadataOverlayOn,
+                screensaver_camera_dimming: state.screensaverCameraDimmingSupported ? state.screensaverCameraDimming : undefined,
                 screensaver_camera_image_mode: normalizeScreensaverCameraImageMode(state.screensaverCameraImageMode),
                 media_player_sleep_prevention: state.mediaPlayerSleepPreventionOn,
                 media_player_sleep_prevention_entity: state.mediaPlayerSleepPreventionEntity || state.coverArtMediaPlayerEntity,
                 cover_art_screensaver: state.coverArtScreensaverOn,
+                clock_date: state.clockDateOn,
                 clock_overlay: state.clockOverlayOn,
                 cover_art_media_player_entity: state.coverArtMediaPlayerEntity,
                 cover_art_secondary_media_player_entity: state.coverArtSecondaryMediaPlayerEntity,
@@ -321,6 +327,7 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                 brightness_night: Math.round(state.brightnessNightVal),
                 brightness_mode: normalizeBrightnessMode(state.brightnessMode),
                 theme_mode: normalizeThemeMode(state.themeMode),
+                card_curve: state.cardCurveSupported ? normalizeCardCurve(state.cardCurve) : undefined,
                 theme_auto_method: normalizeThemeAutoMethod(state.themeAutoMethod),
                 theme_light_start: normalizeTimeOfDay(state.themeLightStart, "07:00"),
                 theme_dark_start: normalizeTimeOfDay(state.themeDarkStart, "20:00"),
@@ -390,7 +397,7 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                 }
                 // Validate the authoritative restore payload before any layout writes.
                 for (const value of Object.values(nativeDocument.buttons)) {
-                    const error = powerStoredConfigError(value);
+                    const error = powerStoredConfigError(value, false, controllers.nativePanelConfig?.maxConfigValueBytes() ?? 255);
                     if (error) throw new Error(error);
                 }
                 for (const value of Object.values(nativeDocument.subpages)) {
@@ -565,10 +572,14 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                         postText(entityName("screen_saver_metadata_entity"), importedSettings.screensaverMetadataEntity);
                     if (controllers.layout.config.features?.cameraScreensaver && state.screensaverCameraSupported)
                         postScreensaverCameraImageMode(importedSettings.screensaverCameraImageMode);
+                    const hasCameraDimming = s.screensaver_camera_dimming !== undefined;
+                    if (hasCameraDimming && controllers.layout.config.features?.cameraScreensaver && state.screensaverCameraDimmingSupported)
+                        controllers.artworkPostApi.postScreensaverCameraDimming(importedSettings.screensaverCameraDimming);
                     postMediaPlayerSleepPrevention(importedSettings.mediaPlayerSleepPrevention);
                     postMediaPlayerSleepPreventionEntity(importedSettings.mediaPlayerSleepPreventionEntity);
                     postCoverArtPlaybackControl(importedSettings.coverArtPlaybackControl);
                     postCoverArtScreensaver(importedSettings.coverArtScreensaver);
+                    if (state.clockDateSupported) controllers.clockBarPostApi.postClockDate(importedSettings.clockDate);
                     if (state.clockOverlaySupported) postClockOverlay(importedSettings.clockOverlay);
                     if (controllers.layout.config.features?.cameraScreensaver && state.screensaverCameraSupported)
                         controllers.artworkPostApi.postMetadataOverlay(importedSettings.metadataOverlay);
@@ -640,10 +651,13 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     state.screensaverCameraEntity = importedSettings.screensaverCameraEntity;
                     state.screensaverMetadataEntity = importedSettings.screensaverMetadataEntity;
                     state.metadataOverlayOn = importedSettings.metadataOverlay;
+                    if (hasCameraDimming && state.screensaverCameraDimmingSupported)
+                        state.screensaverCameraDimming = importedSettings.screensaverCameraDimming;
                     state.screensaverCameraImageMode = normalizeScreensaverCameraImageMode(importedSettings.screensaverCameraImageMode);
                     state.mediaPlayerSleepPreventionOn = importedSettings.mediaPlayerSleepPrevention;
                     state.mediaPlayerSleepPreventionEntity = importedSettings.mediaPlayerSleepPreventionEntity;
                     state.coverArtScreensaverOn = importedSettings.coverArtScreensaver;
+                    state.clockDateOn = importedSettings.clockDate;
                     state.clockOverlayOn = importedSettings.clockOverlay;
                     state.coverArtMediaPlayerEntity = importedSettings.coverArtMediaPlayerEntity;
                     state.coverArtSecondaryMediaPlayerEntity = importedSettings.coverArtSecondaryMediaPlayerEntity;
@@ -721,6 +735,11 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                     // an existing theme choice alone when those fields are absent.
                     if (Object.prototype.hasOwnProperty.call(screenSettings, "theme_mode"))
                         state.themeMode = normalizeThemeMode(screenSettings.theme_mode);
+                    if (state.cardCurveSupported && Object.prototype.hasOwnProperty.call(screenSettings, "card_curve")) {
+                        state.cardCurve = normalizeCardCurve(screenSettings.card_curve);
+                        syncCardCurveUi(state, controllers.runtime);
+                        syncPreviewOrientation(true);
+                    }
                     if (Object.prototype.hasOwnProperty.call(screenSettings, "theme_auto_method") ||
                         screenSettings.theme_mode === "Sun" || screenSettings.theme_mode === "Schedule")
                         state.themeAutoMethod = normalizeThemeAutoMethod(screenSettings.theme_auto_method || screenSettings.theme_mode);
@@ -763,6 +782,8 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                         requestApi.postSelect(entityName("screen_theme_auto_method"), state.themeAutoMethod);
                     if (Object.prototype.hasOwnProperty.call(screenSettings, "theme_mode"))
                         requestApi.postSelect(entityName("screen_theme_mode"), state.themeMode);
+                    if (state.cardCurveSupported && Object.prototype.hasOwnProperty.call(screenSettings, "card_curve"))
+                        requestApi.postSelect(entityName("screen_card_curve"), state.cardCurve);
                     if (state.brightnessMode === "manual")
                         postDisplayBacklightBrightness(state.manualBrightnessVal);
                     postBrightnessDawnTime(state.brightnessDawnTime);
@@ -796,6 +817,10 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                 renderButtonSettings();
                 switchTab("screen");
                 await requestApi.postQueue;
+                if (!requestApi.postQueueError) {
+                    await clearScreensaverPinForRestore(resetAwareFetch);
+                    await els.syncScreensaverPinUi?.();
+                }
                 if (typeof restoredName === "string" && !requestApi.postQueueError) {
                     try { await controllers.identity?.saveAndRestart(restoredName); }
                     catch (error) {

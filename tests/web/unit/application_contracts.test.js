@@ -354,7 +354,7 @@ describe("browserless application contracts", () => {
       assert.match(source, /registry\.register\(/, `${relativePath} should use the typed card registry`);
       assert.doesNotMatch(source, /\bregisterButtonType\s*\(/, `${relativePath} should not read ambient registration state`);
       assert.match(entry, new RegExp(
-        `${registrationFunction}\\(\\s*registry(?:,\\s*(?:context\\.(?:configuration\\.[A-Za-z]+|controllers\\.[A-Za-z]+|core|device\\.id)|lightCards|fields|cardUi))*[,]?\\s*\\)`,
+        `${registrationFunction}\\(\\s*registry(?:,\\s*(?:context\\.(?:configuration\\.[A-Za-z]+|controllers\\.[A-Za-z]+|dom\\.(?:document|fetch)|core|device\\.id)|lightCards|fields|cardUi))*[,]?\\s*\\)`,
       ));
     }
   });
@@ -556,7 +556,7 @@ describe("browserless application contracts", () => {
       assert.doesNotMatch(source, /\b(?:GlobalDescriptors|staticGlobal|liveGlobal)\b/);
     }
     for (const registration of ["registerPushCardTypes", "registerScreenLockCardTypes"]) {
-      assert.match(entry, new RegExp(`^  ${registration}\\(registry, fields\\);`, "m"));
+      assert.match(entry, new RegExp(`^  ${registration}\\(registry, fields(?:, [^\\n]+)?\\);`, "m"));
       assert.doesNotMatch(entry, new RegExp(`registerCompatibility\\(${registration}`));
     }
     assert.doesNotMatch(globals, /\bvar (?:PUSH_CARD_METADATA|SCREEN_LOCK_CARD_METADATA|pushActionSpec|pushDefaultIcon|pushDefaultIconOn):/);
@@ -728,7 +728,7 @@ describe("browserless application contracts", () => {
     const globals = fs.readFileSync(path.join(ROOT, "src/webserver/runtime/application_globals.d.ts"), "utf8");
     assert.doesNotMatch(card, /\b(?:GlobalDescriptors|staticGlobal|liveGlobal)\b/);
     assert.match(options, /mediaPlaylistSourceDefinitions/);
-    assert.match(entry, /registerMediaCardTypes\(registry, context\.configuration\.mediaOptions, context\.device\.id, fields, context\.controllers\.settingsUi, cardUi\);/);
+    assert.match(entry, /registerMediaCardTypes\(registry, context\.configuration\.mediaOptions, context\.configuration\.modalTabs, context\.device\.id, fields, context\.controllers\.settingsUi, cardUi\);/);
     assert.match(card, /deviceId: string/);
     assert.doesNotMatch(card, /\bDEVICE_ID\b/);
     assert.doesNotMatch(entry, /registerCompatibility\(registerMediaCardTypes/);
@@ -1462,7 +1462,7 @@ describe("browserless application contracts", () => {
     assert.match(imagePreview, /import \{ PREVIEW_THEME_COLORS, previewEffectiveTheme \} from /);
     const styles = fs.readFileSync(path.join(ROOT, "src/webserver/application/styles.ts"), "utf8");
     assert.match(styles, /previewThemeCss\("Light"\)/);
-    assert.match(styles, /\.sp-empty-cell\{border:2px dashed color-mix\(in srgb,var\(--preview-text-muted\)/);
+    assert.match(styles, /\.sp-empty-cell\{--card-outline-color:color-mix\(in srgb,var\(--preview-text-muted\)/);
     const entry = fs.readFileSync(path.join(ROOT, "src/webserver/entry.ts"), "utf8");
     const globals = fs.readFileSync(path.join(ROOT, "src/webserver/runtime/application_globals.d.ts"), "utf8");
     assert.doesNotMatch(entry, /UiTokens/);

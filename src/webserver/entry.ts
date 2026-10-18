@@ -118,6 +118,7 @@ import { registerLockCardTypes } from "./cards/lock";
 import { registerMediaCardTypes } from "./cards/media";
 import { registerPresenceCardTypes } from "./cards/presence";
 import { registerPushCardTypes } from "./cards/push";
+import { registerScreensaverCardTypes } from "./cards/screensaver";
 import { registerScreenLockCardTypes } from "./cards/screen_lock";
 import { registerSensorCardTypes } from "./cards/sensor";
 import { registerSliderCardTypes } from "./cards/slider";
@@ -192,10 +193,11 @@ function registerCards(context: ApplicationContext) {
   registerLawnMowerCardTypes(registry, context.configuration.robotOptions, fields, cardUi);
   const lightCards = registerLightTemperatureCardTypes(registry, context.configuration.modalTabs, fields, cardUi);
   registerLockCardTypes(registry, context.configuration.lockOptions, fields, cardUi);
-  registerMediaCardTypes(registry, context.configuration.mediaOptions, context.device.id, fields, context.controllers.settingsUi, cardUi);
+  registerMediaCardTypes(registry, context.configuration.mediaOptions, context.configuration.modalTabs, context.device.id, fields, context.controllers.settingsUi, cardUi);
   registerPresenceCardTypes(registry, context.configuration.options, fields);
   registerPushCardTypes(registry, fields);
-  registerScreenLockCardTypes(registry, fields);
+  registerScreenLockCardTypes(registry, fields, context.dom.document, context.dom.fetch);
+  registerScreensaverCardTypes(registry, fields);
   registerSensorCardTypes(registry, context.configuration.options, fields, cardUi);
   registerSliderCardTypes(registry, context.configuration.modalTabs, lightCards, fields, context.controllers.settingsUi);
   registerSubpageCardTypes(registry, context.configuration.codec, context.core, context.controllers.selection, fields, cardUi);
@@ -640,6 +642,7 @@ function composeApplicationContext(): ApplicationContext {
     emptyButtonConfig: () => interactions.emptyButtonConfig(),
   });
   contextMenu = createPreviewContextMenuFeature({
+    configPersistence: configurationPersistence,
     document: dom.document,
     window: dom.window,
     layout,

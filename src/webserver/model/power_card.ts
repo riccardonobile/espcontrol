@@ -61,11 +61,11 @@ export function powerCardConfigError(card: CardConfig, requireComplete = true): 
   return null;
 }
 
-export function powerStoredConfigError(value: string, isSubpage = false): string | null {
+export function powerStoredConfigError(value: string, isSubpage = false, byteLimit = 255): string | null {
   const card = parseRawButtonConfig(value);
   if (card.type !== "power") return null;
-  if (!isSubpage && utf8ByteLength(value) > 255)
-    return "Power settings exceed the 255-byte main-grid limit. Shorten entity IDs or the label, omit optional SOC, or use a subpage.";
+  if (!isSubpage && utf8ByteLength(value) > byteLimit)
+    return "Power settings exceed this panel's " + byteLimit + "-byte card limit. Shorten entity IDs or the label, omit optional SOC, or use a subpage.";
   return powerCardConfigError(card, false);
 }
 
