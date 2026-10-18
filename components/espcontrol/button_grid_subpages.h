@@ -54,7 +54,7 @@ inline SubpageBtn normalize_subpage_btn(SubpageBtn b) {
   // Shared colours must survive the card-specific option cleanup below.
   const std::string card_colors = card_color_options_normalized(b.options);
   b.options = options_without_card_colors(b.options);
-  const bool normalized_power = normalize_saved_config_power(b, espcontrol::power::normalize_options);
+  normalize_saved_config_power(b, espcontrol::power::normalize_options);
   if (brightness_slider_type(b.type) && !b.sensor.empty()) b.sensor.clear();
   if (fan_card_type(b.type)) {
     b.sensor.clear();
@@ -221,13 +221,13 @@ inline SubpageBtn normalize_subpage_btn(SubpageBtn b) {
   ParsedCfg p;
   p.type = b.type;
   p.precision = b.precision;
-  if (!normalized_power && !b.type.empty() && b.type != "action" && b.type != "alarm" &&
+  if (!b.type.empty() && b.type != "action" && b.type != "alarm" &&
       b.type != "alarm_action" &&
       !climate_card_type(b.type) && b.type != "cover" && b.type != "garage" && b.type != "gate" &&
       b.type != "webhook" && b.type != "wifi_qr" && b.type != "wifi_qr_card" &&
       b.type != "sensor" && b.type != "door_window" && b.type != "presence" &&
       b.type != "subpage" && b.type != "light_control" && b.type != "media" &&
-      b.type != "image" &&
+      b.type != "image" && b.type != "power" &&
       !fan_card_type(b.type) && !card_large_numbers_supported(p)) {
     b.options.clear();
   }
