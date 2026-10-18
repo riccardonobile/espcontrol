@@ -3,7 +3,8 @@
 Status: Phases 1 and 2 complete; Phase 3 web configurator/preview implemented.
 Phase 4A includes representative compiles and separate actual-device factory/OTA
 builds; see the corrected physical-device record below.
-Physical validation and Phase 4B upstream reconciliation remain pending.
+Phase 4B upstream reconciliation, UI refinements and automated/build checks are
+complete. Physical validation of the new integrated firmware remains pending.
 Baseline: `a406208906f900058da4c063d1e0c3eeeff9af6a` (merged upstream Theme
 Support, verified 2026-10-08). Work branch: `feature/energy-dashboard`; retain
 the existing document path and fork-only Draft PR #10 without renaming them.
@@ -1136,3 +1137,59 @@ compiles actual production font-role and GridConfig definitions, reproducing the
 duplicate failure before correction. Parser doubles include the native max-width
 API, and browser resize checks use upstream handles rather than the retired menu.
 Added explicit main/subpage custom-color round trips: 293 browser/firmware inputs.
+
+
+### Phase 4B validation and physical-test delivery
+
+Production source is frozen at `193c89b5f5aa22c477de16181c617eff56a7324b`;
+only this validation record follows it. Upstream base remains
+`7c92df26cc8b95cd89780b366ae812bb8af169de`. Integration uses a merge,
+preserving the previous feature head and all 93 upstream commits. No force push,
+main/history rewrite, upstream PR or device flashing was performed.
+
+A clean locked-dependency `npm run prepare:ci` passed at that source: 49 CI
+tasks, 131 host tests, 181 web unit tests, 113 web smoke checks, 293
+firmware/browser serialization cases, generated checks, docs and mocked installer.
+Focused Power native/layout/contrast/theme/HUD tests passed. The Power browser
+journey passed all nine layouts; native/legacy quick colors, active colors,
+subpage Back, inline card naming and camera dimming journeys also passed.
+
+The full original browser suite still fails the weather height-anchor assertion.
+An isolated pristine upstream web tree reproduces the identical geometry; extra
+layout frames do not change either result. No unrelated weather production code
+or assertion was changed, weakened or suppressed. This remains a reported
+upstream browser-validation limitation, separate from the passing Power tests.
+
+All factory entry points below passed configuration and sequential fresh-source
+compiles with pinned ESPHome 2026.9.1, ESP-IDF v5.5.5 and GCC 14.2.0.
+
+| Target | App/OTA bytes | OTA slot bytes | Free | Purpose |
+| --- | ---: | ---: | ---: | --- |
+| `guition-esp32-s3-4848s040` | 5,073,504 | 7,274,496 | 30.26% | representative compilation only |
+| `esp32-p4-86` | 6,999,552 | 15,663,104 | 55.31% | actual device physical retest |
+| `guition-esp32-p4-jc8012p4a1-v2` | 5,826,528 | 7,274,496 | 19.9% | actual device physical retest |
+| `guition-esp32-p4-jc1060p470` | 5,494,176 | 7,274,496 | 24.47% | representative compilation only |
+| `guition-esp32-p4-jc4880p443` | 5,456,832 | 7,274,496 | 24.99% | representative compilation only |
+
+Actual-device artifacts are under
+`build/power-dashboard-phase4b/193c89b5f/<device-slug>/`.
+The adjacent `power-dashboard-phase4b-pr10-193c89b5f.zip` includes both actual
+devices, OTA/factory images, manifests, SHA-256 sums, all build/configuration
+logs, the compile matrix, validation evidence and a focused hardware checklist.
+No binaries are tracked. Existing physical-test images are superseded.
+
+OTA/app equality, factory application and partition content, authored partition
+parity, compiled source/web hashes, offline esptool checksum/hash and independent
+Windows SHA-256 were verified. Actual-device warning lines introduce none beyond
+the preceding hardware builds; full warnings and bootloader/application headroom
+are recorded in the local manifests. Working-tree and Power-delta whitespace
+checks against the new upstream baseline passed; existing upstream vendor EOF
+whitespace is not rewritten.
+
+Retest P4-86 and confirmed non-v3-silicon JC8012P4A1 V2 before merging: native
+adjacent W including five digits, two-column/main/subpage layouts, full-panel
+centering and Solar/Battery SOC visibility, static elbows/arrowheads and exact
+reversed Grid/Battery paths, current colors/pressed contrast, open-modal theme
+changes, chevrons, HUD restoration, reconnect and backup/restore. Integer
+software rendering still requires hardware inspection. Draft PR #10 stays open
+and Draft; wait for hardware feedback before further implementation.
