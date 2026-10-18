@@ -120,9 +120,6 @@ inline void theme_apply_grid(void *context, const ThemePalette &theme) {
       }
     }
   }
-  // Power foregrounds use the existing readable-color helper for accents;
-  // run after shared descendant synchronization, with no per-card registry.
-  power_cards_refresh_theme();
   image_card_refresh_theme(theme_grid_correct_color(theme.surface_sensor, targets));
 }
 

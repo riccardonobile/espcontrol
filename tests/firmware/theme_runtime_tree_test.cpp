@@ -171,8 +171,6 @@ std::vector<TestSubpage> &navigation_subpages() {
 void sync_card_checked_text_color(lv_obj_t *button) {
   for (auto *child : button->children) child->text = lv_obj_get_style_text_color(button, LV_PART_MAIN);
 }
-int power_theme_refresh_count = 0;
-void power_cards_refresh_theme() { ++power_theme_refresh_count; }
 inline void set_card_content_disabled(lv_obj_t *, bool);
 void lv_obj_add_state(lv_obj_t *obj, int state) { obj->state |= state; }
 void lv_obj_clear_state(lv_obj_t *obj, int state) { obj->state &= ~state; }
@@ -1211,5 +1209,4 @@ int main() {
   test_pressed_overflow_recovery();
   test_content_collisions();
   test_registry_exhaustion();
-  assert(power_theme_refresh_count > 0); // shared refresh forwards card foreground ownership
 }

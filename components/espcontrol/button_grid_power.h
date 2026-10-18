@@ -35,29 +35,6 @@ inline PowerCardCtx *power_card_for_button(lv_obj_t *button) {
     if (ctx->slot.btn == button) return ctx;
   return nullptr;
 }
-inline void power_card_apply_theme_for_button(lv_obj_t *button) {
-  auto *ctx = power_card_for_button(button);
-  if (!ctx) return;
-  const bool active = lv_obj_has_state(button, LV_STATE_CHECKED) ||
-                      lv_obj_has_state(button, LV_STATE_PRESSED);
-  const bool custom = lv_obj_has_flag(button, LV_OBJ_FLAG_USER_1) &&
-                      !lv_obj_has_flag(button, LV_OBJ_FLAG_USER_3);
-  if (!custom) {
-    // A pressed accent can hide the default fill from tree restyling. Keep
-    // Power's explicit neutral role current without changing state selectors.
-    lv_obj_set_style_bg_color(button,
-      lv_color_hex(display_correct_color(current_theme().surface_card, ctx->display)), LV_PART_MAIN);
-  }
-  const auto rgb = lv_color_to_32(lv_obj_get_style_bg_color(button, LV_PART_MAIN), LV_OPA_COVER);
-  const uint32_t background = (uint32_t(rgb.red) << 16) | (uint32_t(rgb.green) << 8) | rgb.blue;
-  const uint32_t text = active || custom
-    ? readable_text_color_for_bg(background)
-    : current_theme().text_primary;
-  for (auto *label : {ctx->slot.sensor_lbl, ctx->slot.unit_lbl, ctx->slot.text_lbl,
-                     ctx->slot.secondary_lbl, ctx->slot.subpage_lbl}) {
-    if (label) lv_obj_set_style_text_color(label, lv_color_hex(text), LV_PART_MAIN);
-  }
-}
 inline void power_card_update(PowerCardCtx *ctx) {
   if (!ctx) return;
   const auto &home = ctx->data.model.calculation.nodes[1];
@@ -67,7 +44,7 @@ inline void power_card_update(PowerCardCtx *ctx) {
   if (changed) {
     layout_button_label_with_secondary(ctx->slot, true, true);
   }
-  power_card_apply_theme_for_button(ctx->slot.btn);
+  sync_card_checked_text_color(ctx->slot.btn);
   power_flow_update(ctx);
   if (changed) notify_dashboard_content_changed();
 }
@@ -76,10 +53,6 @@ inline void power_cards_disconnected() {
     ctx->data.disconnect();
     power_card_update(ctx);
   }
-}
-inline void power_cards_refresh_theme() {
-  for (auto *ctx = power_card_contexts(); ctx; ctx = ctx->next)
-    power_card_apply_theme_for_button(ctx->slot.btn);
 }
 
 // A single temporary view borrows the live card model, never its subscriptions.

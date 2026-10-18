@@ -57,8 +57,6 @@ inline void power_driver_event(lv_event_t *event) {
   if (lv_event_get_code(event) == LV_EVENT_CLICKED) {
     auto *ctx = power_card_for_button(button);
     if (ctx && !ctx->slot.config) power_flow_open(ctx);
-  } else {
-    power_card_apply_theme_for_button(button);
   }
 }
 inline bool power_driver_bind_data(BtnSlot &slot, const ParsedCfg &config,
@@ -77,8 +75,8 @@ inline bool power_driver_bind_data(BtnSlot &slot, const ParsedCfg &config,
   else grid_track_runtime_allocation(slot.btn, ctx);
   ha_retained_state_invalidated_handler() = power_cards_disconnected;
   lv_obj_remove_event_cb(slot.btn, power_driver_event);
-  for (auto event : {LV_EVENT_PRESSED, LV_EVENT_RELEASED, LV_EVENT_PRESS_LOST, LV_EVENT_CLICKED})
-    lv_obj_add_event_cb(slot.btn, power_driver_event, event, nullptr);
+  // Shared apply_button_colors owns contrast/pressed events; Power only navigates.
+  lv_obj_add_event_cb(slot.btn, power_driver_event, LV_EVENT_CLICKED, nullptr);
   // Model order is Solar, Home, Grid, Battery; SOC is a fifth independent input.
   const std::string entities[5] = {bindings.solar_entity, bindings.home_entity,
     bindings.grid_entity, bindings.battery_entity, bindings.battery_soc_entity};

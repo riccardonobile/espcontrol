@@ -486,11 +486,14 @@ inline void layout_button_label_with_secondary(
       std::min(existing_max, std::max<lv_coord_t>(1, available)), LV_PART_MAIN);
     lv_obj_set_height(s.text_lbl, LV_SIZE_CONTENT);
     if (available < line * 2) lv_label_set_long_mode(s.text_lbl, LV_LABEL_LONG_DOT);
-    lv_obj_set_width(s.sensor_container, width);
+    // Content sizing keeps the unit adjacent to the number, as on native
+    // Sensor cards. A fixed-width value label would push the unit to the edge.
+    lv_obj_set_width(s.sensor_container, LV_SIZE_CONTENT);
     lv_obj_update_layout(s.unit_lbl);
-    lv_obj_set_width(s.sensor_lbl,
+    lv_obj_set_width(s.sensor_lbl, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_width(s.sensor_lbl,
       std::max<lv_coord_t>(1, width - lv_obj_get_width(s.unit_lbl) -
-        lv_obj_get_style_pad_column(s.sensor_container, LV_PART_MAIN)));
+        lv_obj_get_style_pad_column(s.sensor_container, LV_PART_MAIN)), LV_PART_MAIN);
     lv_label_set_long_mode(s.sensor_lbl, LV_LABEL_LONG_DOT);
   }
   if (navigation && s.subpage_lbl) {
