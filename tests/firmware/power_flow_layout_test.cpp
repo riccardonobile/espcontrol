@@ -6,6 +6,18 @@
 using namespace espcontrol::power;
 bool same(Point a, Point b) { return std::abs(a.x-b.x)<1e-8 && std::abs(a.y-b.y)<1e-8; }
 int main() {
+  static_assert(FLOW_POINT_COUNT==19);
+  static_assert(sizeof(FlowGeometry)<=3072);
+  assert(flow_coordinate<int32_t>(1.49)==1&&flow_coordinate<int32_t>(1.51)==2);
+  assert(flow_coordinate<float>(1.25)==1.25f);
+  for(auto size:{std::array<int,2>{304,430},{464,430},{704,670},{1264,750}}){
+    for(int back_bottom:{40,60,80}){
+      const auto v=flow_viewport(size[0],size[1],8,back_bottom);
+      assert(v.x+v.width/2.0==size[0]/2.0);
+      assert(v.y+v.height/2.0==size[1]/2.0);
+      assert(v.y>=back_bottom&&v.y+v.height<=size[1]-back_bottom);
+    }
+  }
   for (auto family : {FlowFamily::LANDSCAPE, FlowFamily::SQUARE, FlowFamily::PORTRAIT}) {
     for (auto size : {std::array<int,2>{264,300}, {430,260}, {440,430}, {740,380}, {680,1040}}) {
       const auto g = flow_geometry(size[0], size[1], family);
@@ -32,6 +44,18 @@ int main() {
       assert(std::abs((g.nodes[0].y+g.nodes[3].y)/2-size[1]/2.0)<1e-8);
       assert(std::abs((g.nodes[1].x+g.nodes[2].x)/2-size[0]/2.0)<1e-8);
     }
+  }
+  // Each quadratic chord stays below 0.06 px midpoint deviation at radius 40.
+  // Directional rounding is separately bounded to half a pixel per coordinate.
+  const auto smooth=flow_geometry(1200,650,FlowFamily::LANDSCAPE,220,140);
+  const auto &curve=smooth.paths[0];
+  const Point control{curve.front().x,curve.back().y};
+  const Point a=curve[1],b=curve[FLOW_POINT_COUNT-2];
+  for(size_t i=1;i<FLOW_POINT_COUNT-2;++i){
+    const double t=(double(i-1)+.5)/FLOW_CURVE_SEGMENTS,u=1-t;
+    const Point exact{u*u*a.x+2*u*t*control.x+t*t*b.x,u*u*a.y+2*u*t*control.y+t*t*b.y};
+    const Point midpoint{(curve[i].x+curve[i+1].x)/2,(curve[i].y+curve[i+1].y)/2};
+    assert(std::hypot(exact.x-midpoint.x,exact.y-midpoint.y)<.06);
   }
   // Outward placement uses all actual content bounds, retaining the topology.
   const auto g=flow_geometry(520,430,FlowFamily::SQUARE);

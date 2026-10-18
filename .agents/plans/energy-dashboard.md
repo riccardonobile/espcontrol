@@ -1096,3 +1096,34 @@ forecast, media, unavailable sensor, display timing, web upload and connection
 fixes are preserved. Windows CRLF import affected the captive-portal hash check;
 normalizing the local HTML line endings and regenerating its existing headers
 restored parity without changing provisioning behavior or weakening the test.
+
+
+### Phase 4B measurement and geometry refinements
+
+- Native measurement grouping: the previous Power-only reservation stretched
+  the value label, detaching W. Keep value and container at `LV_SIZE_CONTENT`,
+  limit the value's maximum width, and retain the shared sensor constructor,
+  fonts, zero column padding, bottom alignment and existing unit padding.
+  Host tests compile the actual constructor and upstream contrast functions;
+  browser cases cover adjacent units/baselines at 9/923/1042/3500/35000 W.
+- Reuse upstream `apply_button_colors`, contrast events and descendant sync.
+  Remove Power's extra foreground-refresh callback/algorithm; Power registers
+  only its navigation click. The theme runtime UI is now identical to upstream.
+- Center reference is the actual measured LVGL panel content bounds after the
+  native shell applies its HUD/screen-safe layout. Previously only the top Back
+  row reduced the diagram, shifting its center by half that asymmetric inset.
+  Keep one full-panel center and reserve measured Back/status clearance equally
+  at top and bottom. This distinguishes the visual reference from drawable bounds;
+  changing Back size cannot move the center. The shared modal shell is unchanged.
+- Elbows retain v0.32 quadratic geometry with 16 bounded segments instead of 8,
+  plus straight endpoints (19 points/path). Integer LVGL coordinates round to
+  nearest pixel instead of truncating; supported float builds retain subpixels.
+  The live path array grows by 448 bytes, geometry temporary by 896 bytes; no
+  timers, LVGL objects, per-frame allocations or new rendering dependencies.
+  Midpoint chord error at the maximum 40px radius is below 0.06px. Pixel-grid
+  quantization and software rasterizer limitations still need physical review;
+  this is not a claim of perfect antialiasing.
+- Tests cover full-panel centering with multiple Back sizes, symmetric nodes,
+  bounds on square/landscape/portrait profiles, bounded storage, fixed endpoints,
+  exact reversible Grid/Battery buffers including integer rounding, HUD restore,
+  themes/custom colors, subscriptions and repeated close/rebuild lifecycles.

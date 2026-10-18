@@ -6733,6 +6733,18 @@ async function assertPowerDashboard(browser, testCase) {
       });
       assert(!bounds.overlap && !bounds.rightOverlap, `${testCase.name}: Power label/value/chevron bounds ${JSON.stringify(bounds)}`);
     }
+    // Measurement grouping uses the native preview baseline and gap, even at five digits.
+    for(const watts of ["9", "923", "1042", "3500", "35000"]){
+      const measurement=await power.evaluate((card,watts)=>{
+        const value=card.querySelector(".sp-sensor-value");value.textContent=watts;
+        const unit=card.querySelector(".sp-sensor-unit");
+        const a=value.getBoundingClientRect(),b=unit.getBoundingClientRect(),r=card.getBoundingClientRect();
+        return {gap:b.left-a.right,right:b.right,cardRight:r.right,align:getComputedStyle(value.parentElement).alignItems,unit:unit.textContent};
+      },watts);
+      assert(measurement.gap>=-.5&&measurement.gap<=16, `${testCase.name}: adjacent W unit at ${watts} ${JSON.stringify(measurement)}`);
+      assert(measurement.right<=measurement.cardRight+1, `${testCase.name}: five-digit watts remain in card`);
+      assert.equal(measurement.align,"baseline");assert.equal(measurement.unit,"W");
+    }
     // Real generated layout with long titles/statuses and four-digit watts.
     const originalText = await power.evaluate(card => ({ title: card.querySelector(".sp-power-labels > .sp-btn-label").textContent,
       value: card.querySelector(".sp-sensor-value").textContent, secondary: card.querySelector(".sp-power-secondary").textContent }));

@@ -108,9 +108,11 @@ inline void power_flow_layout() {
   control_modal_apply_panel_layout(ui.shell.overlay, ui.shell.panel, layout,
                                    control_modal_card_radius(ui.card->slot.btn));
   control_modal_style_chrome_button(ui.shell.close_btn, layout, false);
-  const int top = layout.back_inset_y + layout.back_size + layout.title_gap;
-  const int width = std::max<int>(1, layout.panel_w - layout.inset * 2);
-  const int height = std::max<int>(1, layout.panel_h - top - layout.inset);
+  lv_obj_update_layout(ui.shell.panel);
+  const auto viewport = espcontrol::power::flow_viewport(
+    lv_obj_get_content_width(ui.shell.panel), lv_obj_get_content_height(ui.shell.panel),
+    layout.inset, lv_obj_get_y(ui.shell.close_btn) + lv_obj_get_height(ui.shell.close_btn) + layout.title_gap);
+  const int width = viewport.width, height = viewport.height;
   const auto *body = display_volume_label_font(ui.card->display,
     lv_obj_get_style_text_font(ui.card->slot.text_lbl, LV_PART_MAIN));
   const auto *compact = display_small_text_font(ui.card->display, body);
@@ -138,7 +140,7 @@ inline void power_flow_layout() {
   const auto geometry = espcontrol::power::flow_geometry(width, height,
     espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h);
   lv_obj_set_size(ui.area, width, height);
-  lv_obj_set_pos(ui.area, layout.inset, top);
+  lv_obj_set_pos(ui.area, viewport.x, viewport.y);
   // Only exceptional/idle state uses the existing back-control row. No footer.
   lv_obj_set_size(ui.status, std::max<int>(1, width - layout.back_size - layout.title_gap), text_h);
   lv_obj_set_pos(ui.status, layout.inset + layout.back_size + layout.title_gap, layout.back_inset_y);
@@ -146,11 +148,11 @@ inline void power_flow_layout() {
   lv_obj_set_style_text_color(ui.status, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
   for (size_t i = 0; i < 7; ++i) {
     for (size_t j = 0; j < espcontrol::power::FLOW_POINT_COUNT; ++j)
-      ui.points[i][j] = {static_cast<lv_value_precise_t>(geometry.paths[i][j].x),
-                         static_cast<lv_value_precise_t>(geometry.paths[i][j].y)};
+      ui.points[i][j] = {espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.paths[i][j].x),
+                         espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.paths[i][j].y)};
     for (size_t j = 0; j < 3; ++j)
-      ui.heads[i][j] = {static_cast<lv_value_precise_t>(geometry.heads[i][j].x),
-                        static_cast<lv_value_precise_t>(geometry.heads[i][j].y)};
+      ui.heads[i][j] = {espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.heads[i][j].x),
+                        espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.heads[i][j].y)};
     lv_line_set_points(ui.lines[i], ui.points[i], espcontrol::power::FLOW_POINT_COUNT);
     lv_line_set_points(ui.arrows[i], ui.heads[i], 3);
     const int stroke = std::max<int>(1, std::lround(3.2 * geometry.scale));

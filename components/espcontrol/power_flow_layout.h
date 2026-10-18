@@ -4,13 +4,33 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <type_traits>
 
 namespace espcontrol::power {
 
 // v0.32 topology with outward placement in actual content bounds; no data/LVGL.
 enum class FlowFamily { LANDSCAPE, SQUARE, PORTRAIT };
 struct Point { double x = 0, y = 0; };
-constexpr size_t FLOW_POINT_COUNT = 11;
+// Sixteen quadratic elbow segments plus two straight endpoints. Fixed buffers:
+// +448 bytes in the live LVGL path array versus the original eight segments.
+constexpr size_t FLOW_CURVE_SEGMENTS = 16;
+constexpr size_t FLOW_POINT_COUNT = FLOW_CURVE_SEGMENTS + 3;
+struct FlowViewport { int x, y, width, height; };
+inline FlowViewport flow_viewport(int panel_width, int panel_height, int inset,
+                                  int navigation_bottom) {
+  // The full measured panel is the visual reference. Reserve navigation space
+  // symmetrically, so Back/status chrome never shifts its geometric center.
+  const int x = std::min(std::max(0, inset), std::max(0, (panel_width - 1) / 2));
+  const int y = std::min(std::max(inset, navigation_bottom),
+                         std::max(0, (panel_height - 1) / 2));
+  return {x, y, std::max(1, panel_width - x * 2), std::max(1, panel_height - y * 2)};
+}
+template<typename Coordinate> inline Coordinate flow_coordinate(double value) {
+  // The pinned renderer uses integer coordinates. Avoid directional truncation
+  // bias; preserve subpixels if a future supported LVGL build enables floats.
+  if constexpr (std::is_integral_v<Coordinate>) return static_cast<Coordinate>(std::lround(value));
+  else return static_cast<Coordinate>(value);
+}
 using FlowPath = std::array<Point, FLOW_POINT_COUNT>;
 struct FlowGeometry {
   std::array<Point, 4> nodes{}; // Solar, Home, Grid, Battery (model order)

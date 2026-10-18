@@ -11,8 +11,8 @@
 #include "control_modal_service.h"
 #include "display_color.h"
 
-using lv_coord_t=int; using lv_value_precise_t=float;
-struct lv_point_precise_t { float x,y; };
+using lv_coord_t=int; using lv_value_precise_t=int32_t;
+struct lv_point_precise_t { lv_value_precise_t x,y; };
 // Exercise ESP-IDF targets where LVGL int32_t metrics differ from host int.
 struct lv_font_t { long line_height=16; };
 constexpr int LV_PART_MAIN=0, LV_SIZE_CONTENT=-1;
@@ -111,6 +111,7 @@ int lv_obj_get_width(lv_obj_t *o){
   return std::min(width,o->max_w);
 }
 int lv_obj_get_height(lv_obj_t *o){return o->h;}
+int lv_obj_get_y(lv_obj_t *o){return o->y;}
 lv_obj_t *lv_obj_get_parent(lv_obj_t *o){return o->parent;}
 int lv_obj_get_content_width(lv_obj_t *o){return o->w;}
 int lv_obj_get_content_height(lv_obj_t *o){return o->h;}
@@ -182,8 +183,8 @@ ControlModalShell control_modal_open_shell(ControlModalKind,lv_obj_t*,int,const 
 }
 ControlModalLayout control_modal_calc_layout(int){return frame;}
 int control_modal_card_radius(lv_obj_t*){return 8;}
-void control_modal_apply_panel_layout(lv_obj_t*,lv_obj_t*,const ControlModalLayout&,int){}
-void control_modal_style_chrome_button(lv_obj_t*,const ControlModalLayout&,bool){}
+void control_modal_apply_panel_layout(lv_obj_t*,lv_obj_t *panel,const ControlModalLayout &layout,int){panel->w=layout.panel_w;panel->h=layout.panel_h;}
+void control_modal_style_chrome_button(lv_obj_t *back,const ControlModalLayout &layout,bool){back->w=back->h=layout.back_size;back->y=layout.back_inset_y;}
 void control_modal_center_tab_icon(lv_obj_t*){}
 
 // @production_helpers
@@ -306,6 +307,21 @@ int main(){
     assert(ui.values[3]->text=="500 W"); // direction stays in Charging, model remains -500
     assert(ui.details[3]->text=="Charging");
     for(auto *node:ui.nodes){assert(node->x>=0&&node->y>=0);assert(node->x+node->w<=ui.area->w+1);assert(node->y+node->h<=ui.area->h+1);}
+    // Full-panel center remains authoritative with both small and large Back.
+    const auto centered=[&](){
+      auto *a=ui.area;
+      const double cx=a->x+a->w/2.0, cy=a->y+a->h/2.0;
+      assert(cx==frame.panel_w/2.0&&cy==frame.panel_h/2.0);
+      assert(std::abs((ui.nodes[0]->y+ui.nodes[0]->h/2.0+ui.nodes[3]->y+ui.nodes[3]->h/2.0)/2-a->h/2.0)<=.5);
+      assert(std::abs((ui.nodes[1]->x+ui.nodes[1]->w/2.0+ui.nodes[2]->x+ui.nodes[2]->w/2.0)/2-a->w/2.0)<=.5);
+    };
+    centered();frame.back_size=54;power_flow_layout();centered();
+    frame.back_size=36;power_flow_layout();centered();
+    for(size_t j=0;j<espcontrol::power::FLOW_POINT_COUNT;j++){
+      const auto p=ui.points[4][j],r=ui.points[6][espcontrol::power::FLOW_POINT_COUNT-1-j];
+      assert(p.x==r.x&&p.y==r.y); // including actual integer renderer quantization
+    }
+    assert(sizeof(PowerFlowUi)<=2048); // fixed storage, no extra LVGL objects
     auto *area=ui.area;const int count=objects;const auto point=ui.points[0][0];
     assert(count<=57); // 9 permanent card objects + 47 bounded view objects
     publish("sensor.s","unknown");assert(ui.lines[0]->flags&LV_OBJ_FLAG_HIDDEN);assert(ui.values[1]->text=="1000 W");
