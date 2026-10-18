@@ -65,7 +65,6 @@ struct GridConfig {
   int image_card_image_count = 0;
   bool image_card_diagnostics = false;
   std::function<std::string()> home_assistant_base_url;
-  const lv_font_t *small_text_font = nullptr;
 };
 
 #include "button_grid_image.h"
@@ -113,7 +112,6 @@ inline DisplayProfile display_profile_from_grid_config(const GridConfig &cfg) {
   profile.fonts.climate_option_title = cfg.climate_option_title_font;
   profile.fonts.climate_option_value = cfg.climate_option_value_font;
   profile.fonts.volume_icon = cfg.volume_icon_font;
-  profile.fonts.small_text = cfg.small_text_font;
   profile.width.vertical_axis = cfg.width_compensation_vertical;
   profile.width.main_percent = cfg.width_compensation_percent;
   profile.width.text_percent = cfg.text_width_compensation_percent;

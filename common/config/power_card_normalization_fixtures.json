@@ -119,5 +119,20 @@
       "options": "solar_entity=sensor.solar_power,grid_entity=sensor.grid_power,invert_grid"
     },
     "canonical": "~sensor.home_power,House%3BPower,Auto,Auto,,,power,,solar_entity=sensor.solar_power%2Cgrid_entity=sensor.grid_power%2Cinvert_grid"
+  },
+  {
+    "name": "shared custom background and active colors survive Power normalization",
+    "input": "sensor.home_power;Power Dashboard;Auto;Auto;;;power;;solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,card_off_color=#FFFFFF,card_active_color=custom,card_on_color=#112233",
+    "expected": {
+      "entity": "sensor.home_power",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": "solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,card_off_color=FFFFFF,card_active_color=custom,card_on_color=112233"
+    }
   }
 ]

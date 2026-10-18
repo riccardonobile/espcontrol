@@ -34,5 +34,10 @@ sensor = function('create_card_sensor_container', (headers / 'button_grid_subpag
 theme_source = (headers / 'theme_runtime_ui.h').read_text(encoding='utf-8')
 theme_helpers = '\n'.join(function(name, theme_source) for name in ('theme_grid_state_text_color', 'theme_apply_grid_button'))
 
+display_source = (headers / 'button_grid_display.h').read_text(encoding='utf-8')
+grid_source = (headers / 'button_grid_grid.h').read_text(encoding='utf-8')
+font_roles = re.search(r'struct DisplayFontRoles \{[\s\S]*?^\};', display_source, re.M)[0]
+grid_config = re.search(r'struct GridConfig \{[\s\S]*?^\};', grid_source, re.M)[0]
+small_font = function('display_small_text_font', display_source)
 template = Path(__file__).with_name('power_ui_test.cpp.in').read_text(encoding='utf-8')
-args.output.write_text(template.replace('// @production_helpers', 'inline void bind_card_text_contrast_events(lv_obj_t *);\n' + formatter + contrast + layout + sensor + theme_helpers).replace('// @navigation_helpers', 'namespace espcontrol::cards {\n' + nav_helpers + '\n}'), encoding='utf-8')
+args.output.write_text(template.replace('// @display_font_roles', font_roles).replace('// @grid_config', grid_config).replace('// @small_text_helper', small_font).replace('// @production_helpers', 'inline void bind_card_text_contrast_events(lv_obj_t *);\n' + formatter + contrast + layout + sensor + theme_helpers).replace('// @navigation_helpers', 'namespace espcontrol::cards {\n' + nav_helpers + '\n}'), encoding='utf-8')

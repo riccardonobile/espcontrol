@@ -1077,7 +1077,7 @@ Remote recovery tag `archive/energy-dashboard-pre-phase4b-20261018` preserves
 | Web persistence/backup | Keep upstream native APIs, reset/session/PIN behavior and advertised byte capacity; layer Power placement/entity checks. |
 | Resize handles | Reuse upstream handles; filter unsupported Power targets and retain commit-time neighbor/width checks. |
 | Editor/preview CSS | Keep upstream foreground variables, color controls, naming and scaling, plus narrow Power content/layout extension. |
-| Fonts/device generation | Use upstream conditional small-text role instead of assuming a font exists on every profile. |
+| Fonts/device generation | Reuse upstream small-text fields/helper and conditional catalog assignment; remove duplicate Power definitions. |
 | Translations/contract/runtime inventory | Retain both upstream additions and Power definitions; regenerate with existing tools. |
 | Native/browser tests | Keep upstream P4, weather, upload, speaker, PIN and lifecycle coverage together with Power cases. |
 | Generated output | Rebuild contracts, i18n, device profiles, runtime fixtures, web assets and snapshot; do not copy stale feature output. |
@@ -1127,3 +1127,12 @@ restored parity without changing provisioning behavior or weakening the test.
   bounds on square/landscape/portrait profiles, bounded storage, fixed endpoints,
   exact reversible Grid/Battery buffers including integer rounding, HUD restore,
   themes/custom colors, subscriptions and repeated close/rebuild lifecycles.
+
+
+The representative S3 compile exposed a silent merge duplication of upstream's
+new small-text role. Removed Power's duplicate fields/helper/assignment; the
+display-profile header is now byte-identical to upstream. The UI host test now
+compiles actual production font-role and GridConfig definitions, reproducing the
+duplicate failure before correction. Parser doubles include the native max-width
+API, and browser resize checks use upstream handles rather than the retired menu.
+Added explicit main/subpage custom-color round trips: 293 browser/firmware inputs.

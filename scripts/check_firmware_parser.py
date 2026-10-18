@@ -177,6 +177,7 @@ inline const lv_font_t *lv_obj_get_style_text_font(lv_obj_t *, lv_style_selector
 inline void lv_obj_set_style_text_font(lv_obj_t *, const lv_font_t *, lv_style_selector_t) {}
 inline int lv_obj_get_style_max_height(lv_obj_t *, lv_style_selector_t) { return 32767; }
 inline void lv_obj_set_style_max_height(lv_obj_t *, int, lv_style_selector_t) {}
+inline void lv_obj_set_style_max_width(lv_obj_t *, int, lv_style_selector_t) {}
 inline void lv_obj_set_style_opa(lv_obj_t *, int, int) {}
 inline void lv_obj_set_style_text_opa(lv_obj_t *, int, int) {}
 inline void lv_obj_add_state(lv_obj_t *, int) {}

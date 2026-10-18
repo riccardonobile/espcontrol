@@ -6765,11 +6765,18 @@ async function assertPowerDashboard(browser, testCase) {
       card.querySelector(".sp-sensor-value").textContent=original.value;
       card.querySelector(".sp-power-secondary").textContent=original.secondary;
     }, originalText);
-    await power.click({button:"right"});
-    await page.locator(".sp-ctx-sub").filter({hasText:"Size"}).hover();
-    assert.equal(await page.getByText("Single (1x1)", {exact:true}).count(),0);
-    assert.equal(await page.getByText("Tall (2x1)", {exact:true}).count(),0);
-    await page.mouse.click(0,0);
+    // Upstream uses native drag-resize handles, not the retired Size submenu.
+    await power.hover();
+    const handle=await power.locator(".sp-resize-handle").boundingBox();
+    const cardBounds=await power.boundingBox();
+    assert(handle&&cardBounds, `${testCase.name}: native Power resize handle`);
+    await page.mouse.move(handle.x+handle.width/2,handle.y+handle.height/2);
+    await page.mouse.down();
+    await page.mouse.move(handle.x+handle.width/2-cardBounds.width*.55,handle.y+handle.height/2,{steps:6});
+    await page.mouse.up();
+    await page.waitForFunction(()=>!document.querySelector(".sp-resizing"));
+    assert(await power.evaluate(card=>card.classList.contains("sp-btn-wide")), `${testCase.name}: native resize cannot shrink Power below two columns`);
+    await page.mouse.move(0,0);
     const saved = posts.find(post => post.domain === "text" && post.value?.includes("solar_entity=sensor.solar"));
     assert(saved?.value.includes("invert_grid,invert_battery"), "Power UI persists both inversion flags");
     assert(saved?.value.includes("battery_soc_entity=sensor.soc"), "Power UI persists optional SOC");

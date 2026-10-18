@@ -25,7 +25,6 @@ struct DisplayFontRoles {
   const lv_font_t *climate_option_title = nullptr;
   const lv_font_t *climate_option_value = nullptr;
   const lv_font_t *volume_icon = nullptr;
-  const lv_font_t *small_text = nullptr;
 };
 
 struct DisplayWidthTokens {
@@ -232,11 +231,6 @@ inline const lv_font_t *display_volume_number_font(const DisplayProfile &profile
 inline const lv_font_t *display_volume_label_font(
     const DisplayProfile &profile, const lv_font_t *fallback = nullptr) {
   return profile.fonts.volume_label ? profile.fonts.volume_label : fallback;
-}
-
-inline const lv_font_t *display_small_text_font(
-    const DisplayProfile &profile, const lv_font_t *fallback = nullptr) {
-  return profile.fonts.small_text ? profile.fonts.small_text : fallback;
 }
 
 inline const lv_font_t *display_climate_card_icon_font(const DisplayProfile &profile) {

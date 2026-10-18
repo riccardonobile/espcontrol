@@ -10,6 +10,7 @@
 #include "power_flow_model.h"
 #include "control_modal_service.h"
 #include "display_color.h"
+#include "button_grid_modal_layout.h"
 
 using lv_coord_t=int; using lv_value_precise_t=int32_t;
 struct lv_point_precise_t { lv_value_precise_t x,y; };
@@ -162,12 +163,13 @@ void set_card_content_disabled(lv_obj_t*,bool){}
 
 struct BtnSlot {void *config=nullptr;lv_obj_t *btn=nullptr,*icon_lbl=nullptr,*text_lbl=nullptr,
   *sensor_container=nullptr,*sensor_lbl=nullptr,*unit_lbl=nullptr,*subpage_lbl=nullptr,*secondary_lbl=nullptr;};
-struct DisplayProfile{};
+// @display_font_roles
+struct DisplayProfile{DisplayFontRoles fonts;};
 uint32_t display_correct_color(uint32_t c,const DisplayProfile&){return c;}
 int display_main_width_percent(const DisplayProfile&){return 100;}
 const lv_font_t *display_icon_font(const DisplayProfile&){return &icon_font;}
 const lv_font_t *display_volume_label_font(const DisplayProfile&,const lv_font_t *f){return f;}
-const lv_font_t *display_small_text_font(const DisplayProfile&,const lv_font_t*){return &small_font;}
+// @small_text_helper
 struct ControlModalLayout {long sw=480,sh=480,panel_w=472,panel_h=430,inset=8,back_inset_y=4,back_size=36,title_gap=4;};
 struct ControlModalShell {lv_obj_t *overlay=nullptr,*panel=nullptr,*close_btn=nullptr;};
 ControlModalLayout frame;
@@ -212,7 +214,10 @@ template<class T>T *grid_delete_with_owner(lv_obj_t *o,T *p){lv_obj_add_event_cb
 std::vector<PowerCardCtx*> main_allocations;
 template<class T>T *grid_track_runtime_allocation(lv_obj_t*,T *p){main_allocations.push_back(p);return p;}
 struct CardPalette{};
-struct GridConfig {bool subpage_chevrons_enabled=true;int subpage_chevron_x=4,subpage_chevron_y=-2,subpage_chevron_text_width_percent=94;};
+namespace espcontrol { enum class DisplayTakeoverKind; }
+namespace esphome::artwork_image { class ArtworkImage; }
+using DisplayModalProfile=espcontrol::modal::DeviceProfile;
+// @grid_config
 namespace espcontrol::cards {
 namespace card_runtime {enum class CardDriverId {POWER,SUBPAGE,OTHER};}
 enum class Surface {MAIN_GRID,SUBPAGE};
@@ -236,16 +241,16 @@ void publish(std::string id,std::string value,std::string attribute=""){
 }
 int main(){
   using namespace espcontrol::cards;
-  auto slot=make_slot(true);ParsedCfg cfg;Context context;DisplayProfile profile;
+  auto slot=make_slot(true);ParsedCfg cfg;Context context;DisplayProfile profile;profile.fonts.small_text=&small_font;
   assert(power_driver_setup_visual(slot,cfg,context,{},GridConfig{},2));
   assert(!lv_obj_has_flag(slot.subpage_lbl,LV_OBJ_FLAG_HIDDEN));
-  assert(slot.subpage_lbl->x==4&&slot.subpage_lbl->y==-2);
+  assert(slot.subpage_lbl->x==0&&slot.subpage_lbl->y==2); // upstream profile defaults
   assert(slot.btn->flags&LV_OBJ_FLAG_CLICKABLE);
   assert(!(slot.btn->flags&LV_OBJ_FLAG_CHECKABLE));
   assert(slot.btn->bg==0x313131); // native card, never the sensor surface
   // Execute the actual main-grid subpage-entry driver, not Power's arrow.
   Context navigation;navigation.runtime.driver=card_runtime::CardDriverId::SUBPAGE;
-  GridConfig grid;grid.subpage_chevrons_enabled=false;
+  GridConfig grid{};grid.subpage_chevrons_enabled=false;grid.subpage_chevron_x=4;grid.subpage_chevron_y=-2;
   assert(navigation_driver_refresh_layout(slot,cfg,navigation,grid));
   assert(slot.subpage_lbl->flags&LV_OBJ_FLAG_HIDDEN);
   grid.subpage_chevrons_enabled=true;
