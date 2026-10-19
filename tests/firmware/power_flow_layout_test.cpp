@@ -24,6 +24,7 @@ int main() {
     profile.layout_family=rows==3?LayoutFamily::WIDE_LANDSCAPE:LayoutFamily::LARGE_LANDSCAPE;
     const auto grid=flow_dashboard_grid(profile,5,rows,rows==3?1024:1280,rows==3?600:800);
     assert(grid.large&&grid.diagram.cols==3&&grid.diagram.rows==rows);
+    assert(grid.values[3].cols==2);
     int occupied[4][5]{};
     auto occupy=[&](FlowGridCell cell){for(int y=cell.row;y<cell.row+cell.rows;++y)for(int x=cell.col;x<cell.col+cell.cols;++x){assert(y<rows&&x<5);assert(++occupied[y][x]==1);}};
     occupy(grid.diagram);occupy(grid.back);for(auto cell:grid.values)occupy(cell);
@@ -74,6 +75,15 @@ int main() {
   assert(smooth.arcs[4].radius==smooth.arcs[6].radius);
   assert(smooth.arcs[4].start_angle==smooth.arcs[6].start_angle);
   assert(smooth.arcs[4].end_angle==smooth.arcs[6].end_angle);
+  // Compiled S3 Roboto-18 envelope for a long Dutch SOC/unavailable row:
+  // Battery needs 198 px, while Grid/Home need 142 px. Their own widths preserve
+  // positive tangent runs rather than letting the Battery caption pinch elbows.
+  const auto compact_long=flow_geometry(436,302,FlowFamily::SQUARE,198,69,142);
+  for(size_t i:{0,2,3,4}){
+    const auto &p=compact_long.paths[i];
+    assert(compact_long.arcs[i].radius>0);
+    assert(i==0||i==3 ? p[3].x>p[2].x : p[3].x<p[2].x);
+  }
   // Outward placement uses all actual content bounds, retaining the topology.
   const auto g=flow_geometry(520,430,FlowFamily::SQUARE);
   assert(g.nodes[0].y<83 && g.nodes[2].x<102);

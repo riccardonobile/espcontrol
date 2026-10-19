@@ -82,28 +82,31 @@ inline void power_flow_draw_stroke(lv_event_t *event) {
     return lv_point_precise_t{stroke->points[i].x + bounds.x1, stroke->points[i].y + bounds.y1};
   };
   line.p1 = point(0);
-  line.p2 = point(stroke->arc.radius ? 1 : 3);
+  const bool bent = stroke->arc.end_angle != stroke->arc.start_angle;
+  line.p2 = point(bent ? 1 : 3);
   line.round_start = 1;
   line.round_end = stroke->arc.radius ? 0 : 1;
   lv_draw_line(layer, &line);
-  if (!stroke->arc.radius) return;
-  lv_draw_arc_dsc_t arc;
-  lv_draw_arc_dsc_init(&arc);
-  arc.color = line.color;
-  arc.width = line.width;
-  arc.opa = line.opa;
-  arc.center = {espcontrol::power::flow_coordinate<int32_t>(stroke->arc.center.x) + bounds.x1,
-                espcontrol::power::flow_coordinate<int32_t>(stroke->arc.center.y) + bounds.y1};
-  // LVGL specifies outer radius. Even stroke widths keep the centerline exactly
-  // aligned with integer tangent coordinates, with no half-pixel join mismatch.
-  arc.radius = stroke->arc.radius + line.width / 2;
-  arc.start_angle = stroke->arc.start_angle;
-  arc.end_angle = stroke->arc.end_angle;
-  arc.rounded = 0;
-  lv_draw_arc(layer, &arc);
+  if (!bent) return;
+  if (stroke->arc.radius) {
+    lv_draw_arc_dsc_t arc;
+    lv_draw_arc_dsc_init(&arc);
+    arc.color = line.color;
+    arc.width = line.width;
+    arc.opa = line.opa;
+    arc.center = {espcontrol::power::flow_coordinate<int32_t>(stroke->arc.center.x) + bounds.x1,
+                  espcontrol::power::flow_coordinate<int32_t>(stroke->arc.center.y) + bounds.y1};
+    // LVGL specifies outer radius. Even stroke widths keep the centerline exactly
+    // aligned with integer tangent coordinates, with no half-pixel join mismatch.
+    arc.radius = stroke->arc.radius + line.width / 2;
+    arc.start_angle = stroke->arc.start_angle;
+    arc.end_angle = stroke->arc.end_angle;
+    arc.rounded = 0;
+    lv_draw_arc(layer, &arc);
+  }
   line.p1 = point(2);
   line.p2 = point(3);
-  line.round_start = 0;
+  line.round_start = stroke->arc.radius ? 0 : 1;
   line.round_end = 1;
   lv_draw_line(layer, &line);
 }
@@ -216,12 +219,15 @@ inline void power_flow_layout() {
   if (card_font && (!compact || card_font->line_height < compact->line_height)) compact = card_font;
   auto *text_font = body;
   auto *value_font = body;
-  auto measure = [&](const lv_font_t *text, const lv_font_t *value) {
+  auto measure = [&](const lv_font_t *text, const lv_font_t *value, bool with_soc = true) {
     int w = 0;
-    for (auto *label : ui.names)
-      w = std::max<int>(w, power_flow_text_width(lv_label_get_text(label), text) + text->line_height + 4);
-    for (const char *state : {"Charging", "Discharging", "Importing", "Exporting", "Idle", "Unavailable"})
-      w = std::max(w, power_flow_text_width((std::string("100% · ") + espcontrol_i18n(state)).c_str(), text));
+    for (size_t i = 0; i < 4; ++i)
+      if ((i == 0 || i == 3) == with_soc)
+        w = std::max<int>(w, power_flow_text_width(lv_label_get_text(ui.names[i]), text) + text->line_height + 4);
+    const char *states[] = {with_soc ? "Charging" : "Importing",
+      with_soc ? "Discharging" : "Exporting", "Idle", "Unavailable"};
+    for (const char *state : states)
+      w = std::max(w, power_flow_text_width((std::string(with_soc ? "100% · " : "") + espcontrol_i18n(state)).c_str(), text));
     // Fixed measurement envelope: live values never move the geometry.
     w = std::max(w, power_flow_text_width(ui.card->precision ? "-8888888.888 W" : "-8888888 W", value));
     return w + 8;
@@ -232,25 +238,33 @@ inline void power_flow_layout() {
   const int text_h = text_font ? text_font->line_height : 20;
   const int value_h = value_font ? value_font->line_height : text_h;
   const int node_w = std::min<int>(std::lround(width * .48), measure(text_font, value_font));
+  // Grid/Home never need the combined Battery row: do not consume route
+  // clearance with a wider SOC/translated caption belonging to another node.
+  const int side_node_w = std::min<int>(std::lround(width * .48), measure(text_font, value_font, false));
   const int node_h = text_h * 2 + value_h + 6;
   const auto geometry = espcontrol::power::flow_geometry(width, height,
-    espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h);
+    espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h, side_node_w);
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, viewport.x, viewport.y);
   // Back and state live in the side header on large grids, never above the diagram.
   auto *status_parent = large ? ui.back_area : ui.shell.panel;
   if (lv_obj_get_parent(ui.status) != status_parent) lv_obj_set_parent(ui.status, status_parent);
   const int status_width = large ? lv_obj_get_content_width(ui.back_area) : panel_w - layout.inset * 2;
-  lv_obj_set_size(ui.status, std::max<int>(1, status_width - layout.back_size - layout.title_gap), text_h);
+  const bool stacked_back = large && ui.grid.back.cols == 1;
+  lv_label_set_long_mode(ui.status, stacked_back ? LV_LABEL_LONG_WRAP : LV_LABEL_LONG_CLIP);
+  lv_obj_set_size(ui.status, stacked_back ? status_width : std::max<int>(1, status_width - layout.back_size - layout.title_gap), text_h * (stacked_back ? 2 : 1));
   if (large) {
-    const int back_y = std::max<int>(0, (lv_obj_get_height(ui.back_area) - layout.back_size) / 2);
+    const int group_h = stacked_back ? layout.back_size + layout.title_gap + text_h * 2 : layout.back_size;
+    const int back_y = std::max<int>(0, (lv_obj_get_height(ui.back_area) - group_h) / 2);
+    const int back_x = stacked_back ? std::max<int>(0, (status_width - layout.back_size) / 2) : 0;
     lv_area_t header_bounds, panel_content;
     lv_obj_get_coords(ui.back_area, &header_bounds);
     lv_obj_get_content_coords(ui.shell.panel, &panel_content);
-    lv_obj_set_pos(ui.shell.close_btn, header_bounds.x1 - panel_content.x1,
+    lv_obj_set_pos(ui.shell.close_btn, header_bounds.x1 - panel_content.x1 + back_x,
       header_bounds.y1 - panel_content.y1 + back_y);
-    lv_obj_set_pos(ui.status, layout.back_size + layout.title_gap,
-      std::max<int>(0, (lv_obj_get_height(ui.back_area) - text_h) / 2));
+    lv_obj_set_pos(ui.status, stacked_back ? 0 : layout.back_size + layout.title_gap,
+      stacked_back ? back_y + layout.back_size + layout.title_gap
+                   : std::max<int>(0, (lv_obj_get_height(ui.back_area) - text_h) / 2));
   } else lv_obj_set_pos(ui.status, layout.inset + layout.back_size + layout.title_gap, layout.back_inset_y);
   if (text_font) lv_obj_set_style_text_font(ui.status, text_font, LV_PART_MAIN);
   lv_obj_set_style_text_color(ui.status, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
@@ -284,8 +298,9 @@ inline void power_flow_layout() {
     if (icon_font && icon_font->line_height)
       apply_icon_width_compensation(ui.icons[i], 256 * text_h / icon_font->line_height);
     control_modal_center_tab_icon(ui.icons[i]);
-    lv_obj_set_size(ui.nodes[i], node_w, node_h);
-    lv_obj_set_pos(ui.nodes[i], std::lround(geometry.nodes[i].x - node_w / 2.0),
+    const int this_width = i == 1 || i == 2 ? side_node_w : node_w;
+    lv_obj_set_size(ui.nodes[i], this_width, node_h);
+    lv_obj_set_pos(ui.nodes[i], std::lround(geometry.nodes[i].x - this_width / 2.0),
                     std::lround(geometry.nodes[i].y - node_h / 2.0));
   }
   if (text_font) lv_obj_set_style_text_font(ui.soc, text_font, LV_PART_MAIN);

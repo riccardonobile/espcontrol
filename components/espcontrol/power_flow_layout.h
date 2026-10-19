@@ -31,9 +31,10 @@ inline FlowDashboardGrid flow_dashboard_grid(const espcontrol::modal::DeviceProf
   FlowDashboardGrid grid;
   grid.large = true; grid.cols = cols; grid.rows = rows;
   grid.diagram = {0, 0, 3, rows};
-  grid.back = {3, 0, 2, 1};
-  grid.values = {{{3, 1, 1, 1}, {4, 1, 1, 1},
-    {3, 2, rows == 4 ? 2 : 1, 1}, {rows == 4 ? 3 : 4, rows == 4 ? 3 : 2, rows == 4 ? 2 : 1, 1}}};
+  grid.back = {3, 0, rows == 3 ? 1 : 2, 1};
+  grid.values = rows == 3
+    ? std::array<FlowGridCell, 4>{{{4, 0, 1, 1}, {3, 1, 1, 1}, {4, 1, 1, 1}, {3, 2, 2, 1}}}
+    : std::array<FlowGridCell, 4>{{{3, 1, 1, 1}, {4, 1, 1, 1}, {3, 2, 2, 1}, {3, 3, 2, 1}}};
   return grid;
 }
 struct FlowViewport { int x, y, width, height; };
@@ -66,21 +67,23 @@ inline FlowFamily flow_family(int width, int height) {
        : height * 5 > width * 6 ? FlowFamily::PORTRAIT : FlowFamily::SQUARE;
 }
 inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
-                                  double node_width = 138, double node_height = 108) {
+                                  double node_width = 138, double node_height = 108,
+                                  double side_node_width = 0) {
   FlowGeometry out;
   const double cx = width / 2.0, cy = height / 2.0;
   const double margin = std::max(4.0, std::min(width, height) * .02);
   const double hw = std::min(node_width / 2, width * .24);
+  const double side_hw = side_node_width > 0 ? std::min(side_node_width / 2, width * .24) : hw;
   const double hh = std::min(node_height / 2, height * .24);
-  const double dx = std::max(0.0, cx - hw - margin);
+  const double dx = std::max(0.0, cx - side_hw - margin);
   const double dy = std::max(0.0, cy - hh - margin);
-  const double port = std::min(18.0, std::min(hw, hh) / 3), gap = 4;
+  const double port = std::min(18.0, std::min({hw, side_hw, hh}) / 3), gap = 4;
   out.nodes = {{{cx, cy - dy}, {cx + dx, cy}, {cx - dx, cy}, {cx, cy + dy}}};
   // Attachment points depend only on the content rectangle and compiled text
   // metrics, never readings, activity, SOC availability or edge visibility.
   out.ports = {{{{{cx - port, cy - dy + hh + gap}, {cx, cy - dy + hh + gap}, {cx + port, cy - dy + hh + gap}}},
-                {{{cx + dx - hw - gap, cy - port}, {cx + dx - hw - gap, cy}, {cx + dx - hw - gap, cy + port}}},
-                {{{cx - dx + hw + gap, cy - port}, {cx - dx + hw + gap, cy}, {cx - dx + hw + gap, cy + port}}},
+                {{{cx + dx - side_hw - gap, cy - port}, {cx + dx - side_hw - gap, cy}, {cx + dx - side_hw - gap, cy + port}}},
+                {{{cx - dx + side_hw + gap, cy - port}, {cx - dx + side_hw + gap, cy}, {cx - dx + side_hw + gap, cy + port}}},
                 {{{cx - port, cy + dy - hh - gap}, {cx, cy + dy - hh - gap}, {cx + port, cy + dy - hh - gap}}}}};
   auto straight = [](Point a, Point b) { return FlowPath{{a, a, b, b}}; };
   auto bend = [&](size_t index, Point a, Point b, int sign, bool top) {

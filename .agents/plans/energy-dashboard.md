@@ -1218,7 +1218,8 @@ sampled-curve delivery notes, without changing power calculations/configuration.
   Grid/Battery reversal shares the identical points and native arc sector.
 - Use actual `GridConfig` columns/slot count and existing modal profile families.
   On 7-inch wide-landscape 5x3 grids, diagram = left 3 columns x 3 rows;
-  right 2 columns = a full-width Back/status row and a 2x2 reading-card area.
+  right 2 columns = Back/Solar, Home/Grid, then full-width Battery. The global
+  exceptional/idle caption may wrap under Back; node activity stays one line.
   On 10-inch large-landscape 5x4 grids, diagram = left 3 columns x 4 rows;
   right 2 columns = Back/status, Solar/Home, full-width Grid, full-width Battery.
   Native LVGL fractional grid tracks and the existing page gap own allocation.
@@ -1252,3 +1253,13 @@ on ESP, unlike the desktop fixture). The host fixture now uses production
 `ControlModalShell` declarations and long height metrics, and the same production
 UI scenario also builds/runs in GNU C++20 without exceptions alongside C++17.
 No firmware image was delivered from the failed compile.
+
+
+A compiled-font check found the S3 Dutch combined `100% · Unavailable` caption
+needs 190 px in Roboto-18 (plus the node gutter). Reusing that width for Grid/Home
+could pinch a bend down to zero radius. Grid/Home now use their own static text
+and watt envelopes; only Solar/Battery retain the combined-row envelope. Fixed
+ports remain independent of live readings. A degenerate bend still draws two
+orthogonal runs rather than silently turning into a diagonal. The 7-inch side
+layout reserves a full-width Battery card for long SOC/captions, with Back/Solar
+above Home/Grid. Error/idle text may wrap under Back, outside the diagram.

@@ -369,6 +369,13 @@ int main(){
     assert(drawn_lines[0].width%2==0&&drawn_arcs[0].color.full==current_button_primary_color());
     drawn_lines.clear();drawn_arcs.clear();send(ui.lines[1],LV_EVENT_DRAW_MAIN);
     assert(drawn_lines.size()==1&&drawn_arcs.empty());
+    auto saved=ui.paths[0];ui.paths[0].arc.radius=0;
+    ui.paths[0].points[1]=ui.paths[0].points[2]={10,30};
+    ui.paths[0].points[0]={10,10};ui.paths[0].points[3]={30,30};
+    drawn_lines.clear();drawn_arcs.clear();send(ui.lines[0],LV_EVENT_DRAW_MAIN);
+    assert(drawn_lines.size()==2&&drawn_arcs.empty());
+    assert(drawn_lines[0].p1.x==drawn_lines[0].p2.x&&drawn_lines[1].p1.y==drawn_lines[1].p2.y);
+    ui.paths[0]=saved;
     assert(ui.details[3]->color==theme.text_muted);
     assert(ui.details[3]->mode==LV_LABEL_LONG_CLIP);
     assert(ui.soc->mode==LV_LABEL_LONG_CLIP);
@@ -432,8 +439,8 @@ int main(){
       assert(ui.area->y+ui.area->h/2.0==ui.diagram->h/2.0);
       lv_area_t back_bounds,header_bounds,diagram_bounds;
       lv_obj_get_coords(ui.shell.close_btn,&back_bounds);lv_obj_get_coords(ui.back_area,&header_bounds);lv_obj_get_coords(ui.diagram,&diagram_bounds);
-      assert(back_bounds.x1==header_bounds.x1&&back_bounds.x1>diagram_bounds.x2);
-      assert(ui.status->parent==ui.back_area&&ui.back_area->gcols==2);
+      assert(back_bounds.x1==header_bounds.x1+(rows==3?(ui.back_area->w-frame.back_size)/2:0)&&back_bounds.x1>diagram_bounds.x2);
+      assert(ui.status->parent==ui.back_area&&ui.back_area->gcols==(rows==3?1:2));
       const auto center=ui.area->y+ui.area->h/2.0;frame.back_size=54;power_flow_layout();
       assert(ui.area->y+ui.area->h/2.0==center);frame.back_size=36;
       publish("sensor.b","-35000");publish("sensor.g","-1042");publish("sensor.soc","78");publish("sensor.soc","%","unit_of_measurement");
@@ -473,6 +480,12 @@ int main(){
       publish("sensor.b","-500");publish("sensor.g","0");
     }
   }
+  set_espcontrol_language("nl");card->display.modal={};card->grid_cols=3;card->grid_rows=3;
+  frame.sw=480;frame.sh=480;frame.panel_w=464;frame.panel_h=430;frame.inset=18;
+  power_flow_open(card);
+  assert(power_flow_ui().nodes[1]->w<power_flow_ui().nodes[3]->w);
+  for(size_t i:{0,2,3,4})assert(power_flow_ui().paths[i].arc.radius>0);
+  power_flow_hide();
   set_espcontrol_language("en");frame.inset=8;card->display.modal={};card->grid_cols=1;card->grid_rows=1;
   fail_after=9;const int base_objects=objects;power_flow_open(card);
   assert(!power_flow_ui().card&&objects==base_objects&&subscriptions==10);fail_after=-1;
