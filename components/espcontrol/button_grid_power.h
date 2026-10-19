@@ -181,6 +181,13 @@ struct PowerFlowUi : PowerFlowNodes {
   unsigned diagnostic_updates = 0;
 };
 inline PowerFlowUi &power_flow_ui() { static PowerFlowUi ui; return ui; }
+inline const PowerFlowUi &power_flow_reset_value() {
+  // ESP GCC 14.2 ICEs on an aggregate reset temporary in this translation unit.
+  // The identical immutable defaults need no stack temporary or heap allocation.
+  static constexpr PowerFlowUi empty{};
+  return empty;
+}
+
 inline void power_flow_diagnostic_geometry() {
   auto &ui = power_flow_ui();
   power_flow_diagnostic_bounds("panel", ui.shell.panel);
@@ -206,7 +213,7 @@ inline void power_flow_hide() {
   auto &ui = power_flow_ui();
   ui.card = nullptr;
   control_modal_delete_overlay(ControlModalKind::POWER_FLOW, ui.shell.overlay);
-  ui = PowerFlowUi{};
+  ui = power_flow_reset_value();
   power_flow_diagnostic_stage("close.end");
 }
 inline PowerCardCtx::~PowerCardCtx() {
@@ -623,7 +630,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   lv_obj_add_event_cb(ui.shell.overlay, [](lv_event_t *) {
     // Covers externally deleted overlays as well as the ordinary close path.
     control_modal_clear_active(ControlModalKind::POWER_FLOW);
-    power_flow_ui() = PowerFlowUi{};
+    power_flow_ui() = power_flow_reset_value();
   }, LV_EVENT_DELETE, nullptr);
   lv_obj_add_event_cb(ui.shell.overlay, [](lv_event_t *event) {
     auto &live = power_flow_ui();

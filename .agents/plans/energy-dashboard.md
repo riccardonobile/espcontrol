@@ -1308,7 +1308,11 @@ are preserved. Cosmetic work and normal two-device retest builds remain gated
 on diagnosis. Remove the temporary markers after the root-cause correction.
 
 The diagnostic compile exposed an ESP GCC 14.2 internal error at aggregate reset.
-Diagnostic flags now use zero defaults and record seen-state rather than pending
-true defaults; the UI reset, geometry and renderer are unchanged. Failed-attempt
-logs are retained separately. The final full-target compile remains the gate for
-this compiler workaround; a reduced struct-only probe did not reproduce the ICE.
+Zero-initialized diagnostic flags alone did not resolve it. A private copy of the
+complete 25 MB preprocessed firmware translation unit compiles when the two resets
+copy an immutable default `PowerFlowUi` rather than creating aggregate temporaries.
+This preserves the default values and reset/lifetime boundary, adds one read-only
+reset template, and requires no heap or reset stack temporary. It is a compiler
+workaround, not evidence of a physical crash fix. A reduced struct-only probe did
+not reproduce the ICE. Failed compile logs are retained; the final ordinary
+factory compile is still required before publishing the diagnostic image.
