@@ -112,7 +112,7 @@ void lv_obj_clear_flag(lv_obj_t *o,int f){o->flags&=~f;}
 void lv_obj_set_width(lv_obj_t *o,int w){o->w=w;}
 void lv_obj_set_height(lv_obj_t *o,int h){o->h=h;}
 void lv_obj_set_size(lv_obj_t *o,int w,int h){o->w=w;o->h=h;}
-void lv_obj_set_pos(lv_obj_t *o,int x,int y){o->x=x;o->y=y;}
+void lv_obj_set_pos(lv_obj_t *o,int x,int y){o->x=x+(o->parent?o->parent->padding:0);o->y=y+(o->parent?o->parent->padding:0);}
 int lv_obj_get_width(lv_obj_t *o){
   if(o->w!=LV_SIZE_CONTENT)return o->w;
   int width=static_cast<int>(o->text.size())*static_cast<int>(o->font?o->font->line_height:16)/2;
@@ -120,8 +120,8 @@ int lv_obj_get_width(lv_obj_t *o){
   return std::min(width,o->max_w);
 }
 int lv_obj_get_height(lv_obj_t *o){return o->h;}
-int lv_obj_get_x(lv_obj_t *o){return o->x;}
-int lv_obj_get_y(lv_obj_t *o){return o->y;}
+int lv_obj_get_x(lv_obj_t *o){return o->x-(o->parent?o->parent->padding:0);}
+int lv_obj_get_y(lv_obj_t *o){return o->y-(o->parent?o->parent->padding:0);}
 lv_obj_t *lv_obj_get_parent(lv_obj_t *o){return o->parent;}
 int lv_obj_get_content_width(lv_obj_t *o){return lv_obj_get_width(o)-o->padding*2;}
 int lv_obj_get_content_height(lv_obj_t *o){return o->h-o->padding*2;}
@@ -138,7 +138,7 @@ void lv_obj_set_layout(lv_obj_t *o,int layout){o->layout=layout;}
 void lv_obj_set_style_flex_flow(lv_obj_t *o,int f,int){o->flex=f;}
 void lv_obj_set_style_flex_cross_place(lv_obj_t *o,int c,int){o->cross=c;}
 void lv_obj_set_style_max_height(lv_obj_t *o,int h,int){o->max_h=h;}
-void lv_obj_align(lv_obj_t *o,int a,int x,int y){o->x=x;o->y=y;o->mode=a;}
+void lv_obj_align(lv_obj_t *o,int a,int x,int y){o->x=x+(o->parent?o->parent->padding:0);o->y=y+(o->parent?o->parent->padding:0);o->mode=a;}
 void lv_label_set_long_mode(lv_obj_t *o,int m){o->mode=m;}
 int lv_pct(int){return 140;}
 void lv_obj_set_grid_cell(lv_obj_t *o,int,int col,int cols,int,int row,int rows){o->gcol=col;o->gcols=cols;o->grow=row;o->grows=rows;}
@@ -184,6 +184,7 @@ std::vector<lv_draw_line_dsc_t> drawn_lines;
 std::vector<lv_draw_arc_dsc_t> drawn_arcs;
 lv_layer_t *lv_event_get_layer(lv_event_t*){return &test_layer;}
 void lv_obj_get_coords(lv_obj_t *o,lv_area_t *a){int x=0,y=0;for(auto *p=o;p;p=p->parent){x+=p->x;y+=p->y;}*a={x,y,x+o->w-1,y+o->h-1};}
+void lv_obj_get_content_coords(lv_obj_t *o,lv_area_t *a){lv_obj_get_coords(o,a);a->x1+=o->padding;a->y1+=o->padding;a->x2-=o->padding;a->y2-=o->padding;}
 void lv_draw_line_dsc_init(lv_draw_line_dsc_t *d){*d={};}
 void lv_obj_init_draw_line_dsc(lv_obj_t *o,int,lv_draw_line_dsc_t *d){d->width=o->line_width;d->color={o->line_color};}
 void lv_draw_line(lv_layer_t*,const lv_draw_line_dsc_t *d){drawn_lines.push_back(*d);}
@@ -421,7 +422,7 @@ int main(){
     card->grid_rows=rows;
     card->display.modal.layout_family=rows==3?DisplayModalLayoutFamily::WIDE_LANDSCAPE:DisplayModalLayoutFamily::LARGE_LANDSCAPE;
     frame.sw=rows==3?1024:1280;frame.sh=rows==3?600:800;
-    frame.panel_w=frame.sw-16;frame.panel_h=frame.sh-50;
+    frame.panel_w=frame.sw-16;frame.panel_h=frame.sh-50;frame.inset=18;
     for(const char *language:{"en","de","fr","it","cs","pl","fi","ru","uk"}){
       set_espcontrol_language(language);
       power_flow_open(card);auto &ui=power_flow_ui();
@@ -429,7 +430,9 @@ int main(){
       assert(ui.dashboard->layout==LV_LAYOUT_GRID&&ui.diagram->gcols==3&&ui.diagram->grows==rows);
       assert(ui.area->x+ui.area->w/2.0==ui.diagram->w/2.0);
       assert(ui.area->y+ui.area->h/2.0==ui.diagram->h/2.0);
-      assert(ui.shell.close_btn->x>=ui.diagram->x+ui.diagram->w);
+      lv_area_t back_bounds,header_bounds,diagram_bounds;
+      lv_obj_get_coords(ui.shell.close_btn,&back_bounds);lv_obj_get_coords(ui.back_area,&header_bounds);lv_obj_get_coords(ui.diagram,&diagram_bounds);
+      assert(back_bounds.x1==header_bounds.x1&&back_bounds.x1>diagram_bounds.x2);
       assert(ui.status->parent==ui.back_area&&ui.back_area->gcols==2);
       const auto center=ui.area->y+ui.area->h/2.0;frame.back_size=54;power_flow_layout();
       assert(ui.area->y+ui.area->h/2.0==center);frame.back_size=36;
@@ -470,7 +473,7 @@ int main(){
       publish("sensor.b","-500");publish("sensor.g","0");
     }
   }
-  set_espcontrol_language("en");card->display.modal={};card->grid_cols=1;card->grid_rows=1;
+  set_espcontrol_language("en");frame.inset=8;card->display.modal={};card->grid_cols=1;card->grid_rows=1;
   fail_after=9;const int base_objects=objects;power_flow_open(card);
   assert(!power_flow_ui().card&&objects==base_objects&&subscriptions==10);fail_after=-1;
   power_flow_open(card);lv_obj_del(power_flow_ui().shell.overlay);

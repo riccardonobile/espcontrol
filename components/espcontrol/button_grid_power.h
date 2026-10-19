@@ -244,8 +244,11 @@ inline void power_flow_layout() {
   lv_obj_set_size(ui.status, std::max<int>(1, status_width - layout.back_size - layout.title_gap), text_h);
   if (large) {
     const int back_y = std::max<int>(0, (lv_obj_get_height(ui.back_area) - layout.back_size) / 2);
-    lv_obj_set_pos(ui.shell.close_btn, lv_obj_get_x(ui.dashboard) + lv_obj_get_x(ui.back_area),
-      lv_obj_get_y(ui.dashboard) + lv_obj_get_y(ui.back_area) + back_y);
+    lv_area_t header_bounds, panel_content;
+    lv_obj_get_coords(ui.back_area, &header_bounds);
+    lv_obj_get_content_coords(ui.shell.panel, &panel_content);
+    lv_obj_set_pos(ui.shell.close_btn, header_bounds.x1 - panel_content.x1,
+      header_bounds.y1 - panel_content.y1 + back_y);
     lv_obj_set_pos(ui.status, layout.back_size + layout.title_gap,
       std::max(0, (lv_obj_get_height(ui.back_area) - text_h) / 2));
   } else lv_obj_set_pos(ui.status, layout.inset + layout.back_size + layout.title_gap, layout.back_inset_y);
