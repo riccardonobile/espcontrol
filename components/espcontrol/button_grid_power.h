@@ -139,7 +139,7 @@ inline void power_flow_hide() {
   auto &ui = power_flow_ui();
   ui.card = nullptr;
   control_modal_delete_overlay(ControlModalKind::POWER_FLOW, ui.shell.overlay);
-  ui = {};
+  ui = PowerFlowUi{};
 }
 inline PowerCardCtx::~PowerCardCtx() {
   if (power_flow_ui().card == this) power_flow_hide();
@@ -250,7 +250,7 @@ inline void power_flow_layout() {
     lv_obj_set_pos(ui.shell.close_btn, header_bounds.x1 - panel_content.x1,
       header_bounds.y1 - panel_content.y1 + back_y);
     lv_obj_set_pos(ui.status, layout.back_size + layout.title_gap,
-      std::max(0, (lv_obj_get_height(ui.back_area) - text_h) / 2));
+      std::max<int>(0, (lv_obj_get_height(ui.back_area) - text_h) / 2));
   } else lv_obj_set_pos(ui.status, layout.inset + layout.back_size + layout.title_gap, layout.back_inset_y);
   if (text_font) lv_obj_set_style_text_font(ui.status, text_font, LV_PART_MAIN);
   lv_obj_set_style_text_color(ui.status, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
@@ -511,7 +511,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   lv_obj_add_event_cb(ui.shell.overlay, [](lv_event_t *) {
     // Covers externally deleted overlays as well as the ordinary close path.
     control_modal_clear_active(ControlModalKind::POWER_FLOW);
-    power_flow_ui() = {};
+    power_flow_ui() = PowerFlowUi{};
   }, LV_EVENT_DELETE, nullptr);
   power_flow_update(ctx);
   power_flow_layout();

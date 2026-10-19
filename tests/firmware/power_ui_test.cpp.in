@@ -119,7 +119,7 @@ int lv_obj_get_width(lv_obj_t *o){
   if(!o->children.empty()){width=0;for(auto *c:o->children)width+=lv_obj_get_width(c)+o->pad_column;width-=o->pad_column;}
   return std::min(width,o->max_w);
 }
-int lv_obj_get_height(lv_obj_t *o){return o->h;}
+long lv_obj_get_height(lv_obj_t *o){return o->h;}
 int lv_obj_get_x(lv_obj_t *o){return o->x-(o->parent?o->parent->padding:0);}
 int lv_obj_get_y(lv_obj_t *o){return o->y-(o->parent?o->parent->padding:0);}
 lv_obj_t *lv_obj_get_parent(lv_obj_t *o){return o->parent;}
@@ -219,7 +219,7 @@ const lv_font_t *display_icon_font(const DisplayProfile&){return &icon_font;}
 const lv_font_t *display_volume_label_font(const DisplayProfile&,const lv_font_t *f){return f;}
 // @small_text_helper
 struct ControlModalLayout {long sw=480,sh=480,panel_w=472,panel_h=430,inset=8,back_inset_y=4,back_size=36,title_gap=4;};
-struct ControlModalShell {lv_obj_t *overlay=nullptr,*panel=nullptr,*close_btn=nullptr;};
+// @control_modal_shell
 ControlModalLayout frame;
 ControlModalCloseCallback active_close=nullptr;
 std::string title,normal_title="18°C";

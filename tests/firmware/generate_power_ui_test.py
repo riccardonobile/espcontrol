@@ -39,5 +39,7 @@ grid_source = (headers / 'button_grid_grid.h').read_text(encoding='utf-8')
 font_roles = re.search(r'struct DisplayFontRoles \{[\s\S]*?^\};', display_source, re.M)[0]
 grid_config = re.search(r'struct GridConfig \{[\s\S]*?^\};', grid_source, re.M)[0]
 small_font = function('display_small_text_font', display_source)
+modal_source = (headers / 'button_grid_modal.h').read_text(encoding='utf-8')
+modal_shell = re.search(r'struct ControlModalShell \{[\s\S]*?^\};', modal_source, re.M)[0]
 template = Path(__file__).with_name('power_ui_test.cpp.in').read_text(encoding='utf-8')
-args.output.write_text(template.replace('// @display_font_roles', font_roles).replace('// @grid_config', grid_config).replace('// @small_text_helper', small_font).replace('// @production_helpers', 'inline void bind_card_text_contrast_events(lv_obj_t *);\n' + formatter + contrast + layout + sensor + theme_helpers).replace('// @navigation_helpers', 'namespace espcontrol::cards {\n' + nav_helpers + '\n}'), encoding='utf-8')
+args.output.write_text(template.replace('// @control_modal_shell', modal_shell).replace('// @display_font_roles', font_roles).replace('// @grid_config', grid_config).replace('// @small_text_helper', small_font).replace('// @production_helpers', 'inline void bind_card_text_contrast_events(lv_obj_t *);\n' + formatter + contrast + layout + sensor + theme_helpers).replace('// @navigation_helpers', 'namespace espcontrol::cards {\n' + nav_helpers + '\n}'), encoding='utf-8')

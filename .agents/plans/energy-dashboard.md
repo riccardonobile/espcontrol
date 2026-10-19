@@ -1244,3 +1244,11 @@ Back now uses measured side-header bounds relative to panel content coordinates.
 The padded-host case fails before this correction and passes afterward. No shared
 modal/style change was needed. Probe fonts/chrome are fixtures, not firmware
 screenshots or a claim of physical rendering success.
+
+
+The first ESP-target compile additionally required a typed `PowerFlowUi{}` reset
+and an explicit `std::max<int>` at the status offset (LVGL int32 metrics are long
+on ESP, unlike the desktop fixture). The host fixture now uses production
+`ControlModalShell` declarations and long height metrics, and the same production
+UI scenario also builds/runs in GNU C++20 without exceptions alongside C++17.
+No firmware image was delivered from the failed compile.

@@ -25,12 +25,20 @@ add_custom_command(OUTPUT ${POWER_UI_TEST_SOURCE}
     ../../components/espcontrol/button_grid_navigation_driver.h
     ../../components/espcontrol/button_grid_subpages.h ../../components/espcontrol/theme_runtime_ui.h
     ../../components/espcontrol/button_grid_display.h ../../components/espcontrol/button_grid_grid.h
+    ../../components/espcontrol/button_grid_modal.h
   VERBATIM)
 add_executable(power_ui_test ${POWER_UI_TEST_SOURCE})
 target_compile_features(power_ui_test PRIVATE cxx_std_17)
 target_compile_options(power_ui_test PRIVATE -Wall -Wextra -Werror)
 target_include_directories(power_ui_test PRIVATE ../../components/espcontrol)
 add_test(NAME power_ui_test COMMAND power_ui_test)
+# Match ESPHome's GNU C++20/no-exceptions UI build as well as host C++17.
+add_executable(power_ui_cpp20_test ${POWER_UI_TEST_SOURCE})
+add_dependencies(power_ui_cpp20_test power_ui_test)
+target_compile_features(power_ui_cpp20_test PRIVATE cxx_std_20)
+target_compile_options(power_ui_cpp20_test PRIVATE -Wall -Wextra -Werror -fno-exceptions)
+target_include_directories(power_ui_cpp20_test PRIVATE ../../components/espcontrol)
+add_test(NAME power_ui_cpp20_test COMMAND power_ui_cpp20_test)
 add_test(NAME power_codegen_test COMMAND ${Python3_EXECUTABLE}
   ${CMAKE_CURRENT_SOURCE_DIR}/power_codegen_test.py)
 add_executable(dpi_timing_test dpi_timing_test.cpp)
