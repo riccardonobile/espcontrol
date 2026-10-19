@@ -119,6 +119,8 @@ struct PowerFlowNodes {
   lv_obj_t *names[4]{};
   lv_obj_t *icons[4]{};
   lv_obj_t *values[4]{};
+  lv_obj_t *measurements[4]{};
+  lv_obj_t *units[4]{};
   lv_obj_t *details[4]{};
   lv_obj_t *detail_rows[4]{};
   lv_obj_t *soc = nullptr;
@@ -311,15 +313,18 @@ inline void power_flow_layout() {
       const int available = lv_obj_get_content_width(side.nodes[i]);
       const auto *side_text = compact ? compact : body;
       const auto *side_value = display_sensor_font(ui.card->display);
-      if (!side_value || power_flow_text_width(ui.card->precision ? "-8888888.888 W" : "-8888888 W", side_value) > available)
+      const int unit_width = power_flow_text_width("W", side_text);
+      const char *number = ui.card->precision ? "-8888888.888" : "-8888888";
+      if (!side_value || power_flow_text_width(number, side_value) + unit_width > available)
         side_value = body;
-      if (!side_value || power_flow_text_width(ui.card->precision ? "-8888888.888 W" : "-8888888 W", side_value) > available)
+      if (!side_value || power_flow_text_width(number, side_value) + unit_width > available)
         side_value = side_text;
       const int th = side_text ? side_text->line_height : text_h;
       const int vh = side_value ? side_value->line_height : value_h;
       for (auto *label : {side.names[i], side.details[i]})
         if (side_text) lv_obj_set_style_text_font(label, side_text, LV_PART_MAIN);
       if (side_value) lv_obj_set_style_text_font(side.values[i], side_value, LV_PART_MAIN);
+      if (side_text) lv_obj_set_style_text_font(side.units[i], side_text, LV_PART_MAIN);
       lv_obj_set_height(side.headings[i], th);
       lv_obj_set_size(lv_obj_get_parent(side.icons[i]), th, th);
       const auto *icon_font = display_icon_font(ui.card->display);
@@ -342,7 +347,8 @@ inline void power_flow_update_nodes(PowerFlowNodes &ui, PowerCardCtx *ctx) {
   if (!ui.nodes[0]) return;
   const auto &calc = ctx->data.model.calculation;
   for (size_t i = 0; i < 4; ++i) {
-    power_set_text(ui.values[i], power_reading_text(calc.nodes[i], ctx->precision));
+    power_set_text(ui.values[i], power_reading_text(calc.nodes[i], ctx->precision, !ui.units[i]));
+    power_set_text(ui.units[i], calc.nodes[i].valid() ? "W" : "");
     std::string detail;
     if (i == 2) detail = espcontrol::power::status_text(calc.grid_status);
     if (i == 3) {
@@ -441,7 +447,19 @@ inline bool power_flow_create_nodes(PowerFlowNodes &ui, lv_obj_t *parent,
     ui.names[i] = name;
     lv_obj_set_width(name, LV_SIZE_CONTENT);
     power_set_text(name, espcontrol_i18n(names[i]));
-    ui.values[i] = power_flow_label(ui.nodes[i], label_font);
+    if (cards) {
+      // Native numeric fonts intentionally omit W; retain the shared adjacent
+      // number/unit grouping rather than asking that font to render unit text.
+      ui.measurements[i] = create_card_sensor_container(ui.nodes[i], label_font, label_font,
+        lv_color_hex(current_theme().text_primary), &ui.values[i], &ui.units[i]);
+      if (!ui.measurements[i]) return false;
+      power_flow_set_visible(ui.measurements[i], true);
+      for (auto *label : {ui.values[i], ui.units[i]}) {
+        if (!label) return false;
+        lv_label_set_long_mode(label, LV_LABEL_LONG_CLIP);
+        lv_obj_set_width(label, LV_SIZE_CONTENT);
+      }
+    } else ui.values[i] = power_flow_label(ui.nodes[i], label_font);
     // Exactly three rows: heading, signed watts, combined SOC/activity.
     ui.detail_rows[i] = lv_obj_create(ui.nodes[i]);
     if (!ui.detail_rows[i]) return false;

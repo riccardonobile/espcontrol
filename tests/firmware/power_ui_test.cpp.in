@@ -445,10 +445,10 @@ int main(){
       assert(ui.area->y+ui.area->h/2.0==center);frame.back_size=36;
       publish("sensor.b","-35000");publish("sensor.g","-1042");publish("sensor.soc","78");publish("sensor.soc","%","unit_of_measurement");
       power_flow_layout();lv_obj_update_layout(ui.dashboard);
-      assert(ui.values[3]->text=="-35000 W"&&ui.sidebar.values[3]->text==ui.values[3]->text);
-      assert(ui.sidebar.values[2]->text=="-1042 W");
+      assert(ui.values[3]->text=="-35000 W"&&ui.sidebar.values[3]->text=="-35000"&&ui.sidebar.units[3]->text=="W");
+      assert(ui.sidebar.values[2]->text=="-1042"&&ui.sidebar.units[2]->text=="W");
       card->data.model.set_polarity({true,true});power_card_update(card);
-      assert(ui.values[2]->text=="1042 W"&&ui.sidebar.values[3]->text=="35000 W");
+      assert(ui.values[2]->text=="1042 W"&&ui.sidebar.values[3]->text=="35000");
       assert(ui.sidebar.details[3]->text==espcontrol_i18n("Discharging"));
       card->data.model.set_polarity({false,false});power_card_update(card);
       assert(ui.sidebar.nodes[3]->children.size()==3&&ui.sidebar.soc->parent==ui.sidebar.details[3]->parent);
@@ -460,15 +460,20 @@ int main(){
         assert(n->x>=ui.diagram->x+ui.diagram->w&&n->x+n->w<=ui.dashboard->w);
         assert(n->y>=0&&n->y+n->h<=ui.dashboard->h);
         assert(ui.sidebar.details[i]->color==theme.text_muted);
-        assert(power_flow_text_width(lv_label_get_text(ui.sidebar.values[i]),ui.sidebar.values[i]->font)<=n->w);
+        assert(ui.sidebar.values[i]->parent==ui.sidebar.measurements[i]);
+        assert(ui.sidebar.units[i]->parent==ui.sidebar.measurements[i]);
+        assert(ui.sidebar.units[i]->font==&small_font&&ui.sidebar.units[i]->pad_bottom==6);
+        assert(ui.sidebar.measurements[i]->cross==LV_FLEX_ALIGN_END);
+        assert(power_flow_text_width(lv_label_get_text(ui.sidebar.values[i]),ui.sidebar.values[i]->font)
+          +power_flow_text_width("W",ui.sidebar.units[i]->font)<=n->w);
         const int detail_width=power_flow_text_width(lv_label_get_text(ui.sidebar.details[i]),ui.sidebar.details[i]->font)
           +(i==3?power_flow_text_width(lv_label_get_text(ui.sidebar.soc),ui.sidebar.soc->font):0);
         assert(detail_width<=n->w);
       }
-      const int count=objects;assert(count<=105&&sizeof(PowerFlowUi)<=2304);
+      const int count=objects;assert(count<=113&&sizeof(PowerFlowUi)<=2304);
       publish("sensor.soc","unavailable");publish("sensor.b","unavailable");
       assert(ui.sidebar.soc->text.empty()&&ui.sidebar.details[3]->text==espcontrol_i18n("Unavailable"));
-      assert(ui.values[3]->text=="--"&&ui.sidebar.values[3]->text=="--");
+      assert(ui.values[3]->text=="--"&&ui.sidebar.values[3]->text=="--"&&ui.sidebar.units[3]->text.empty());
       power_flow_layout();assert(objects==count&&subscriptions==10);
       // A rotated viewport falls back without deleting/recreating model or view.
       std::swap(frame.panel_w,frame.panel_h);power_flow_layout();

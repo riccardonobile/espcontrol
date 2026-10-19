@@ -1237,14 +1237,15 @@ sampled-curve delivery notes, without changing power calculations/configuration.
 
 
 The native LVGL 9.5 probe compiles the production Power header/drawing/layout
-against the pinned managed library, with fixture shell/peripherals/built-in fonts.
-720x720, 1024x600 and 1280x800 runs assert three-row node bounds, side-card
+against the pinned managed library, with fixture shell/peripherals. Final runs reuse the compiled target Roboto
+font data locally (no new production font assets).
+480x480, 720x720, 1024x600 and 1280x800 runs assert three-row node bounds, side-card
 bounds and Back separation, and save raster output for inspecting native arcs.
 This caught parent-padding coordinate differences hidden by the initial doubles:
 Back now uses measured side-header bounds relative to panel content coordinates.
 The padded-host case fails before this correction and passes afterward. No shared
-modal/style change was needed. Probe fonts/chrome are fixtures, not firmware
-screenshots or a claim of physical rendering success.
+modal/style change was needed. Probe chrome/icons remain fixtures, not firmware screenshots or a claim of
+physical rendering success.
 
 
 The first ESP-target compile additionally required a typed `PowerFlowUi{}` reset
@@ -1263,3 +1264,10 @@ ports remain independent of live readings. A degenerate bend still draws two
 orthogonal runs rather than silently turning into a diagonal. The 7-inch side
 layout reserves a full-width Battery card for long SOC/captions, with Back/Solar
 above Home/Grid. Error/idle text may wrap under Back, outside the diagram.
+
+The native sensor-number fonts omit W by design. Side measurements therefore
+use the existing `create_card_sensor_container` number/unit pair and its baseline
+alignment; only numeric text uses that font. Unit text uses the existing small
+text role. The fixed fit envelope includes both widths; unavailable values clear
+the unit. This retains three direct rows and adds only eight bounded LVGL objects
+on large profiles. Host assertions cover adjacency/ownership and unit validity.
