@@ -31,7 +31,7 @@ constexpr int LV_OPA_TRANSP=0, LV_LAYOUT_FLEX=1, LV_FLEX_ALIGN_END=2;
 constexpr int LV_OPA_COVER=255, LV_FLEX_FLOW_COLUMN=1, LV_FLEX_FLOW_ROW=2, LV_FLEX_ALIGN_CENTER=0;
 constexpr int LV_EVENT_ALL=-1, LV_STYLE_BG_COLOR=1, LV_STYLE_RES_FOUND=1;
 constexpr int LV_EVENT_DELETE=1, LV_EVENT_SIZE_CHANGED=2, LV_EVENT_PRESSED=3,
-  LV_EVENT_RELEASED=4, LV_EVENT_PRESS_LOST=5, LV_EVENT_CLICKED=6;
+  LV_EVENT_RELEASED=4, LV_EVENT_PRESS_LOST=5, LV_EVENT_CLICKED=6, LV_EVENT_DRAW_MAIN=7;
 struct lv_color_t { uint32_t full; };
 struct lv_style_value_t { lv_color_t color; };
 struct lv_color32_t { uint8_t blue,green,red,alpha; };
@@ -43,6 +43,7 @@ using EventCallback=void (*)(lv_event_t*);
 struct lv_obj_t {
   std::string text;
   lv_font_t const *font=nullptr;
+  int line_width=2;
   int x=0,y=0,w=140,h=16,flags=0,state=0,max_h=32767,max_w=32767,mode=0,flex=0,pad_bottom=0,pad_column=0,cross=0;
   uint32_t color=0xffffff,bg=0x313131,line_color=0,pressed_bg=0xff8c00,checked_bg=0xff8c00,pressed_text=0xffffff,checked_text=0xffffff;
   const lv_point_precise_t *points=nullptr;
@@ -140,13 +141,28 @@ void lv_obj_update_layout(lv_obj_t *o){
 void lv_obj_move_foreground(lv_obj_t*){}
 void lv_obj_remove_style_all(lv_obj_t*){}
 void lv_obj_set_style_text_align(lv_obj_t*,int,int){}
-void lv_obj_set_style_line_width(lv_obj_t*,int,int){}
+void lv_obj_set_style_line_width(lv_obj_t *o,int width,int){o->line_width=width;}
 void lv_obj_set_style_line_rounded(lv_obj_t*,bool,int){}
 void lv_obj_set_style_line_color(lv_obj_t *o,lv_color_t c,int){o->line_color=c.full;}
 void lv_obj_set_flex_flow(lv_obj_t *o,int f){o->flex=f;}
 void lv_obj_set_flex_grow(lv_obj_t*,int){}
 void lv_obj_set_flex_align(lv_obj_t*,int,int,int){}
 void lv_line_set_points(lv_obj_t *o,const lv_point_precise_t *p,size_t n){o->points=p;o->point_count=n;}
+struct lv_layer_t {};
+struct lv_area_t {int x1,y1,x2,y2;};
+struct lv_draw_line_dsc_t {struct {lv_layer_t *layer=nullptr;} base;lv_point_precise_t p1{},p2{};lv_color_t color{};int width=2,opa=255;bool round_start=false,round_end=false;};
+struct lv_draw_arc_dsc_t {lv_color_t color{};int width=2,opa=255,radius=0,start_angle=0,end_angle=0;lv_point_t center;bool rounded=false;};
+lv_layer_t test_layer;
+std::vector<lv_draw_line_dsc_t> drawn_lines;
+std::vector<lv_draw_arc_dsc_t> drawn_arcs;
+lv_layer_t *lv_event_get_layer(lv_event_t*){return &test_layer;}
+void lv_obj_get_coords(lv_obj_t *o,lv_area_t *a){int x=0,y=0;for(auto *p=o;p;p=p->parent){x+=p->x;y+=p->y;}*a={x,y,x+o->w-1,y+o->h-1};}
+void lv_draw_line_dsc_init(lv_draw_line_dsc_t *d){*d={};}
+void lv_obj_init_draw_line_dsc(lv_obj_t *o,int,lv_draw_line_dsc_t *d){d->width=o->line_width;d->color={o->line_color};}
+void lv_draw_line(lv_layer_t*,const lv_draw_line_dsc_t *d){drawn_lines.push_back(*d);}
+void lv_draw_arc_dsc_init(lv_draw_arc_dsc_t *d){*d={};}
+void lv_draw_arc(lv_layer_t*,const lv_draw_arc_dsc_t *d){drawn_arcs.push_back(*d);}
+void lv_obj_invalidate(lv_obj_t*){}
 void apply_icon_width_compensation(lv_obj_t*,int){}
 void notify_dashboard_content_changed(){++notifications;}
 void apply_push_button_transition(lv_obj_t*){}
@@ -311,7 +327,16 @@ int main(){
     normal_title="18°C";
     frame.sw=size[0];frame.sh=size[1];frame.panel_w=size[0]-16;frame.panel_h=size[1]-50;
     power_flow_open(card);assert(subscriptions==10&&title=="Power Dashboard");
-    auto &ui=power_flow_ui();assert(ui.lines[0]->points==ui.points[0]);
+    auto &ui=power_flow_ui();assert(ui.lines[0]->events[0].data==&ui.paths[0]);
+    drawn_lines.clear();drawn_arcs.clear();send(ui.lines[0],LV_EVENT_DRAW_MAIN);
+    assert(drawn_lines.size()==2&&drawn_arcs.size()==1);
+    assert(drawn_arcs[0].end_angle-drawn_arcs[0].start_angle==90);
+    assert(drawn_arcs[0].radius==ui.paths[0].arc.radius+drawn_lines[0].width/2);
+    assert(drawn_lines[0].round_start&&!drawn_lines[0].round_end);
+    assert(!drawn_lines[1].round_start&&drawn_lines[1].round_end);
+    assert(drawn_lines[0].width%2==0&&drawn_arcs[0].color.full==current_button_primary_color());
+    drawn_lines.clear();drawn_arcs.clear();send(ui.lines[1],LV_EVENT_DRAW_MAIN);
+    assert(drawn_lines.size()==1&&drawn_arcs.empty());
     assert(ui.details[3]->color==theme.text_muted);
     assert(ui.details[3]->mode==LV_LABEL_LONG_CLIP);
     assert(ui.soc->mode==LV_LABEL_LONG_CLIP);
@@ -329,11 +354,11 @@ int main(){
     centered();frame.back_size=54;power_flow_layout();centered();
     frame.back_size=36;power_flow_layout();centered();
     for(size_t j=0;j<espcontrol::power::FLOW_POINT_COUNT;j++){
-      const auto p=ui.points[4][j],r=ui.points[6][espcontrol::power::FLOW_POINT_COUNT-1-j];
+      const auto p=ui.paths[4].points[j],r=ui.paths[6].points[espcontrol::power::FLOW_POINT_COUNT-1-j];
       assert(p.x==r.x&&p.y==r.y); // including actual integer renderer quantization
     }
     assert(sizeof(PowerFlowUi)<=2100); // fixed storage, no extra LVGL objects
-    auto *area=ui.area;const int count=objects;const auto point=ui.points[0][0];
+    auto *area=ui.area;const int count=objects;const auto point=ui.paths[0].points[0];
     assert(count<=64); // three-row nodes include bounded horizontal detail containers
     publish("sensor.s","unknown");assert(ui.lines[0]->flags&LV_OBJ_FLAG_HIDDEN);assert(ui.values[1]->text=="1000 W");
     assert(ui.status->text=="Unavailable");assert(slot.secondary_lbl->text=="Charging");
@@ -341,7 +366,7 @@ int main(){
     publish("sensor.s","1500");assert((ui.status->flags&LV_OBJ_FLAG_HIDDEN));
     theme.text_primary=0x212121;theme.surface_card=0xf5f5f5;theme_apply_grid_button(slot.btn,theme.surface_card,theme);
     assert(slot.text_lbl->color==0x212121&&ui.area==area&&objects==count);
-    assert(ui.points[0][0].x==point.x&&ui.points[0][0].y==point.y);
+    assert(ui.paths[0].points[0].x==point.x&&ui.paths[0].points[0].y==point.y);
     slot.btn->pressed_bg=0xffffff;slot.btn->state=LV_STATE_PRESSED;send(slot.btn,LV_EVENT_PRESSED);
     theme.surface_card=0x212121;theme_apply_grid_button(slot.btn,theme.surface_card,theme);
     assert(slot.btn->bg==0x212121&&slot.btn->pressed_bg==0xffffff);

@@ -11,10 +11,9 @@ namespace espcontrol::power {
 // v0.32 topology with outward placement in actual content bounds; no data/LVGL.
 enum class FlowFamily { LANDSCAPE, SQUARE, PORTRAIT };
 struct Point { double x = 0, y = 0; };
-// Sixteen quadratic elbow segments plus two straight endpoints. Fixed buffers:
-// +448 bytes in the live LVGL path array versus the original eight segments.
-constexpr size_t FLOW_CURVE_SEGMENTS = 16;
-constexpr size_t FLOW_POINT_COUNT = FLOW_CURVE_SEGMENTS + 3;
+// Two tangent straights and one native quarter-circle, never a sampled polyline.
+constexpr size_t FLOW_POINT_COUNT = 4;
+struct FlowArc { Point center{}; int radius = 0, start_angle = 0, end_angle = 0; };
 struct FlowViewport { int x, y, width, height; };
 inline FlowViewport flow_viewport(int panel_width, int panel_height, int inset,
                                   int navigation_bottom) {
@@ -35,7 +34,8 @@ using FlowPath = std::array<Point, FLOW_POINT_COUNT>;
 struct FlowGeometry {
   std::array<Point, 4> nodes{}; // Solar, Home, Grid, Battery (model order)
   std::array<std::array<Point, 3>, 4> ports{};
-  std::array<FlowPath, 7> paths{}; // Model Edge order
+  std::array<FlowPath, 7> paths{}; // Start, tangent entry, tangent exit, end
+  std::array<FlowArc, 7> arcs{}; // Native clockwise sector; reversal shares it
   std::array<std::array<Point, 3>, 7> heads{};
   double scale = 1;
 };
@@ -60,36 +60,24 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
                 {{{cx + dx - hw - gap, cy - port}, {cx + dx - hw - gap, cy}, {cx + dx - hw - gap, cy + port}}},
                 {{{cx - dx + hw + gap, cy - port}, {cx - dx + hw + gap, cy}, {cx - dx + hw + gap, cy + port}}},
                 {{{cx - port, cy + dy - hh - gap}, {cx, cy + dy - hh - gap}, {cx + port, cy + dy - hh - gap}}}}};
-  auto straight = [](Point a, Point b) {
-    FlowPath path{};
-    for (size_t i = 0; i < path.size(); ++i) {
-      const double t = double(i) / (path.size() - 1);
-      path[i] = {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t};
-    }
-    return path;
+  auto straight = [](Point a, Point b) { return FlowPath{{a, a, b, b}}; };
+  auto bend = [&](size_t index, Point a, Point b, int sign, bool top) {
+    // One radius for mirrored elbows, constrained by actual node clearance.
+    const int r = std::max(0, static_cast<int>(std::floor(std::min({32.0,
+      std::abs(b.y - a.y) * .42, std::abs(b.x - a.x) * .42}))));
+    const Point center{a.x + sign * r, b.y + (top ? -r : r)};
+    out.paths[index] = {{{a}, {a.x, center.y}, {center.x, b.y}, {b}}};
+    const int start = top ? (sign > 0 ? 90 : 0) : (sign > 0 ? 180 : 270);
+    out.arcs[index] = {center, r, start, start + 90};
   };
-  auto bend = [](Point a, Point b, int sign, bool top) {
-    FlowPath path{};
-    const double r = std::min({top ? 40.0 : 30.0, std::abs(b.y - a.y) * .42,
-                               std::abs(b.x - a.x) * .42});
-    const Point start{a.x, b.y + (top ? -r : r)}, end{a.x + sign * r, b.y};
-    path[0] = a;
-    // Fixed quadratic samples: endpoints and tangents match the SVG Q command.
-    for (size_t i = 1; i < path.size() - 1; ++i) {
-      const double t = double(i - 1) / (path.size() - 3), u = 1 - t;
-      path[i] = {u * u * start.x + 2 * u * t * a.x + t * t * end.x,
-                 u * u * start.y + 2 * u * t * b.y + t * t * end.y};
-    }
-    path.back() = b;
-    return path;
-  };
-  out.paths[0] = bend(out.ports[0][2], out.ports[1][0], 1, true);
+  bend(0, out.ports[0][2], out.ports[1][0], 1, true);
   out.paths[1] = straight(out.ports[0][1], out.ports[3][1]);
-  out.paths[2] = bend(out.ports[0][0], out.ports[2][0], -1, true);
-  out.paths[3] = bend(out.ports[3][2], out.ports[1][2], 1, false);
-  out.paths[4] = bend(out.ports[3][0], out.ports[2][2], -1, false);
+  bend(2, out.ports[0][0], out.ports[2][0], -1, true);
+  bend(3, out.ports[3][2], out.ports[1][2], 1, false);
+  bend(4, out.ports[3][0], out.ports[2][2], -1, false);
   out.paths[5] = straight(out.ports[2][1], out.ports[1][1]);
   std::reverse_copy(out.paths[4].begin(), out.paths[4].end(), out.paths[6].begin());
+  out.arcs[6] = out.arcs[4]; // Identical sector, opposite traversal/arrowhead.
   const double ref_w = family == FlowFamily::LANDSCAPE ? 620 : 520;
   const double ref_h = family == FlowFamily::PORTRAIT ? 620 : 430;
   out.scale = std::max(0.0, std::min(width / ref_w, height / ref_h));

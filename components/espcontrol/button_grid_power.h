@@ -60,6 +60,52 @@ inline void power_cards_disconnected() {
   }
 }
 
+// A native masked arc avoids the separately rounded, quantized segment ends of
+// lv_line polylines. Draw tasks use LVGL's normal layer; no canvas or frame buffer.
+struct PowerFlowStroke {
+  lv_point_precise_t points[espcontrol::power::FLOW_POINT_COUNT]{};
+  espcontrol::power::FlowArc arc{};
+};
+inline void power_flow_draw_stroke(lv_event_t *event) {
+  auto *stroke = static_cast<PowerFlowStroke *>(lv_event_get_user_data(event));
+  auto *object = static_cast<lv_obj_t *>(lv_event_get_target(event));
+  auto *layer = lv_event_get_layer(event);
+  lv_area_t bounds;
+  lv_obj_get_coords(object, &bounds);
+  lv_draw_line_dsc_t line;
+  lv_draw_line_dsc_init(&line);
+  line.base.layer = layer;
+  lv_obj_init_draw_line_dsc(object, LV_PART_MAIN, &line);
+  auto point = [&](size_t i) {
+    return lv_point_precise_t{stroke->points[i].x + bounds.x1, stroke->points[i].y + bounds.y1};
+  };
+  line.p1 = point(0);
+  line.p2 = point(stroke->arc.radius ? 1 : 3);
+  line.round_start = 1;
+  line.round_end = stroke->arc.radius ? 0 : 1;
+  lv_draw_line(layer, &line);
+  if (!stroke->arc.radius) return;
+  lv_draw_arc_dsc_t arc;
+  lv_draw_arc_dsc_init(&arc);
+  arc.color = line.color;
+  arc.width = line.width;
+  arc.opa = line.opa;
+  arc.center = {espcontrol::power::flow_coordinate<int32_t>(stroke->arc.center.x) + bounds.x1,
+                espcontrol::power::flow_coordinate<int32_t>(stroke->arc.center.y) + bounds.y1};
+  // LVGL specifies outer radius. Even stroke widths keep the centerline exactly
+  // aligned with integer tangent coordinates, with no half-pixel join mismatch.
+  arc.radius = stroke->arc.radius + line.width / 2;
+  arc.start_angle = stroke->arc.start_angle;
+  arc.end_angle = stroke->arc.end_angle;
+  arc.rounded = 0;
+  lv_draw_arc(layer, &arc);
+  line.p1 = point(2);
+  line.p2 = point(3);
+  line.round_start = 0;
+  line.round_end = 1;
+  lv_draw_line(layer, &line);
+}
+
 // A single temporary view borrows the live card model, never its subscriptions.
 // Point buffers live until the overlay is deleted; no canvas/frame buffer/timer.
 struct PowerFlowUi {
@@ -77,7 +123,7 @@ struct PowerFlowUi {
   lv_obj_t *soc = nullptr;
   lv_obj_t *lines[7]{};
   lv_obj_t *arrows[7]{};
-  lv_point_precise_t points[7][espcontrol::power::FLOW_POINT_COUNT]{};
+  PowerFlowStroke paths[7]{};
   lv_point_precise_t heads[7][3]{};
   bool laying_out = false;
 };
@@ -154,14 +200,16 @@ inline void power_flow_layout() {
   lv_obj_set_style_text_color(ui.status, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
   for (size_t i = 0; i < 7; ++i) {
     for (size_t j = 0; j < espcontrol::power::FLOW_POINT_COUNT; ++j)
-      ui.points[i][j] = {espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.paths[i][j].x),
+      ui.paths[i].points[j] = {espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.paths[i][j].x),
                          espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.paths[i][j].y)};
     for (size_t j = 0; j < 3; ++j)
       ui.heads[i][j] = {espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.heads[i][j].x),
                         espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.heads[i][j].y)};
-    lv_line_set_points(ui.lines[i], ui.points[i], espcontrol::power::FLOW_POINT_COUNT);
+    ui.paths[i].arc = geometry.arcs[i];
+    lv_obj_set_size(ui.lines[i], width, height);
+    lv_obj_invalidate(ui.lines[i]);
     lv_line_set_points(ui.arrows[i], ui.heads[i], 3);
-    const int stroke = std::max<int>(1, std::lround(3.2 * geometry.scale));
+    const int stroke = (std::max<int>(2, std::lround(3.2 * geometry.scale)) + 1) & ~1;
     lv_obj_set_style_line_width(ui.lines[i], stroke, LV_PART_MAIN);
     lv_obj_set_style_line_width(ui.arrows[i], stroke, LV_PART_MAIN);
   }
@@ -247,7 +295,12 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   lv_obj_clear_flag(ui.area, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(ui.area, LV_OBJ_FLAG_CLICKABLE);
   for (size_t i = 0; i < 7; ++i) {
-    ui.lines[i] = lv_line_create(ui.area);
+    ui.lines[i] = lv_obj_create(ui.area);
+    if (ui.lines[i]) {
+      lv_obj_remove_style_all(ui.lines[i]);
+      lv_obj_clear_flag(ui.lines[i], LV_OBJ_FLAG_SCROLLABLE);
+      lv_obj_add_event_cb(ui.lines[i], power_flow_draw_stroke, LV_EVENT_DRAW_MAIN, &ui.paths[i]);
+    }
     ui.arrows[i] = lv_line_create(ui.area);
     if (!ui.lines[i] || !ui.arrows[i]) { power_flow_hide(); return; }
     for (auto *line : {ui.lines[i], ui.arrows[i]}) {
