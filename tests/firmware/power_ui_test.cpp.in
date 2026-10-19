@@ -12,6 +12,13 @@
 #include "display_color.h"
 #include "button_grid_modal_layout.h"
 
+std::vector<std::string> diagnostic_logs;
+template<class... Args> void test_log(const char *tag,const char *format,Args... args){
+  if(std::string(tag)!="power_diag")return;
+  char text[256];snprintf(text,sizeof(text),format,args...);diagnostic_logs.emplace_back(text);
+}
+#define ESP_LOGW(...) test_log(__VA_ARGS__)
+
 using lv_coord_t=int; using lv_value_precise_t=int32_t;
 struct lv_point_precise_t { lv_value_precise_t x,y; };
 // Exercise ESP-IDF targets where LVGL int32_t metrics differ from host int.
@@ -31,7 +38,7 @@ constexpr int LV_OPA_TRANSP=0, LV_LAYOUT_NONE=0, LV_LAYOUT_FLEX=1, LV_LAYOUT_GRI
 constexpr int LV_OPA_COVER=255, LV_FLEX_FLOW_COLUMN=1, LV_FLEX_FLOW_ROW=2, LV_FLEX_ALIGN_CENTER=0;
 constexpr int LV_EVENT_ALL=-1, LV_STYLE_BG_COLOR=1, LV_STYLE_RES_FOUND=1;
 constexpr int LV_EVENT_DELETE=1, LV_EVENT_SIZE_CHANGED=2, LV_EVENT_PRESSED=3,
-  LV_EVENT_RELEASED=4, LV_EVENT_PRESS_LOST=5, LV_EVENT_CLICKED=6, LV_EVENT_DRAW_MAIN=7;
+  LV_EVENT_RELEASED=4, LV_EVENT_PRESS_LOST=5, LV_EVENT_CLICKED=6, LV_EVENT_DRAW_MAIN=7, LV_EVENT_DRAW_MAIN_BEGIN=8, LV_EVENT_DRAW_POST_END=9;
 struct lv_color_t { uint32_t full; };
 struct lv_style_value_t { lv_color_t color; };
 struct lv_color32_t { uint8_t blue,green,red,alpha; };
@@ -257,7 +264,7 @@ bool ha_subscribe_state(const std::string &id,std::function<void(esphome::String
 bool ha_subscribe_attribute(const std::string &id,const std::string &attribute,std::function<void(esphome::StringRef)> cb,int,bool){bindings.push_back({callback_owner,id,attribute,cb});++subscriptions;return true;}
 void (*&ha_retained_state_invalidated_handler())(){static void(*cb)()=nullptr;return cb;}
 int parse_precision(const std::string &s){return s.empty()?0:std::stoi(s);}
-#define ESP_LOGW(...) ((void)0)
+
 template<class T>T *grid_delete_with_owner(lv_obj_t *o,T *p){lv_obj_add_event_cb(o,[](lv_event_t *e){delete static_cast<T*>(lv_event_get_user_data(e));},LV_EVENT_DELETE,p);return p;}
 std::vector<PowerCardCtx*> main_allocations;
 template<class T>T *grid_track_runtime_allocation(lv_obj_t*,T *p){main_allocations.push_back(p);return p;}
@@ -360,6 +367,24 @@ int main(){
     frame.sw=size[0];frame.sh=size[1];frame.panel_w=size[0]-16;frame.panel_h=size[1]-50;
     power_flow_open(card);assert(subscriptions==10&&title=="Power Dashboard");
     auto &ui=power_flow_ui();assert(ui.lines[0]->events[0].data==&ui.paths[0]);
+    auto count_stage=[](const char *prefix){return std::count_if(diagnostic_logs.begin(),diagnostic_logs.end(),[&](const auto &s){return s.find(prefix)==0;});};
+    assert(ui.diagnostic_updates==1);
+    const int update_logs=count_stage("stage=model.update.begin");
+    const int live_objects=objects;
+    for(int update=0;update<8;++update)power_flow_update(card);
+    assert(ui.diagnostic_updates==3&&count_stage("stage=model.update.begin")==update_logs+2);
+    assert(objects==live_objects&&subscriptions==10);
+    const int overlay_begin=count_stage("stage=overlay.first_draw.begin");
+    const int overlay_end=count_stage("stage=overlay.first_draw.post");
+    send(ui.shell.overlay,LV_EVENT_DRAW_MAIN_BEGIN);send(ui.shell.overlay,LV_EVENT_DRAW_POST_END);
+    send(ui.shell.overlay,LV_EVENT_DRAW_MAIN_BEGIN);send(ui.shell.overlay,LV_EVENT_DRAW_POST_END);
+    assert(count_stage("stage=overlay.first_draw.begin")==overlay_begin+1);
+    assert(count_stage("stage=overlay.first_draw.post")==overlay_end+1);
+    assert(std::find(diagnostic_logs.begin(),diagnostic_logs.end(),"stage=open.ready item=-1")!=diagnostic_logs.end());
+    const int path_begin=count_stage("stage=path.draw.begin item=0");
+    send(ui.lines[0],LV_EVENT_DRAW_MAIN);
+    assert(count_stage("stage=path.draw.begin item=0")==path_begin+1);
+    send(ui.lines[0],LV_EVENT_DRAW_MAIN);assert(count_stage("stage=path.draw.begin item=0")==path_begin+1);
     drawn_lines.clear();drawn_arcs.clear();send(ui.lines[0],LV_EVENT_DRAW_MAIN);
     assert(drawn_lines.size()==2&&drawn_arcs.size()==1);
     assert(drawn_arcs[0].end_angle-drawn_arcs[0].start_angle==90);

@@ -1271,3 +1271,35 @@ alignment; only numeric text uses that font. Unit text uses the existing small
 text role. The fixed fit envelope includes both widths; unavailable values clear
 the unit. This retains three direct rows and adds only eight bounded LVGL objects
 on large profiles. Host assertions cover adjacency/ownership and unit validity.
+
+
+### Hardware crash investigation — release blocked
+
+The V2 serial panic from tested source `619e8bc85` matches preserved ELF SHA256
+`ea83ae2224dcef401e1c14709488d162ebfe027f8a7373e26cfc60ca08c2f7cf`.
+It reports a core-1 stack-protection fault while `loopTask` was current.
+The saved PCs resolve to interrupt entry, not a Power function. The bounds
+`0x4ff16220..0x4ff16820` match core-1's 1536-byte ISR stack in that ELF;
+`loop_task_stack` is separately allocated at `0x4ff16cf8`, size 8192 bytes.
+Consequently this dump does not justify raising the loop stack or blaming arcs.
+The exact interrupted construction/draw/update stage is still unknown.
+
+A closer native LVGL 9.5 probe uses RGB565 partial rendering, compiled target
+font data and the production continuous-corner implementation with ASan/UBSan.
+It passes dynamic Italian SOC/status coordinates and 25 theme/open/close cycles.
+This does not reproduce P4 interrupts, PPA rotation or ESP allocators, and does
+not establish a hardware fix. Desktop Battery SOC/activity share the same y
+bounds after negative, positive, idle and unavailable power updates.
+
+The current staging code adds temporary `power_diag` WARN markers around open,
+node creation, initial layout/update, first draw submission and close, with task,
+core, stack low-water and heap metrics on ESP. Per-path first-draw and initial
+model-update logs are bounded per open; there are no timers or new UI objects.
+Resolved rectangles are logged after layout. These diagnostics alter timing and
+must not be represented as a fix even if they suppress a reproduction.
+
+Only a clearly labelled V2 diagnostic build is appropriate until its last stage,
+metrics and full panic output identify the actual fault. The large-layout branch,
+three-row implementation, signed watts, curve renderer, themes and navigation
+are preserved. Cosmetic work and normal two-device retest builds remain gated
+on diagnosis. Remove the temporary markers after the root-cause correction.

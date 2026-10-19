@@ -5,6 +5,35 @@
 #include "power_card_data.h"
 #include "power_flow_layout.h"
 
+#ifdef ESP_PLATFORM
+#include "esp_heap_caps.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#endif
+
+// Temporary, bounded diagnostics for the confirmed 619e8bc85 hardware panic.
+// This staging build is diagnostic, not a crash fix. No per-frame polling.
+inline void power_flow_diagnostic_stage(const char *stage, int item = -1) {
+#ifdef ESP_PLATFORM
+  ESP_LOGW("power_diag", "stage=%s item=%d task=%s core=%u stack_min_bytes=%u internal_free=%u internal_largest=%u psram_free=%u",
+    stage, item, pcTaskGetName(nullptr), static_cast<unsigned>(xPortGetCoreID()),
+    static_cast<unsigned>(uxTaskGetStackHighWaterMark(nullptr) * sizeof(StackType_t)),
+    static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+    static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)),
+    static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)));
+#else
+  ESP_LOGW("power_diag", "stage=%s item=%d", stage, item);
+#endif
+}
+inline void power_flow_diagnostic_bounds(const char *role, lv_obj_t *object, int item = -1) {
+  if (!object) return;
+  lv_area_t bounds;
+  lv_obj_get_coords(object, &bounds);
+  ESP_LOGW("power_diag", "bounds=%s item=%d x=%ld..%ld y=%ld..%ld",
+    role, item, static_cast<long>(bounds.x1), static_cast<long>(bounds.x2),
+    static_cast<long>(bounds.y1), static_cast<long>(bounds.y2));
+}
+
 struct PowerCardCtx;
 inline PowerCardCtx *&power_card_contexts() { static PowerCardCtx *head = nullptr; return head; }
 inline void power_flow_hide();
@@ -67,9 +96,14 @@ inline void power_cards_disconnected() {
 struct PowerFlowStroke {
   lv_point_precise_t points[espcontrol::power::FLOW_POINT_COUNT]{};
   espcontrol::power::FlowArc arc{};
+  bool diagnostic_pending = true;
+  int diagnostic_index = -1;
 };
 inline void power_flow_draw_stroke(lv_event_t *event) {
   auto *stroke = static_cast<PowerFlowStroke *>(lv_event_get_user_data(event));
+  const bool diagnose = stroke->diagnostic_pending;
+  stroke->diagnostic_pending = false;
+  if (diagnose) power_flow_diagnostic_stage("path.draw.begin", stroke->diagnostic_index);
   auto *object = static_cast<lv_obj_t *>(lv_event_get_target(event));
   auto *layer = lv_event_get_layer(event);
   lv_area_t bounds;
@@ -87,7 +121,10 @@ inline void power_flow_draw_stroke(lv_event_t *event) {
   line.round_start = 1;
   line.round_end = stroke->arc.radius ? 0 : 1;
   lv_draw_line(layer, &line);
-  if (!bent) return;
+  if (!bent) {
+    if (diagnose) power_flow_diagnostic_stage("path.draw.end", stroke->diagnostic_index);
+    return;
+  }
   if (stroke->arc.radius) {
     lv_draw_arc_dsc_t arc;
     lv_draw_arc_dsc_init(&arc);
@@ -109,6 +146,7 @@ inline void power_flow_draw_stroke(lv_event_t *event) {
   line.round_start = stroke->arc.radius ? 0 : 1;
   line.round_end = 1;
   lv_draw_line(layer, &line);
+  if (diagnose) power_flow_diagnostic_stage("path.draw.end", stroke->diagnostic_index);
 }
 
 // A single temporary view borrows the live card model, never its subscriptions.
@@ -138,13 +176,17 @@ struct PowerFlowUi : PowerFlowNodes {
   PowerFlowStroke paths[7]{};
   lv_point_precise_t heads[7][3]{};
   bool laying_out = false;
+  bool diagnostic_draw_begin = true, diagnostic_draw_end = true;
+  unsigned diagnostic_updates = 0;
 };
 inline PowerFlowUi &power_flow_ui() { static PowerFlowUi ui; return ui; }
 inline void power_flow_hide() {
+  power_flow_diagnostic_stage("close.begin");
   auto &ui = power_flow_ui();
   ui.card = nullptr;
   control_modal_delete_overlay(ControlModalKind::POWER_FLOW, ui.shell.overlay);
   ui = PowerFlowUi{};
+  power_flow_diagnostic_stage("close.end");
 }
 inline PowerCardCtx::~PowerCardCtx() {
   if (power_flow_ui().card == this) power_flow_hide();
@@ -168,6 +210,7 @@ inline void power_flow_layout() {
   auto &ui = power_flow_ui();
   if (!ui.card || !ui.area || ui.laying_out) return;
   ui.laying_out = true;
+  power_flow_diagnostic_stage("layout.begin");
   const auto layout = control_modal_calc_layout(display_main_width_percent(ui.card->display));
   control_modal_apply_panel_layout(ui.shell.overlay, ui.shell.panel, layout,
                                    control_modal_card_radius(ui.card->slot.btn));
@@ -342,6 +385,7 @@ inline void power_flow_layout() {
   }
   lv_obj_move_foreground(ui.shell.close_btn);
   ui.laying_out = false;
+  power_flow_diagnostic_stage("layout.end");
 }
 inline void power_flow_update_nodes(PowerFlowNodes &ui, PowerCardCtx *ctx) {
   if (!ui.nodes[0]) return;
@@ -366,6 +410,8 @@ inline void power_flow_update_nodes(PowerFlowNodes &ui, PowerCardCtx *ctx) {
 inline void power_flow_update(PowerCardCtx *ctx) {
   auto &ui = power_flow_ui();
   if (!ctx || ui.card != ctx) return;
+  const bool diagnose = ui.diagnostic_updates < 3;
+  if (diagnose) power_flow_diagnostic_stage("model.update.begin", ++ui.diagnostic_updates);
   const auto &calc = ctx->data.model.calculation;
   power_flow_update_nodes(ui, ctx);
   power_flow_update_nodes(ui.sidebar, ctx);
@@ -381,6 +427,7 @@ inline void power_flow_update(PowerCardCtx *ctx) {
     ? "Inconsistent readings" : active ? "" : "Idle";
   power_set_text(ui.status, espcontrol_i18n(state));
   power_flow_set_visible(ui.status, *state != 0);
+  if (diagnose) power_flow_diagnostic_stage("model.update.end", ui.diagnostic_updates);
 }
 inline lv_obj_t *power_flow_label(lv_obj_t *parent, const lv_font_t *font) {
   auto *label = lv_label_create(parent);
@@ -398,6 +445,7 @@ inline bool power_flow_create_nodes(PowerFlowNodes &ui, lv_obj_t *parent,
   const char *names[4] = {"Solar", "Home", "Grid", "Battery"};
   const char *icons[4] = {"Solar Power", "Home", "Transmission Tower", "Battery"};
   for (size_t i = 0; i < 4; ++i) {
+    power_flow_diagnostic_stage(cards ? "side.node.begin" : "diagram.node.begin", i);
     ui.nodes[i] = cards ? create_grid_card_button(parent, control_modal_card_radius(ctx->slot.btn),
       0, label_font, lv_color_hex(current_theme().text_primary), ctx->continuous_corners)
       : lv_obj_create(parent);
@@ -480,16 +528,19 @@ inline bool power_flow_create_nodes(PowerFlowNodes &ui, lv_obj_t *parent,
       lv_obj_set_width(ui.soc, LV_SIZE_CONTENT);
       lv_obj_move_to_index(ui.soc, 0);
     }
+    power_flow_diagnostic_stage(cards ? "side.node.end" : "diagram.node.end", i);
   }
   return true;
 }
 inline void power_flow_open(PowerCardCtx *ctx) {
   if (!ctx) return;
+  power_flow_diagnostic_stage("open.begin");
   control_modal_force_close_active();
   auto &ui = power_flow_ui();
   ui.shell = control_modal_open_shell(ControlModalKind::POWER_FLOW, ctx->slot.btn,
     display_main_width_percent(ctx->display), display_icon_font(ctx->display), power_flow_hide);
   if (!ui.shell.overlay) return;
+  power_flow_diagnostic_stage("shell.ready");
   ui.card = ctx;
   set_clock_bar_modal_label(espcontrol_i18n("Power Dashboard"));
   ui.dashboard = lv_obj_create(ui.shell.panel);
@@ -507,7 +558,9 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   lv_obj_remove_style_all(ui.area);
   lv_obj_clear_flag(ui.area, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(ui.area, LV_OBJ_FLAG_CLICKABLE);
+  power_flow_diagnostic_stage("diagram.containers.ready");
   for (size_t i = 0; i < 7; ++i) {
+    ui.paths[i].diagnostic_index = i;
     ui.lines[i] = lv_obj_create(ui.area);
     if (ui.lines[i]) {
       lv_obj_remove_style_all(ui.lines[i]);
@@ -524,6 +577,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
       lv_obj_add_flag(line, LV_OBJ_FLAG_HIDDEN);
     }
   }
+  power_flow_diagnostic_stage("paths.ready");
   const auto *label_font = display_volume_label_font(ctx->display,
     lv_obj_get_style_text_font(ctx->slot.text_lbl, LV_PART_MAIN));
   if (!power_flow_create_nodes(ui, ui.area, ctx, label_font, false)) { power_flow_hide(); return; }
@@ -538,6 +592,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
     lv_obj_clear_flag(ui.back_area, LV_OBJ_FLAG_CLICKABLE);
     if (!power_flow_create_nodes(ui.sidebar, ui.dashboard, ctx, label_font, true)) { power_flow_hide(); return; }
   }
+  power_flow_diagnostic_stage("all.nodes.ready");
   ui.status = power_flow_label(ui.shell.panel, label_font);
   if (!ui.status) { power_flow_hide(); return; }
   lv_obj_add_event_cb(ui.shell.panel, [](lv_event_t *) { power_flow_layout(); }, LV_EVENT_SIZE_CHANGED, nullptr);
@@ -546,6 +601,36 @@ inline void power_flow_open(PowerCardCtx *ctx) {
     control_modal_clear_active(ControlModalKind::POWER_FLOW);
     power_flow_ui() = PowerFlowUi{};
   }, LV_EVENT_DELETE, nullptr);
+  lv_obj_add_event_cb(ui.shell.overlay, [](lv_event_t *event) {
+    auto &live = power_flow_ui();
+    if (lv_event_get_code(event) == LV_EVENT_DRAW_MAIN_BEGIN && live.diagnostic_draw_begin) {
+      live.diagnostic_draw_begin = false;
+      power_flow_diagnostic_stage("overlay.first_draw.begin");
+    } else if (lv_event_get_code(event) == LV_EVENT_DRAW_POST_END && live.diagnostic_draw_end) {
+      live.diagnostic_draw_end = false;
+      // Submission for the first partial buffer, not proof of a completed frame.
+      power_flow_diagnostic_stage("overlay.first_draw.post");
+    }
+  }, LV_EVENT_ALL, nullptr);
+  power_flow_diagnostic_stage("initial.update.begin");
   power_flow_update(ctx);
+  power_flow_diagnostic_stage("initial.update.end");
   power_flow_layout();
+  power_flow_diagnostic_bounds("panel", ui.shell.panel);
+  power_flow_diagnostic_bounds("diagram", ui.diagram);
+  power_flow_diagnostic_bounds("paths", ui.area);
+  power_flow_diagnostic_bounds("back", ui.shell.close_btn);
+  for (size_t i = 0; i < 4; ++i) {
+    power_flow_diagnostic_bounds("node", ui.nodes[i], i);
+    power_flow_diagnostic_bounds("side", ui.sidebar.nodes[i], i);
+    if (i == 3) {
+      power_flow_diagnostic_bounds("battery.value", ui.values[i]);
+      power_flow_diagnostic_bounds("battery.soc", ui.soc);
+      power_flow_diagnostic_bounds("battery.activity", ui.details[i]);
+      power_flow_diagnostic_bounds("side.battery.value", ui.sidebar.values[i]);
+      power_flow_diagnostic_bounds("side.battery.soc", ui.sidebar.soc);
+      power_flow_diagnostic_bounds("side.battery.activity", ui.sidebar.details[i]);
+    }
+  }
+  power_flow_diagnostic_stage("open.ready");
 }
