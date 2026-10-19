@@ -96,13 +96,13 @@ inline void power_cards_disconnected() {
 struct PowerFlowStroke {
   lv_point_precise_t points[espcontrol::power::FLOW_POINT_COUNT]{};
   espcontrol::power::FlowArc arc{};
-  bool diagnostic_pending = true;
-  int diagnostic_index = -1;
+  bool diagnostic_seen = false;
+  int diagnostic_index = 0;
 };
 inline void power_flow_draw_stroke(lv_event_t *event) {
   auto *stroke = static_cast<PowerFlowStroke *>(lv_event_get_user_data(event));
-  const bool diagnose = stroke->diagnostic_pending;
-  stroke->diagnostic_pending = false;
+  const bool diagnose = !stroke->diagnostic_seen;
+  stroke->diagnostic_seen = true;
   if (diagnose) power_flow_diagnostic_stage("path.draw.begin", stroke->diagnostic_index);
   auto *object = static_cast<lv_obj_t *>(lv_event_get_target(event));
   auto *layer = lv_event_get_layer(event);
@@ -176,10 +176,31 @@ struct PowerFlowUi : PowerFlowNodes {
   PowerFlowStroke paths[7]{};
   lv_point_precise_t heads[7][3]{};
   bool laying_out = false;
-  bool diagnostic_draw_begin = true, diagnostic_draw_end = true;
+  bool diagnostic_draw_begin = false, diagnostic_draw_end = false;
+  bool diagnostic_geometry_pending = false;
   unsigned diagnostic_updates = 0;
 };
 inline PowerFlowUi &power_flow_ui() { static PowerFlowUi ui; return ui; }
+inline void power_flow_diagnostic_geometry() {
+  auto &ui = power_flow_ui();
+  power_flow_diagnostic_bounds("panel", ui.shell.panel);
+  power_flow_diagnostic_bounds("diagram", ui.diagram);
+  power_flow_diagnostic_bounds("paths", ui.area);
+  power_flow_diagnostic_bounds("back", ui.shell.close_btn);
+  for (size_t i = 0; i < 4; ++i) {
+    power_flow_diagnostic_bounds("node", ui.nodes[i], i);
+    power_flow_diagnostic_bounds("side", ui.sidebar.nodes[i], i);
+    if (i == 3) {
+      power_flow_diagnostic_bounds("battery.value", ui.values[i]);
+      power_flow_diagnostic_bounds("battery.soc", ui.soc);
+      power_flow_diagnostic_bounds("battery.activity", ui.details[i]);
+      power_flow_diagnostic_bounds("side.battery.value", ui.sidebar.values[i]);
+      power_flow_diagnostic_bounds("side.battery.soc", ui.sidebar.soc);
+      power_flow_diagnostic_bounds("side.battery.activity", ui.sidebar.details[i]);
+    }
+  }
+}
+
 inline void power_flow_hide() {
   power_flow_diagnostic_stage("close.begin");
   auto &ui = power_flow_ui();
@@ -411,7 +432,10 @@ inline void power_flow_update(PowerCardCtx *ctx) {
   auto &ui = power_flow_ui();
   if (!ctx || ui.card != ctx) return;
   const bool diagnose = ui.diagnostic_updates < 3;
-  if (diagnose) power_flow_diagnostic_stage("model.update.begin", ++ui.diagnostic_updates);
+  if (diagnose) {
+    ui.diagnostic_geometry_pending = true;
+    power_flow_diagnostic_stage("model.update.begin", ++ui.diagnostic_updates);
+  }
   const auto &calc = ctx->data.model.calculation;
   power_flow_update_nodes(ui, ctx);
   power_flow_update_nodes(ui.sidebar, ctx);
@@ -603,11 +627,17 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   }, LV_EVENT_DELETE, nullptr);
   lv_obj_add_event_cb(ui.shell.overlay, [](lv_event_t *event) {
     auto &live = power_flow_ui();
-    if (lv_event_get_code(event) == LV_EVENT_DRAW_MAIN_BEGIN && live.diagnostic_draw_begin) {
-      live.diagnostic_draw_begin = false;
+    if (lv_event_get_code(event) == LV_EVENT_DRAW_MAIN_BEGIN && live.diagnostic_geometry_pending) {
+      // Draw traversal follows LVGL's own layout resolution; do not add a
+      // synchronous layout pass inside the already-deep card click stack.
+      live.diagnostic_geometry_pending = false;
+      power_flow_diagnostic_geometry();
+    }
+    if (lv_event_get_code(event) == LV_EVENT_DRAW_MAIN_BEGIN && !live.diagnostic_draw_begin) {
+      live.diagnostic_draw_begin = true;
       power_flow_diagnostic_stage("overlay.first_draw.begin");
-    } else if (lv_event_get_code(event) == LV_EVENT_DRAW_POST_END && live.diagnostic_draw_end) {
-      live.diagnostic_draw_end = false;
+    } else if (lv_event_get_code(event) == LV_EVENT_DRAW_POST_END && !live.diagnostic_draw_end) {
+      live.diagnostic_draw_end = true;
       // Submission for the first partial buffer, not proof of a completed frame.
       power_flow_diagnostic_stage("overlay.first_draw.post");
     }
@@ -616,21 +646,5 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   power_flow_update(ctx);
   power_flow_diagnostic_stage("initial.update.end");
   power_flow_layout();
-  power_flow_diagnostic_bounds("panel", ui.shell.panel);
-  power_flow_diagnostic_bounds("diagram", ui.diagram);
-  power_flow_diagnostic_bounds("paths", ui.area);
-  power_flow_diagnostic_bounds("back", ui.shell.close_btn);
-  for (size_t i = 0; i < 4; ++i) {
-    power_flow_diagnostic_bounds("node", ui.nodes[i], i);
-    power_flow_diagnostic_bounds("side", ui.sidebar.nodes[i], i);
-    if (i == 3) {
-      power_flow_diagnostic_bounds("battery.value", ui.values[i]);
-      power_flow_diagnostic_bounds("battery.soc", ui.soc);
-      power_flow_diagnostic_bounds("battery.activity", ui.details[i]);
-      power_flow_diagnostic_bounds("side.battery.value", ui.sidebar.values[i]);
-      power_flow_diagnostic_bounds("side.battery.soc", ui.sidebar.soc);
-      power_flow_diagnostic_bounds("side.battery.activity", ui.sidebar.details[i]);
-    }
-  }
   power_flow_diagnostic_stage("open.ready");
 }

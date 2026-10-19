@@ -374,12 +374,14 @@ int main(){
     for(int update=0;update<8;++update)power_flow_update(card);
     assert(ui.diagnostic_updates==3&&count_stage("stage=model.update.begin")==update_logs+2);
     assert(objects==live_objects&&subscriptions==10);
+    const int geometry_logs=count_stage("bounds=battery.soc");
     const int overlay_begin=count_stage("stage=overlay.first_draw.begin");
     const int overlay_end=count_stage("stage=overlay.first_draw.post");
     send(ui.shell.overlay,LV_EVENT_DRAW_MAIN_BEGIN);send(ui.shell.overlay,LV_EVENT_DRAW_POST_END);
     send(ui.shell.overlay,LV_EVENT_DRAW_MAIN_BEGIN);send(ui.shell.overlay,LV_EVENT_DRAW_POST_END);
     assert(count_stage("stage=overlay.first_draw.begin")==overlay_begin+1);
     assert(count_stage("stage=overlay.first_draw.post")==overlay_end+1);
+    assert(count_stage("bounds=battery.soc")==geometry_logs+1);
     assert(std::find(diagnostic_logs.begin(),diagnostic_logs.end(),"stage=open.ready item=-1")!=diagnostic_logs.end());
     const int path_begin=count_stage("stage=path.draw.begin item=0");
     send(ui.lines[0],LV_EVENT_DRAW_MAIN);

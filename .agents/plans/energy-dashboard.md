@@ -1281,6 +1281,8 @@ It reports a core-1 stack-protection fault while `loopTask` was current.
 The saved PCs resolve to interrupt entry, not a Power function. The bounds
 `0x4ff16220..0x4ff16820` match core-1's 1536-byte ISR stack in that ELF;
 `loop_task_stack` is separately allocated at `0x4ff16cf8`, size 8192 bytes.
+The guard bounds are queried during panic, after interrupt entry switches them;
+these printed ISR bounds do not rule out an earlier application-stack fault.
 Consequently this dump does not justify raising the loop stack or blaming arcs.
 The exact interrupted construction/draw/update stage is still unknown.
 
@@ -1295,7 +1297,8 @@ The current staging code adds temporary `power_diag` WARN markers around open,
 node creation, initial layout/update, first draw submission and close, with task,
 core, stack low-water and heap metrics on ESP. Per-path first-draw and initial
 model-update logs are bounded per open; there are no timers or new UI objects.
-Resolved rectangles are logged after layout. These diagnostics alter timing and
+Resolved rectangles are logged during draw traversal after LVGL resolves layout,
+not by forcing another layout pass inside the card click callback. These diagnostics alter timing and
 must not be represented as a fix even if they suppress a reproduction.
 
 Only a clearly labelled V2 diagnostic build is appropriate until its last stage,
@@ -1303,3 +1306,9 @@ metrics and full panic output identify the actual fault. The large-layout branch
 three-row implementation, signed watts, curve renderer, themes and navigation
 are preserved. Cosmetic work and normal two-device retest builds remain gated
 on diagnosis. Remove the temporary markers after the root-cause correction.
+
+The diagnostic compile exposed an ESP GCC 14.2 internal error at aggregate reset.
+Diagnostic flags now use zero defaults and record seen-state rather than pending
+true defaults; the UI reset, geometry and renderer are unchanged. Failed-attempt
+logs are retained separately. The final full-target compile remains the gate for
+this compiler workaround; a reduced struct-only probe did not reproduce the ICE.
