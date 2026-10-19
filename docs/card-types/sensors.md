@@ -52,8 +52,9 @@ editor only expands into free space; move neighboring cards yourself if needed.
 Previously saved narrow cards retain label-only navigation until resized, without
 moving or deleting any card. Unsupported narrow saves/restores are rejected
 before writes. Existing precision settings now mean decimal places in watts;
-input sensors may still report W or kW. Grid/Battery values in Power Flow show
-absolute watts, with their direction shown by the muted status caption.
+input sensors may still report W or kW. Grid/Battery values in Power Flow retain their signs: negative means exporting
+or charging. The muted status caption also names the direction. Battery SOC
+and activity share one row beneath its signed watt value.
 
 Configure four Home Assistant `sensor.*` entities reporting W or kW:
 

@@ -241,6 +241,12 @@ void publish(std::string id,std::string value,std::string attribute=""){
 }
 int main(){
   using namespace espcontrol::cards;
+  using espcontrol::power::Reading;
+  using espcontrol::power::ReadingValidity;
+  assert(power_reading_text({-.4,ReadingValidity::VALID},0)=="0 W");
+  assert(power_reading_text({-.004,ReadingValidity::VALID},2)=="0.00 W");
+  assert(power_reading_text({-500,ReadingValidity::VALID},0)=="-500 W");
+  assert(power_reading_text({35000,ReadingValidity::VALID},0)=="35000 W");
   auto slot=make_slot(true);ParsedCfg cfg;Context context;DisplayProfile profile;profile.fonts.small_text=&small_font;
   assert(power_driver_setup_visual(slot,cfg,context,{},GridConfig{},2));
   assert(!lv_obj_has_flag(slot.subpage_lbl,LV_OBJ_FLAG_HIDDEN));
@@ -309,7 +315,7 @@ int main(){
     assert(ui.details[3]->color==theme.text_muted);
     assert(ui.details[3]->mode==LV_LABEL_LONG_CLIP);
     assert(ui.soc->mode==LV_LABEL_LONG_CLIP);
-    assert(ui.values[3]->text=="500 W"); // direction stays in Charging, model remains -500
+    assert(ui.values[3]->text=="-500 W"); // normalized polarity is visible as well as caption
     assert(ui.details[3]->text=="Charging");
     for(auto *node:ui.nodes){assert(node->x>=0&&node->y>=0);assert(node->x+node->w<=ui.area->w+1);assert(node->y+node->h<=ui.area->h+1);}
     // Full-panel center remains authoritative with both small and large Back.
@@ -326,9 +332,9 @@ int main(){
       const auto p=ui.points[4][j],r=ui.points[6][espcontrol::power::FLOW_POINT_COUNT-1-j];
       assert(p.x==r.x&&p.y==r.y); // including actual integer renderer quantization
     }
-    assert(sizeof(PowerFlowUi)<=2048); // fixed storage, no extra LVGL objects
+    assert(sizeof(PowerFlowUi)<=2100); // fixed storage, no extra LVGL objects
     auto *area=ui.area;const int count=objects;const auto point=ui.points[0][0];
-    assert(count<=57); // 9 permanent card objects + 47 bounded view objects
+    assert(count<=64); // three-row nodes include bounded horizontal detail containers
     publish("sensor.s","unknown");assert(ui.lines[0]->flags&LV_OBJ_FLAG_HIDDEN);assert(ui.values[1]->text=="1000 W");
     assert(ui.status->text=="Unavailable");assert(slot.secondary_lbl->text=="Charging");
     publish("sensor.s","900");assert(ui.status->text=="Inconsistent readings");
@@ -371,7 +377,20 @@ int main(){
   power_driver_setup_visual(sub,cfg,context,{},GridConfig{},2);power_driver_bind_data(sub,cfg,context,profile);
   send(sub.btn,LV_EVENT_CLICKED);assert(power_flow_ui().card&&subscriptions==10);
   publish("sensor.soc","78");publish("sensor.soc","%","unit_of_measurement");
-  assert(power_flow_ui().soc->text=="78%");
+  assert(power_flow_ui().soc->text=="78% · ");
+  auto &battery_ui=power_flow_ui();
+  assert(battery_ui.nodes[3]->children.size()==3);
+  assert(battery_ui.soc->parent==battery_ui.details[3]->parent);
+  assert(battery_ui.soc->parent->flex==LV_FLEX_FLOW_ROW);
+  publish("sensor.b","-1042");publish("sensor.b","W","unit_of_measurement");
+  assert(battery_ui.values[3]->text=="-1042 W");
+  assert(battery_ui.details[3]->text=="Charging");
+  publish("sensor.g","-500");publish("sensor.g","W","unit_of_measurement");
+  assert(battery_ui.values[2]->text=="-500 W");
+  publish("sensor.soc","unavailable");assert(battery_ui.soc->text.empty());
+  assert(battery_ui.details[3]->text=="Charging");
+  publish("sensor.soc","78");publish("sensor.b","unavailable");
+  assert(battery_ui.soc->text=="78% · "&&battery_ui.details[3]->text=="Unavailable");
   lv_obj_del(sub.btn);assert(subscriptions==0&&objects==0&&!power_flow_ui().card&&!power_card_contexts());
   auto no_soc=make_slot(false);cfg.soc.clear();
   power_driver_setup_visual(no_soc,cfg,context,{},GridConfig{},2);

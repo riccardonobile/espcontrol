@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 #include "power_card_data.h"
 #include "power_flow_layout.h"
 
@@ -28,6 +30,9 @@ inline std::string power_reading_text(espcontrol::power::Reading reading, int pr
   // Saved precision means fractional watts; model bounds protect the formatter.
   char text[32];
   format_fixed_decimal(text, sizeof(text), static_cast<float>(reading.value), precision);
+  // Preserve polarity, but suppress a sign when the displayed rounded value is zero.
+  if (text[0] == '-' && std::strspn(text + 1, "0.") == std::strlen(text + 1))
+    std::memmove(text, text + 1, std::strlen(text));
   return std::string(text) + (with_unit ? " W" : "");
 }
 inline PowerCardCtx *power_card_for_button(lv_obj_t *button) {
@@ -68,6 +73,7 @@ struct PowerFlowUi {
   lv_obj_t *icons[4]{};
   lv_obj_t *values[4]{};
   lv_obj_t *details[4]{};
+  lv_obj_t *detail_rows[4]{};
   lv_obj_t *soc = nullptr;
   lv_obj_t *lines[7]{};
   lv_obj_t *arrows[7]{};
@@ -125,18 +131,18 @@ inline void power_flow_layout() {
     for (auto *label : ui.names)
       w = std::max<int>(w, power_flow_text_width(lv_label_get_text(label), text) + text->line_height + 4);
     for (const char *state : {"Charging", "Discharging", "Importing", "Exporting", "Idle", "Unavailable"})
-      w = std::max(w, power_flow_text_width(espcontrol_i18n(state), text));
+      w = std::max(w, power_flow_text_width((std::string("100% · ") + espcontrol_i18n(state)).c_str(), text));
     // Fixed measurement envelope: live values never move the geometry.
-    w = std::max(w, power_flow_text_width(ui.card->precision ? "8888888.88 W" : "8888888 W", value));
+    w = std::max(w, power_flow_text_width(ui.card->precision ? "-88888.888 W" : "-88888 W", value));
     return w + 8;
   };
-  if (body && compact && (measure(body, body) > width * .42 || body->line_height * 4 + 9 > height * .42))
+  if (body && compact && (measure(body, body) > width * .42 || body->line_height * 3 + 6 > height * .42))
     text_font = value_font = compact;
   else if (compact) text_font = compact;
   const int text_h = text_font ? text_font->line_height : 20;
   const int value_h = value_font ? value_font->line_height : text_h;
   const int node_w = std::min<int>(std::lround(width * .48), measure(text_font, value_font));
-  const int node_h = text_h * 3 + value_h + 9;
+  const int node_h = text_h * 2 + value_h + 6;
   const auto geometry = espcontrol::power::flow_geometry(width, height,
     espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h);
   lv_obj_set_size(ui.area, width, height);
@@ -166,6 +172,7 @@ inline void power_flow_layout() {
     lv_obj_set_height(ui.names[i], text_h);
     lv_obj_set_height(ui.values[i], value_h);
     lv_obj_set_height(ui.details[i], text_h);
+    lv_obj_set_height(ui.detail_rows[i], text_h);
     lv_obj_set_style_text_color(ui.details[i], lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
     lv_obj_set_height(ui.headings[i], text_h);
     lv_obj_set_size(lv_obj_get_parent(ui.icons[i]), text_h, text_h);
@@ -187,15 +194,17 @@ inline void power_flow_update(PowerCardCtx *ctx) {
   if (!ctx || ui.card != ctx) return;
   const auto &calc = ctx->data.model.calculation;
   for (size_t i = 0; i < 4; ++i) {
-    power_set_text(ui.values[i], power_reading_text({std::abs(calc.nodes[i].value), calc.nodes[i].validity}, ctx->precision));
+    power_set_text(ui.values[i], power_reading_text(calc.nodes[i], ctx->precision));
     std::string detail;
     if (i == 2) detail = espcontrol::power::status_text(calc.grid_status);
     if (i == 3) {
       detail = espcontrol::power::status_text(calc.battery_status);
-      char soc[24] = "--";
-      if (ctx->data.model.battery_soc.valid())
+      const bool available_soc = ctx->has_soc && ctx->data.model.battery_soc.valid();
+      char soc[24] = "";
+      if (available_soc)
         format_fixed_decimal(soc, sizeof(soc), ctx->data.model.battery_soc.value, 0);
-      power_set_text(ui.soc, ctx->has_soc ? std::string(soc) + "%" : "");
+      power_set_text(ui.soc, available_soc ? std::string(soc) + "% · " : "");
+      power_flow_set_visible(ui.soc, available_soc);
     }
     power_set_text(ui.details[i], detail);
   }
@@ -293,13 +302,25 @@ inline void power_flow_open(PowerCardCtx *ctx) {
     lv_obj_set_width(name, LV_SIZE_CONTENT);
     power_set_text(name, espcontrol_i18n(names[i]));
     ui.values[i] = power_flow_label(ui.nodes[i], label_font);
-    ui.details[i] = power_flow_label(ui.nodes[i], label_font);
+    // Exactly three rows: heading, signed watts, combined SOC/activity.
+    ui.detail_rows[i] = lv_obj_create(ui.nodes[i]);
+    if (!ui.detail_rows[i]) { power_flow_hide(); return; }
+    lv_obj_remove_style_all(ui.detail_rows[i]);
+    lv_obj_clear_flag(ui.detail_rows[i], LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(ui.detail_rows[i], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_size(ui.detail_rows[i], LV_SIZE_CONTENT, line_height);
+    lv_obj_set_flex_flow(ui.detail_rows[i], LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(ui.detail_rows[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(ui.detail_rows[i], 0, LV_PART_MAIN);
+    ui.details[i] = power_flow_label(ui.detail_rows[i], label_font);
+    if (ui.details[i]) lv_obj_set_width(ui.details[i], LV_SIZE_CONTENT);
     if (!ui.values[i] || !ui.details[i]) { power_flow_hide(); return; }
     if (i == 3) {
-      // Separate SOC from the activity caption; neither competes for one line.
-      ui.soc = power_flow_label(ui.nodes[i], label_font);
+      // SOC is measurement text; the adjacent activity retains the muted role.
+      ui.soc = power_flow_label(ui.detail_rows[i], label_font);
       if (!ui.soc) { power_flow_hide(); return; }
-      lv_obj_move_to_index(ui.soc, 2);
+      lv_obj_set_width(ui.soc, LV_SIZE_CONTENT);
+      lv_obj_move_to_index(ui.soc, 0);
     }
   }
   ui.status = power_flow_label(ui.shell.panel, label_font);
