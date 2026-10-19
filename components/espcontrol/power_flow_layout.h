@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <type_traits>
+#include "button_grid_modal_layout.h"
 
 namespace espcontrol::power {
 
@@ -14,6 +15,27 @@ struct Point { double x = 0, y = 0; };
 // Two tangent straights and one native quarter-circle, never a sampled polyline.
 constexpr size_t FLOW_POINT_COUNT = 4;
 struct FlowArc { Point center{}; int radius = 0, start_angle = 0, end_angle = 0; };
+struct FlowGridCell { int col = 0, row = 0, cols = 1, rows = 1; };
+struct FlowDashboardGrid {
+  bool large = false;
+  int cols = 1, rows = 1;
+  FlowGridCell diagram{}, back{};
+  std::array<FlowGridCell, 4> values{};
+};
+inline FlowDashboardGrid flow_dashboard_grid(const espcontrol::modal::DeviceProfile &profile,
+                                             int cols, int rows, int width, int height) {
+  using espcontrol::modal::LayoutFamily;
+  const bool family = (profile.layout_family == LayoutFamily::WIDE_LANDSCAPE && rows == 3) ||
+                      (profile.layout_family == LayoutFamily::LARGE_LANDSCAPE && rows == 4);
+  if (!family || cols != 5 || width <= height) return {};
+  FlowDashboardGrid grid;
+  grid.large = true; grid.cols = cols; grid.rows = rows;
+  grid.diagram = {0, 0, 3, rows};
+  grid.back = {3, 0, 2, 1};
+  grid.values = {{{3, 1, 1, 1}, {4, 1, 1, 1},
+    {3, 2, rows == 4 ? 2 : 1, 1}, {rows == 4 ? 3 : 4, rows == 4 ? 3 : 2, rows == 4 ? 2 : 1, 1}}};
+  return grid;
+}
 struct FlowViewport { int x, y, width, height; };
 inline FlowViewport flow_viewport(int panel_width, int panel_height, int inset,
                                   int navigation_bottom) {

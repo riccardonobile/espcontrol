@@ -2020,7 +2020,7 @@ inline void grid_phase2(
     int col_span = order.col_span[idx - 1] > 0 ? order.col_span[idx - 1] : 1;
     if (cfg.info_only && info_only_hidden_card_type(context)) continue;
     navigation_register_home_target(idx, pos, p.label, scfg, s.btn);
-    if (espcontrol::cards::power_driver_bind_data(s, p, context, display)) continue;
+    if (espcontrol::cards::power_driver_bind_data(s, p, context, display, cfg)) continue;
     if (espcontrol::cards::image_driver_bind_main(
           s, p, context, cfg, palette)) continue;
     if (espcontrol::cards::wifi_qr_driver_bind_main(s, p, context)) continue;
@@ -2303,7 +2303,7 @@ inline void grid_phase2(
               add_parent_indicator(entity_id, timer_card_state_active_ref);
             })) continue;
       if (bind_basic_sensor_card(sub_slot, sb_cfg, context, card_palette, cs)) continue;
-      if (espcontrol::cards::power_driver_bind_data(sub_slot, sb_cfg, context, display)) continue;
+      if (espcontrol::cards::power_driver_bind_data(sub_slot, sb_cfg, context, display, cfg)) continue;
       espcontrol::cards::BasicActionSubpageEnvironment action_environment;
       action_environment.grid_config = &cfg;
       action_environment.parent_config = &p;

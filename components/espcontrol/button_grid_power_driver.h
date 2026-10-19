@@ -60,11 +60,17 @@ inline void power_driver_event(lv_event_t *event) {
   }
 }
 inline bool power_driver_bind_data(BtnSlot &slot, const ParsedCfg &config,
-                                    const Context &context, const DisplayProfile &display) {
+                                    const Context &context, const DisplayProfile &display,
+                                    const GridConfig &grid) {
   if (!power_driver_matches(context)) return false;
   auto *ctx = new PowerCardCtx();
   ctx->slot = slot;
   ctx->display = display;
+  ctx->grid_cols = std::max(1, grid.cols);
+  ctx->grid_rows = (std::max(1, grid.num_slots) + ctx->grid_cols - 1) / ctx->grid_cols;
+  ctx->continuous_corners = grid.continuous_card_corners;
+  auto *page = lv_obj_get_parent(slot.btn);
+  ctx->grid_gap = page ? lv_obj_get_style_pad_column(page, LV_PART_MAIN) : 0;
   ctx->precision = parse_precision(config.precision);
   const auto bindings = espcontrol::power::decode_config_v1(config);
   ctx->has_soc = !bindings.battery_soc_entity.empty();

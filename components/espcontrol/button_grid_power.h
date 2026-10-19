@@ -15,6 +15,8 @@ struct PowerCardCtx {
   DisplayProfile display{};
   espcontrol::power::CardData data{};
   int precision = 0;
+  int grid_cols = 1, grid_rows = 1, grid_gap = 0;
+  bool continuous_corners = false;
   bool has_soc = false;
   PowerCardCtx *next = nullptr;
   ~PowerCardCtx();
@@ -108,11 +110,7 @@ inline void power_flow_draw_stroke(lv_event_t *event) {
 
 // A single temporary view borrows the live card model, never its subscriptions.
 // Point buffers live until the overlay is deleted; no canvas/frame buffer/timer.
-struct PowerFlowUi {
-  PowerCardCtx *card = nullptr;
-  ControlModalShell shell{};
-  lv_obj_t *area = nullptr;
-  lv_obj_t *status = nullptr;
+struct PowerFlowNodes {
   lv_obj_t *nodes[4]{};
   lv_obj_t *headings[4]{};
   lv_obj_t *names[4]{};
@@ -121,6 +119,15 @@ struct PowerFlowUi {
   lv_obj_t *details[4]{};
   lv_obj_t *detail_rows[4]{};
   lv_obj_t *soc = nullptr;
+};
+struct PowerFlowUi : PowerFlowNodes {
+  PowerCardCtx *card = nullptr;
+  ControlModalShell shell{};
+  lv_obj_t *dashboard = nullptr, *diagram = nullptr, *back_area = nullptr;
+  lv_obj_t *area = nullptr, *status = nullptr;
+  PowerFlowNodes sidebar{};
+  espcontrol::power::FlowDashboardGrid grid{};
+  lv_coord_t columns[6]{}, rows[5]{};
   lv_obj_t *lines[7]{};
   lv_obj_t *arrows[7]{};
   PowerFlowStroke paths[7]{};
@@ -161,9 +168,46 @@ inline void power_flow_layout() {
                                    control_modal_card_radius(ui.card->slot.btn));
   control_modal_style_chrome_button(ui.shell.close_btn, layout, false);
   lv_obj_update_layout(ui.shell.panel);
+  const int panel_w = lv_obj_get_content_width(ui.shell.panel);
+  const int panel_h = lv_obj_get_content_height(ui.shell.panel);
+  ui.grid = espcontrol::power::flow_dashboard_grid(ui.card->display.modal,
+    ui.card->grid_cols, ui.card->grid_rows, panel_w, panel_h);
+  const bool large = ui.grid.large && ui.sidebar.nodes[0];
+  lv_obj_set_size(ui.dashboard, panel_w, panel_h);
+  lv_obj_set_pos(ui.dashboard, 0, 0);
+  auto place = [](lv_obj_t *object, const espcontrol::power::FlowGridCell &cell) {
+    lv_obj_set_grid_cell(object, LV_GRID_ALIGN_STRETCH, cell.col, cell.cols,
+                         LV_GRID_ALIGN_STRETCH, cell.row, cell.rows);
+  };
+  if (large) {
+    const int gap = ui.card->grid_gap > 0 ? ui.card->grid_gap : layout.title_gap;
+    lv_obj_set_style_pad_all(ui.dashboard, layout.inset, LV_PART_MAIN);
+    lv_obj_set_style_pad_column(ui.dashboard, gap, LV_PART_MAIN);
+    lv_obj_set_style_pad_row(ui.dashboard, gap, LV_PART_MAIN);
+    for (int col = 0; col < ui.grid.cols; ++col) ui.columns[col] = LV_GRID_FR(1);
+    ui.columns[ui.grid.cols] = LV_GRID_TEMPLATE_LAST;
+    for (int row = 0; row < ui.grid.rows; ++row) ui.rows[row] = LV_GRID_FR(1);
+    ui.rows[ui.grid.rows] = LV_GRID_TEMPLATE_LAST;
+    lv_obj_set_grid_dsc_array(ui.dashboard, ui.columns, ui.rows);
+    place(ui.diagram, ui.grid.diagram);
+    place(ui.back_area, ui.grid.back);
+    power_flow_set_visible(ui.back_area, true);
+    for (size_t i = 0; i < 4; ++i) {
+      power_flow_set_visible(ui.sidebar.nodes[i], true);
+      place(ui.sidebar.nodes[i], ui.grid.values[i]);
+    }
+  } else {
+    lv_obj_set_layout(ui.dashboard, LV_LAYOUT_NONE);
+    lv_obj_set_style_pad_all(ui.dashboard, 0, LV_PART_MAIN);
+    lv_obj_set_pos(ui.diagram, 0, 0);
+    lv_obj_set_size(ui.diagram, panel_w, panel_h);
+    power_flow_set_visible(ui.back_area, false);
+    for (auto *node : ui.sidebar.nodes) power_flow_set_visible(node, false);
+  }
+  lv_obj_update_layout(ui.dashboard);
   const auto viewport = espcontrol::power::flow_viewport(
-    lv_obj_get_content_width(ui.shell.panel), lv_obj_get_content_height(ui.shell.panel),
-    layout.inset, lv_obj_get_y(ui.shell.close_btn) + lv_obj_get_height(ui.shell.close_btn) + layout.title_gap);
+    lv_obj_get_content_width(ui.diagram), lv_obj_get_content_height(ui.diagram), layout.inset,
+    large ? layout.inset : lv_obj_get_y(ui.shell.close_btn) + lv_obj_get_height(ui.shell.close_btn) + layout.title_gap);
   const int width = viewport.width, height = viewport.height;
   const auto *body = display_volume_label_font(ui.card->display,
     lv_obj_get_style_text_font(ui.card->slot.text_lbl, LV_PART_MAIN));
@@ -179,7 +223,7 @@ inline void power_flow_layout() {
     for (const char *state : {"Charging", "Discharging", "Importing", "Exporting", "Idle", "Unavailable"})
       w = std::max(w, power_flow_text_width((std::string("100% · ") + espcontrol_i18n(state)).c_str(), text));
     // Fixed measurement envelope: live values never move the geometry.
-    w = std::max(w, power_flow_text_width(ui.card->precision ? "-88888.888 W" : "-88888 W", value));
+    w = std::max(w, power_flow_text_width(ui.card->precision ? "-8888888.888 W" : "-8888888 W", value));
     return w + 8;
   };
   if (body && compact && (measure(body, body) > width * .42 || body->line_height * 3 + 6 > height * .42))
@@ -193,9 +237,18 @@ inline void power_flow_layout() {
     espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h);
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, viewport.x, viewport.y);
-  // Only exceptional/idle state uses the existing back-control row. No footer.
-  lv_obj_set_size(ui.status, std::max<int>(1, width - layout.back_size - layout.title_gap), text_h);
-  lv_obj_set_pos(ui.status, layout.inset + layout.back_size + layout.title_gap, layout.back_inset_y);
+  // Back and state live in the side header on large grids, never above the diagram.
+  auto *status_parent = large ? ui.back_area : ui.shell.panel;
+  if (lv_obj_get_parent(ui.status) != status_parent) lv_obj_set_parent(ui.status, status_parent);
+  const int status_width = large ? lv_obj_get_content_width(ui.back_area) : panel_w - layout.inset * 2;
+  lv_obj_set_size(ui.status, std::max<int>(1, status_width - layout.back_size - layout.title_gap), text_h);
+  if (large) {
+    const int back_y = std::max<int>(0, (lv_obj_get_height(ui.back_area) - layout.back_size) / 2);
+    lv_obj_set_pos(ui.shell.close_btn, lv_obj_get_x(ui.dashboard) + lv_obj_get_x(ui.back_area),
+      lv_obj_get_y(ui.dashboard) + lv_obj_get_y(ui.back_area) + back_y);
+    lv_obj_set_pos(ui.status, layout.back_size + layout.title_gap,
+      std::max(0, (lv_obj_get_height(ui.back_area) - text_h) / 2));
+  } else lv_obj_set_pos(ui.status, layout.inset + layout.back_size + layout.title_gap, layout.back_inset_y);
   if (text_font) lv_obj_set_style_text_font(ui.status, text_font, LV_PART_MAIN);
   lv_obj_set_style_text_color(ui.status, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
   for (size_t i = 0; i < 7; ++i) {
@@ -234,12 +287,41 @@ inline void power_flow_layout() {
   }
   if (text_font) lv_obj_set_style_text_font(ui.soc, text_font, LV_PART_MAIN);
   lv_obj_set_height(ui.soc, text_h);
+  if (large) {
+    for (size_t i = 0; i < 4; ++i) {
+      auto &side = ui.sidebar;
+      const int available = lv_obj_get_content_width(side.nodes[i]);
+      const auto *side_text = compact ? compact : body;
+      const auto *side_value = display_sensor_font(ui.card->display);
+      if (!side_value || power_flow_text_width(ui.card->precision ? "-8888888.888 W" : "-8888888 W", side_value) > available)
+        side_value = body;
+      if (!side_value || power_flow_text_width(ui.card->precision ? "-8888888.888 W" : "-8888888 W", side_value) > available)
+        side_value = side_text;
+      const int th = side_text ? side_text->line_height : text_h;
+      const int vh = side_value ? side_value->line_height : value_h;
+      for (auto *label : {side.names[i], side.details[i]})
+        if (side_text) lv_obj_set_style_text_font(label, side_text, LV_PART_MAIN);
+      if (side_value) lv_obj_set_style_text_font(side.values[i], side_value, LV_PART_MAIN);
+      lv_obj_set_height(side.headings[i], th);
+      lv_obj_set_size(lv_obj_get_parent(side.icons[i]), th, th);
+      const auto *icon_font = display_icon_font(ui.card->display);
+      if (icon_font && icon_font->line_height)
+        apply_icon_width_compensation(side.icons[i], 256 * th / icon_font->line_height);
+      control_modal_center_tab_icon(side.icons[i]);
+      lv_obj_set_height(side.names[i], th);
+      lv_obj_set_height(side.values[i], vh);
+      lv_obj_set_height(side.details[i], th);
+      lv_obj_set_height(side.detail_rows[i], th);
+      lv_obj_set_style_text_color(side.details[i], lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
+    }
+    if (compact) lv_obj_set_style_text_font(ui.sidebar.soc, compact, LV_PART_MAIN);
+    lv_obj_set_height(ui.sidebar.soc, compact ? compact->line_height : text_h);
+  }
   lv_obj_move_foreground(ui.shell.close_btn);
   ui.laying_out = false;
 }
-inline void power_flow_update(PowerCardCtx *ctx) {
-  auto &ui = power_flow_ui();
-  if (!ctx || ui.card != ctx) return;
+inline void power_flow_update_nodes(PowerFlowNodes &ui, PowerCardCtx *ctx) {
+  if (!ui.nodes[0]) return;
   const auto &calc = ctx->data.model.calculation;
   for (size_t i = 0; i < 4; ++i) {
     power_set_text(ui.values[i], power_reading_text(calc.nodes[i], ctx->precision));
@@ -256,6 +338,13 @@ inline void power_flow_update(PowerCardCtx *ctx) {
     }
     power_set_text(ui.details[i], detail);
   }
+}
+inline void power_flow_update(PowerCardCtx *ctx) {
+  auto &ui = power_flow_ui();
+  if (!ctx || ui.card != ctx) return;
+  const auto &calc = ctx->data.model.calculation;
+  power_flow_update_nodes(ui, ctx);
+  power_flow_update_nodes(ui.sidebar, ctx);
   bool active = false;
   for (size_t i = 0; i < 7; ++i) {
     const bool visible = calc.edge_active(static_cast<espcontrol::power::Edge>(i));
@@ -280,6 +369,84 @@ inline lv_obj_t *power_flow_label(lv_obj_t *parent, const lv_font_t *font) {
   lv_obj_clear_flag(label, LV_OBJ_FLAG_CLICKABLE);
   return label;
 }
+inline bool power_flow_create_nodes(PowerFlowNodes &ui, lv_obj_t *parent,
+                                      PowerCardCtx *ctx, const lv_font_t *label_font, bool cards) {
+  const char *names[4] = {"Solar", "Home", "Grid", "Battery"};
+  const char *icons[4] = {"Solar Power", "Home", "Transmission Tower", "Battery"};
+  for (size_t i = 0; i < 4; ++i) {
+    ui.nodes[i] = cards ? create_grid_card_button(parent, control_modal_card_radius(ctx->slot.btn),
+      0, label_font, lv_color_hex(current_theme().text_primary), ctx->continuous_corners)
+      : lv_obj_create(parent);
+    if (!ui.nodes[i]) return false;
+    if (cards) {
+      // Existing neutral-control ownership disambiguates equal Dark RGB roles.
+      // The shared modal refresh can recolor these read-only cards in place.
+      theme_set_control_neutral_fill(ui.nodes[i]);
+      lv_obj_set_style_bg_color(ui.nodes[i], lv_color_hex(theme_display_color(current_theme().control_neutral)), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(ui.nodes[i], LV_OPA_COVER, LV_PART_MAIN);
+      lv_obj_clear_flag(ui.nodes[i], LV_OBJ_FLAG_CHECKABLE);
+    } else lv_obj_remove_style_all(ui.nodes[i]);
+    lv_obj_clear_flag(ui.nodes[i], LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(ui.nodes[i], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_height(ui.nodes[i], LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(ui.nodes[i], LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(ui.nodes[i], 3, LV_PART_MAIN);
+    lv_obj_set_flex_align(ui.nodes[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    auto *heading = lv_obj_create(ui.nodes[i]);
+    if (!heading) return false;
+    ui.headings[i] = heading;
+    lv_obj_remove_style_all(heading);
+    lv_obj_clear_flag(heading, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(heading, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_width(heading, lv_pct(100));
+    const int line_height = label_font ? label_font->line_height : 20;
+    lv_obj_set_height(heading, line_height);
+    lv_obj_set_flex_flow(heading, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(heading, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    auto *icon_cell = lv_obj_create(heading);
+    if (!icon_cell) return false;
+    lv_obj_remove_style_all(icon_cell);
+    lv_obj_clear_flag(icon_cell, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(icon_cell, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_size(icon_cell, line_height, line_height);
+    const auto *icon_font = display_icon_font(ctx->display);
+    auto *icon = power_flow_label(icon_cell, icon_font);
+    if (!icon) return false;
+    ui.icons[i] = icon;
+    lv_obj_set_width(icon, LV_SIZE_CONTENT);
+    if (icon_font && icon_font->line_height)
+      apply_icon_width_compensation(icon, 256 * line_height / icon_font->line_height);
+    power_set_text(icon, find_icon(icons[i]));
+    control_modal_center_tab_icon(icon);
+    auto *name = power_flow_label(heading, label_font);
+    if (!name) return false;
+    ui.names[i] = name;
+    lv_obj_set_width(name, LV_SIZE_CONTENT);
+    power_set_text(name, espcontrol_i18n(names[i]));
+    ui.values[i] = power_flow_label(ui.nodes[i], label_font);
+    // Exactly three rows: heading, signed watts, combined SOC/activity.
+    ui.detail_rows[i] = lv_obj_create(ui.nodes[i]);
+    if (!ui.detail_rows[i]) return false;
+    lv_obj_remove_style_all(ui.detail_rows[i]);
+    lv_obj_clear_flag(ui.detail_rows[i], LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(ui.detail_rows[i], LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_size(ui.detail_rows[i], LV_SIZE_CONTENT, line_height);
+    lv_obj_set_flex_flow(ui.detail_rows[i], LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(ui.detail_rows[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(ui.detail_rows[i], 0, LV_PART_MAIN);
+    ui.details[i] = power_flow_label(ui.detail_rows[i], label_font);
+    if (ui.details[i]) lv_obj_set_width(ui.details[i], LV_SIZE_CONTENT);
+    if (!ui.values[i] || !ui.details[i]) return false;
+    if (i == 3) {
+      // SOC is measurement text; the adjacent activity retains the muted role.
+      ui.soc = power_flow_label(ui.detail_rows[i], label_font);
+      if (!ui.soc) return false;
+      lv_obj_set_width(ui.soc, LV_SIZE_CONTENT);
+      lv_obj_move_to_index(ui.soc, 0);
+    }
+  }
+  return true;
+}
 inline void power_flow_open(PowerCardCtx *ctx) {
   if (!ctx) return;
   control_modal_force_close_active();
@@ -289,7 +456,17 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   if (!ui.shell.overlay) return;
   ui.card = ctx;
   set_clock_bar_modal_label(espcontrol_i18n("Power Dashboard"));
-  ui.area = lv_obj_create(ui.shell.panel);
+  ui.dashboard = lv_obj_create(ui.shell.panel);
+  if (!ui.dashboard) { power_flow_hide(); return; }
+  lv_obj_remove_style_all(ui.dashboard);
+  lv_obj_clear_flag(ui.dashboard, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_clear_flag(ui.dashboard, LV_OBJ_FLAG_CLICKABLE);
+  ui.diagram = lv_obj_create(ui.dashboard);
+  if (!ui.diagram) { power_flow_hide(); return; }
+  lv_obj_remove_style_all(ui.diagram);
+  lv_obj_clear_flag(ui.diagram, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_clear_flag(ui.diagram, LV_OBJ_FLAG_CLICKABLE);
+  ui.area = lv_obj_create(ui.diagram);
   if (!ui.area) { power_flow_hide(); return; }
   lv_obj_remove_style_all(ui.area);
   lv_obj_clear_flag(ui.area, LV_OBJ_FLAG_SCROLLABLE);
@@ -313,68 +490,17 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   }
   const auto *label_font = display_volume_label_font(ctx->display,
     lv_obj_get_style_text_font(ctx->slot.text_lbl, LV_PART_MAIN));
-  const char *names[4] = {"Solar", "Home", "Grid", "Battery"};
-  const char *icons[4] = {"Solar Power", "Home", "Transmission Tower", "Battery"};
-  for (size_t i = 0; i < 4; ++i) {
-    ui.nodes[i] = lv_obj_create(ui.area);
-    if (!ui.nodes[i]) { power_flow_hide(); return; }
-    lv_obj_remove_style_all(ui.nodes[i]);
-    lv_obj_clear_flag(ui.nodes[i], LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(ui.nodes[i], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_height(ui.nodes[i], LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(ui.nodes[i], LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(ui.nodes[i], 3, LV_PART_MAIN);
-    lv_obj_set_flex_align(ui.nodes[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    auto *heading = lv_obj_create(ui.nodes[i]);
-    if (!heading) { power_flow_hide(); return; }
-    ui.headings[i] = heading;
-    lv_obj_remove_style_all(heading);
-    lv_obj_clear_flag(heading, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_width(heading, lv_pct(100));
-    const int line_height = label_font ? label_font->line_height : 20;
-    lv_obj_set_height(heading, line_height);
-    lv_obj_set_flex_flow(heading, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(heading, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    auto *icon_cell = lv_obj_create(heading);
-    if (!icon_cell) { power_flow_hide(); return; }
-    lv_obj_remove_style_all(icon_cell);
-    lv_obj_clear_flag(icon_cell, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_size(icon_cell, line_height, line_height);
-    const auto *icon_font = display_icon_font(ctx->display);
-    auto *icon = power_flow_label(icon_cell, icon_font);
-    if (!icon) { power_flow_hide(); return; }
-    ui.icons[i] = icon;
-    lv_obj_set_width(icon, LV_SIZE_CONTENT);
-    if (icon_font && icon_font->line_height)
-      apply_icon_width_compensation(icon, 256 * line_height / icon_font->line_height);
-    power_set_text(icon, find_icon(icons[i]));
-    control_modal_center_tab_icon(icon);
-    auto *name = power_flow_label(heading, label_font);
-    if (!name) { power_flow_hide(); return; }
-    ui.names[i] = name;
-    lv_obj_set_width(name, LV_SIZE_CONTENT);
-    power_set_text(name, espcontrol_i18n(names[i]));
-    ui.values[i] = power_flow_label(ui.nodes[i], label_font);
-    // Exactly three rows: heading, signed watts, combined SOC/activity.
-    ui.detail_rows[i] = lv_obj_create(ui.nodes[i]);
-    if (!ui.detail_rows[i]) { power_flow_hide(); return; }
-    lv_obj_remove_style_all(ui.detail_rows[i]);
-    lv_obj_clear_flag(ui.detail_rows[i], LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_clear_flag(ui.detail_rows[i], LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(ui.detail_rows[i], LV_SIZE_CONTENT, line_height);
-    lv_obj_set_flex_flow(ui.detail_rows[i], LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(ui.detail_rows[i], LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(ui.detail_rows[i], 0, LV_PART_MAIN);
-    ui.details[i] = power_flow_label(ui.detail_rows[i], label_font);
-    if (ui.details[i]) lv_obj_set_width(ui.details[i], LV_SIZE_CONTENT);
-    if (!ui.values[i] || !ui.details[i]) { power_flow_hide(); return; }
-    if (i == 3) {
-      // SOC is measurement text; the adjacent activity retains the muted role.
-      ui.soc = power_flow_label(ui.detail_rows[i], label_font);
-      if (!ui.soc) { power_flow_hide(); return; }
-      lv_obj_set_width(ui.soc, LV_SIZE_CONTENT);
-      lv_obj_move_to_index(ui.soc, 0);
-    }
+  if (!power_flow_create_nodes(ui, ui.area, ctx, label_font, false)) { power_flow_hide(); return; }
+  const auto family = ctx->display.modal.layout_family;
+  const bool large_capable = family == DisplayModalLayoutFamily::WIDE_LANDSCAPE ||
+                             family == DisplayModalLayoutFamily::LARGE_LANDSCAPE;
+  if (large_capable && ctx->grid_cols == 5 && ctx->grid_rows >= 3 && ctx->grid_rows <= 4) {
+    ui.back_area = lv_obj_create(ui.dashboard);
+    if (!ui.back_area) { power_flow_hide(); return; }
+    lv_obj_remove_style_all(ui.back_area);
+    lv_obj_clear_flag(ui.back_area, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(ui.back_area, LV_OBJ_FLAG_CLICKABLE);
+    if (!power_flow_create_nodes(ui.sidebar, ui.dashboard, ctx, label_font, true)) { power_flow_hide(); return; }
   }
   ui.status = power_flow_label(ui.shell.panel, label_font);
   if (!ui.status) { power_flow_hide(); return; }

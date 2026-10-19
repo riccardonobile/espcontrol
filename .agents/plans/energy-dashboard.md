@@ -1193,3 +1193,43 @@ reversed Grid/Battery paths, current colors/pressed contrast, open-modal theme
 changes, chevrons, HUD restoration, reconnect and backup/restore. Integer
 software rendering still requires hardware inspection. Draft PR #10 stays open
 and Draft; wait for hardware feedback before further implementation.
+
+
+## Post-Phase 4B hardware refinement (2026-10-19)
+
+Preserve the integrated upstream base `7c92df26cc8b95cd89780b366ae812bb8af169de`
+and published history. This supersedes earlier absolute Grid/Battery display and
+sampled-curve delivery notes, without changing power calculations/configuration.
+
+- Battery has exactly three rows: native icon/name heading, signed watts,
+  then centered SOC and activity in one horizontal flex row. SOC retains primary
+  measurement text; activity uses the existing muted role. Invalid SOC is omitted;
+  valid SOC can remain visible with an unavailable power/status reading.
+- Grid export and battery charge keep normalized negative signs, including the
+  configured polarity inversions. All views stay in W; rounded negative zero is
+  suppressed locally, without changing the shared formatter or model.
+- The pinned build contains LVGL 9.5.0 with software complex drawing. Inspection
+  of `lv_line.c` shows independently drawn segments with rounded internal ends;
+  extra integer-quantized samples added visible joints. Replace only Power's
+  sampled elbows with native `lv_draw_arc` quarter-circles plus tangent straights.
+  Four points/path describe endpoints/tangencies, not interpolated segments.
+  Even pixel stroke widths align native outer radii and straight centerlines.
+  No renderer rewrite, vector/SVG dependency, canvas, timer or per-frame buffer.
+  Grid/Battery reversal shares the identical points and native arc sector.
+- Use actual `GridConfig` columns/slot count and existing modal profile families.
+  On 7-inch wide-landscape 5x3 grids, diagram = left 3 columns x 3 rows;
+  right 2 columns = a full-width Back/status row and a 2x2 reading-card area.
+  On 10-inch large-landscape 5x4 grids, diagram = left 3 columns x 4 rows;
+  right 2 columns = Back/status, Solar/Home, full-width Grid, full-width Battery.
+  Native LVGL fractional grid tracks and the existing page gap own allocation.
+  Measured diagram bounds alone own its center. Back never shifts that center.
+  Portrait/other profiles retain compact full-panel centering and hide side cards.
+- Diagram and side readings share a node builder and the same card-owned model;
+  no duplicate HA state, subscriptions, navigation stack or timers. Side cards use
+  `create_grid_card_button`, native font roles/corners and the existing explicit
+  control-neutral theme marker. No shared palette/contrast/theme code is changed.
+- Focused host coverage includes native arc draw descriptors/caps, tangent and
+  fixed-port geometry, exact reversal, grid occupancy and independent Back bounds,
+  three-row Battery/SOC, signed/polarity/unavailable values, nine translated
+  layouts, portrait fallback/re-entry, bounded objects, lifecycle and HUD return.
+  Native renderer pixel quality remains subject to new physical validation.

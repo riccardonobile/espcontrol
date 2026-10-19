@@ -30,7 +30,7 @@ nav_helpers = '\n'.join(function(name) for name in (
 contrast = '\n'.join(function(name, layout_source) for name in (
     'apply_button_colors', 'apply_card_descendant_text_color', 'sync_card_checked_text_color',
     'card_text_contrast_event_cb', 'bind_card_text_contrast_events'))
-sensor = function('create_card_sensor_container', (headers / 'button_grid_subpages.h').read_text(encoding='utf-8'))
+sensor = '\n'.join(function(name, (headers / 'button_grid_subpages.h').read_text(encoding='utf-8')) for name in ('create_grid_card_button', 'create_card_sensor_container'))
 theme_source = (headers / 'theme_runtime_ui.h').read_text(encoding='utf-8')
 theme_helpers = '\n'.join(function(name, theme_source) for name in ('theme_grid_state_text_color', 'theme_apply_grid_button'))
 

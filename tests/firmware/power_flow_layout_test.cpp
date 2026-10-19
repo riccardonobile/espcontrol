@@ -18,6 +18,21 @@ int main() {
       assert(v.y>=back_bottom&&v.y+v.height<=size[1]-back_bottom);
     }
   }
+  using espcontrol::modal::LayoutFamily;
+  for(int rows:{3,4}){
+    espcontrol::modal::DeviceProfile profile;
+    profile.layout_family=rows==3?LayoutFamily::WIDE_LANDSCAPE:LayoutFamily::LARGE_LANDSCAPE;
+    const auto grid=flow_dashboard_grid(profile,5,rows,rows==3?1024:1280,rows==3?600:800);
+    assert(grid.large&&grid.diagram.cols==3&&grid.diagram.rows==rows);
+    int occupied[4][5]{};
+    auto occupy=[&](FlowGridCell cell){for(int y=cell.row;y<cell.row+cell.rows;++y)for(int x=cell.col;x<cell.col+cell.cols;++x){assert(y<rows&&x<5);assert(++occupied[y][x]==1);}};
+    occupy(grid.diagram);occupy(grid.back);for(auto cell:grid.values)occupy(cell);
+    for(int y=0;y<rows;++y)for(int x=0;x<5;++x)assert(occupied[y][x]==1);
+    assert(!flow_dashboard_grid(profile,5,rows,600,1024).large);
+    assert(!flow_dashboard_grid(profile,3,rows,1024,600).large);
+    profile.layout_family=LayoutFamily::LARGE_SQUARE;
+    assert(!flow_dashboard_grid(profile,5,rows,1280,800).large);
+  }
   for (auto family : {FlowFamily::LANDSCAPE, FlowFamily::SQUARE, FlowFamily::PORTRAIT}) {
     for (auto size : {std::array<int,2>{264,300}, {430,260}, {440,430}, {740,380}, {680,1040}}) {
       const auto g = flow_geometry(size[0], size[1], family);
