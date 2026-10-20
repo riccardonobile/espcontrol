@@ -1316,3 +1316,39 @@ reset template, and requires no heap or reset stack temporary. It is a compiler
 workaround, not evidence of a physical crash fix. A reduced struct-only probe did
 not reproduce the ICE. Failed compile logs are retained; the final ordinary
 factory compile is still required before publishing the diagnostic image.
+
+### Diagnostic hardware result — draw-stack correction awaiting retest
+
+The next V2 log supersedes the earlier inconclusive diagnosis. It matches the
+preserved `6fe288355` ELF SHA256
+`b548131af55fc6149596a07efe09bc07131cb66252229913fe12c9e145079cab`.
+`open.ready` and resolved rectangles precede the first overlay draw. Fault PC
+`0x481dda4e` resolves to `lv_draw_sw_blend_color_to_rgb565`: its 80-byte prologue
+crosses the task guard (SP `0x4ff16da0`, lower guard `0x4ff16dbc`). Saved callers
+include software blend/fill/line, draw dispatch and `lv_label_event`. A queued
+line can therefore execute while a later, more deeply nested label is drawn.
+This establishes draw-stack exhaustion, not an arc-only fault. The logged
+596-byte low-water mark already existed at open entry; it is not current free
+stack at the fault.
+
+In that exact P4 ELF, each recursive `lv_obj_refr`/`lv_obj_redraw` pair retains
+272 + 352 = 624 bytes. Diagram labels inherited three unnecessary draw levels
+from the dashboard/diagram/area containers. Their text groups now attach to the
+modal panel, with positions converted from the already-resolved diagram bounds
+and unchanged viewport. That removes 1,872 target stack bytes from this label
+chain. No additional layout pass, objects, subscriptions, timers or task-stack
+increase is needed. Grid tracks, diagram bounds, side cards, curves, fixed ports,
+shared themes and modal lifetime remain unchanged.
+
+Focused regression tests assert the production parent chain, absolute bounds
+and centering in compact and 3×3/3×4 layouts. The parent-chain assertion fails
+against the old header. Native LVGL probes also compare actual resolved bounds,
+complete draws and repeated theme/open/close cycles with target font data,
+RGB565 partial buffers and continuous corners under sanitizers. Instrumented
+desktop stack measurements are comparative, not ESP headroom or hardware proof;
+the native probe's peripheral/modal shell remain fixtures.
+
+The real log confirms the 10-inch layout is constructed and Battery SOC/activity
+share y=699..721 (side y=716..738). Preserve that geometry and three-row design.
+Keep bounded diagnostics for the physical opening-stability retest, then remove
+them. Curve raster quality remains a separate follow-up after opening is stable.

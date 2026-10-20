@@ -408,14 +408,29 @@ int main(){
     assert(ui.soc->mode==LV_LABEL_LONG_CLIP);
     assert(ui.values[3]->text=="-500 W"); // normalized polarity is visible as well as caption
     assert(ui.details[3]->text=="Charging");
-    for(auto *node:ui.nodes){assert(node->x>=0&&node->y>=0);assert(node->x+node->w<=ui.area->w+1);assert(node->y+node->h<=ui.area->h+1);}
+    // Hardware regression: labels must not inherit dashboard/diagram/area draw
+    // frames. Assert the actual production parent chain and resolved bounds.
+    lv_area_t path_bounds;lv_obj_get_coords(ui.area,&path_bounds);
+    for(auto *node:ui.nodes){
+      assert(node->parent==ui.shell.panel);
+      lv_area_t b;lv_obj_get_coords(node,&b);
+      assert(b.x1>=path_bounds.x1&&b.y1>=path_bounds.y1);
+      assert(b.x2<=path_bounds.x2+1&&b.y2<=path_bounds.y2+1);
+    }
+    for(auto *icon:ui.icons){
+      int levels=0;for(auto *p=icon;p&&p!=ui.shell.overlay;p=p->parent)++levels;
+      assert(levels==5); // icon, icon cell, heading, node, panel
+    }
     // Full-panel center remains authoritative with both small and large Back.
     const auto centered=[&](){
       auto *a=ui.area;
+      lv_area_t area,solar,battery,home,grid;lv_obj_get_coords(a,&area);
+      lv_obj_get_coords(ui.nodes[0],&solar);lv_obj_get_coords(ui.nodes[3],&battery);
+      lv_obj_get_coords(ui.nodes[1],&home);lv_obj_get_coords(ui.nodes[2],&grid);
       const double cx=a->x+a->w/2.0, cy=a->y+a->h/2.0;
       assert(cx==frame.panel_w/2.0&&cy==frame.panel_h/2.0);
-      assert(std::abs((ui.nodes[0]->y+ui.nodes[0]->h/2.0+ui.nodes[3]->y+ui.nodes[3]->h/2.0)/2-a->h/2.0)<=.5);
-      assert(std::abs((ui.nodes[1]->x+ui.nodes[1]->w/2.0+ui.nodes[2]->x+ui.nodes[2]->w/2.0)/2-a->w/2.0)<=.5);
+      assert(std::abs((solar.y1+solar.y2+battery.y1+battery.y2)/4.0-(area.y1+area.y2)/2.0)<=.5);
+      assert(std::abs((home.x1+home.x2+grid.x1+grid.x2)/4.0-(area.x1+area.x2)/2.0)<=.5);
     };
     centered();frame.back_size=54;power_flow_layout();centered();
     frame.back_size=36;power_flow_layout();centered();
@@ -462,6 +477,18 @@ int main(){
       power_flow_open(card);auto &ui=power_flow_ui();
       assert(subscriptions==10&&ui.grid.large&&ui.grid.diagram.cols==3&&ui.grid.diagram.rows==rows);
       assert(ui.dashboard->layout==LV_LAYOUT_GRID&&ui.diagram->gcols==3&&ui.diagram->grows==rows);
+      lv_area_t paths;lv_obj_get_coords(ui.area,&paths);
+      for(auto *node:ui.nodes){
+        assert(node->parent==ui.shell.panel);
+        lv_area_t b;lv_obj_get_coords(node,&b);
+        assert(b.x1>=paths.x1&&b.y1>=paths.y1&&b.x2<=paths.x2+1&&b.y2<=paths.y2+1);
+      }
+      // Preserve the diagram's own center despite shallower draw ownership.
+      lv_area_t solar,battery,home,grid;lv_obj_get_coords(ui.nodes[0],&solar);
+      lv_obj_get_coords(ui.nodes[3],&battery);lv_obj_get_coords(ui.nodes[1],&home);
+      lv_obj_get_coords(ui.nodes[2],&grid);
+      assert(std::abs((solar.y1+solar.y2+battery.y1+battery.y2)/4.0-(paths.y1+paths.y2)/2.0)<=.5);
+      assert(std::abs((home.x1+home.x2+grid.x1+grid.x2)/4.0-(paths.x1+paths.x2)/2.0)<=.5);
       assert(ui.area->x+ui.area->w/2.0==ui.diagram->w/2.0);
       assert(ui.area->y+ui.area->h/2.0==ui.diagram->h/2.0);
       lv_area_t back_bounds,header_bounds,diagram_bounds;

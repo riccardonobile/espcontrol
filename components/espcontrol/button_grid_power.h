@@ -11,8 +11,8 @@
 #include "freertos/task.h"
 #endif
 
-// Temporary, bounded diagnostics for the confirmed 619e8bc85 hardware panic.
-// This staging build is diagnostic, not a crash fix. No per-frame polling.
+// Bounded diagnostics retained for the hardware retest of the draw-stack fix.
+// No per-frame polling; remove after the physical open/close test passes.
 inline void power_flow_diagnostic_stage(const char *stage, int item = -1) {
 #ifdef ESP_PLATFORM
   ESP_LOGW("power_diag", "stage=%s item=%d task=%s core=%u stack_min_bytes=%u internal_free=%u internal_largest=%u psram_free=%u",
@@ -356,6 +356,15 @@ inline void power_flow_layout() {
     lv_obj_set_style_line_width(ui.lines[i], stroke, LV_PART_MAIN);
     lv_obj_set_style_line_width(ui.arrows[i], stroke, LV_PART_MAIN);
   }
+  // LVGL 9.5 retains its recursive draw frames for every ancestor. Keep the
+  // text groups shallow (panel children), not below the three geometry-only
+  // containers. Their screen coordinates still come from the measured diagram.
+  // The grid is already resolved above; avoid another synchronous layout pass.
+  lv_area_t diagram_content, panel_content;
+  lv_obj_get_content_coords(ui.diagram, &diagram_content);
+  lv_obj_get_content_coords(ui.shell.panel, &panel_content);
+  const int node_x = diagram_content.x1 + viewport.x - panel_content.x1;
+  const int node_y = diagram_content.y1 + viewport.y - panel_content.y1;
   for (size_t i = 0; i < 4; ++i) {
     for (auto *label : {ui.names[i], ui.details[i]})
       if (text_font) lv_obj_set_style_text_font(label, text_font, LV_PART_MAIN);
@@ -373,8 +382,8 @@ inline void power_flow_layout() {
     control_modal_center_tab_icon(ui.icons[i]);
     const int this_width = i == 1 || i == 2 ? side_node_w : node_w;
     lv_obj_set_size(ui.nodes[i], this_width, node_h);
-    lv_obj_set_pos(ui.nodes[i], std::lround(geometry.nodes[i].x - this_width / 2.0),
-                    std::lround(geometry.nodes[i].y - node_h / 2.0));
+    lv_obj_set_pos(ui.nodes[i], node_x + std::lround(geometry.nodes[i].x - this_width / 2.0),
+                    node_y + std::lround(geometry.nodes[i].y - node_h / 2.0));
   }
   if (text_font) lv_obj_set_style_text_font(ui.soc, text_font, LV_PART_MAIN);
   lv_obj_set_height(ui.soc, text_h);
@@ -611,7 +620,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   power_flow_diagnostic_stage("paths.ready");
   const auto *label_font = display_volume_label_font(ctx->display,
     lv_obj_get_style_text_font(ctx->slot.text_lbl, LV_PART_MAIN));
-  if (!power_flow_create_nodes(ui, ui.area, ctx, label_font, false)) { power_flow_hide(); return; }
+  if (!power_flow_create_nodes(ui, ui.shell.panel, ctx, label_font, false)) { power_flow_hide(); return; }
   const auto family = ctx->display.modal.layout_family;
   const bool large_capable = family == DisplayModalLayoutFamily::WIDE_LANDSCAPE ||
                              family == DisplayModalLayoutFamily::LARGE_LANDSCAPE;
