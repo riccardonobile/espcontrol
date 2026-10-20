@@ -23,7 +23,8 @@ int main() {
     espcontrol::modal::DeviceProfile profile;
     profile.layout_family=rows==3?LayoutFamily::WIDE_LANDSCAPE:LayoutFamily::LARGE_LANDSCAPE;
     const auto grid=flow_dashboard_grid(profile,5,rows,rows==3?1024:1280,rows==3?600:800);
-    assert(grid.large&&grid.diagram.cols==3&&grid.diagram.rows==rows);
+    assert(grid.large&&grid.diagram.col==2&&grid.diagram.cols==3&&grid.diagram.rows==rows);
+    assert(grid.back.col==0);for(auto cell:grid.values)assert(cell.col+cell.cols<=2);
     assert(grid.values[3].cols==2);
     int occupied[4][5]{};
     auto occupy=[&](FlowGridCell cell){for(int y=cell.row;y<cell.row+cell.rows;++y)for(int x=cell.col;x<cell.col+cell.cols;++x){assert(y<rows&&x<5);assert(++occupied[y][x]==1);}};

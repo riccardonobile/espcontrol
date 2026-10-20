@@ -1352,3 +1352,34 @@ The real log confirms the 10-inch layout is constructed and Battery SOC/activity
 share y=699..721 (side y=716..738). Preserve that geometry and three-row design.
 Keep bounded diagnostics for the physical opening-stability retest, then remove
 them. Curve raster quality remains a separate follow-up after opening is stable.
+
+### Native upstream UI compliance after hardware feedback
+
+The user confirmed the draw-stack crash correction but rejected the custom
+large-screen sidebar. Its diagram-style centered headings/icons and per-card
+numeric font fallbacks did not follow native Sensor cards. Large layouts now
+allocate the left two native grid columns to Back/readings and the right three
+to the diagram (3x3 on 7-inch; 3x4 on 10-inch). Compact/portrait keep the existing
+floating Back arrow; large layouts hide it and use the shared subpage-return
+card setup, with only its click callback closing Power Flow.
+
+Reading slots reuse create_grid_card_button, create_dynamic_card_slot,
+create_card_sensor_container, apply_standard_sensor_number_style and the shared
+primary/secondary label layout. They have no visible icons, one profile-native
+numeric font throughout, adjacent baseline-aligned W units, top-left measurements
+and bottom-left labels/secondary captions. Native overflow/ellipsis applies at
+narrow widths; font sizes never change with live values. Battery's sidebar
+caption is one shared label combining independently available SOC and activity.
+A single owner-scoped refresh registration restores native Sensor/Back surface
+roles after generic modal restyling, including Light-to-Dark; deletion unregisters
+it. No palette, accent, navigation-stack, model or subscription changes are made.
+
+Actual LVGL 9.5 desktop checks using compiled device font data exposed premature
+label height clamping during initial population. Numeric/label bounds now wait
+for native grid tracks to resolve. The probe checks full-height primary labels,
+unit adjacency, uniform numeric roles, left/right allocation and dynamic Battery
+rows, plus repeated rendered theme/open/close cycles under ASan/UBSan. Its modal
+shell/peripherals are fixtures: captures and coordinates are component-layout
+evidence, not exact device screenshots, P4 stack measurements or visual approval.
+The diagram's shallow panel-owned labels and stable renderer are preserved.
+Bounded hardware diagnostics remain for stack/heap/layout review on both devices.

@@ -52,7 +52,7 @@ using EventCallback=void (*)(lv_event_t*);
 struct lv_obj_t {
   std::string text;
   lv_font_t const *font=nullptr;
-  int line_width=2,layout=0,padding=0,pad_row=0,gcol=0,grow=0,gcols=1,grows=1;
+  int text_opacity=255,line_width=2,layout=0,padding=0,pad_row=0,gcol=0,grow=0,gcols=1,grows=1;
   bool flex_center=false,continuous=false;
   const lv_coord_t *columns=nullptr,*rows=nullptr;
   int x=0,y=0,w=140,h=16,flags=0,state=0,max_h=32767,max_w=32767,mode=0,flex=0,pad_bottom=0,pad_column=0,cross=0;
@@ -202,14 +202,14 @@ void apply_icon_width_compensation(lv_obj_t*,int){}
 void notify_dashboard_content_changed(){++notifications;}
 void apply_push_button_transition(lv_obj_t*){}
 const char *find_icon(const char*){return "icon";}
-struct Theme {uint32_t text_primary=0xffffff,surface_card=0x313131,text_muted=0xb0b0b0,control_neutral=0x313131;};
+struct Theme {uint32_t text_primary=0xffffff,surface_card=0x313131,text_muted=0xb0b0b0,control_neutral=0x313131,surface_sensor=0x212121;};
 Theme theme;
 const Theme &current_theme(){return theme;}
 uint32_t current_button_primary_color(){return 0xff8c00;}
 uint32_t readable_text_color_for_bg(uint32_t c){return display_text_color_for_bg(c);}
 using ThemePalette=Theme;
 uint32_t current_grid_sensor_color(){return theme.surface_card;}
-uint32_t current_grid_sensor_surface_color(){return theme.surface_card;}
+uint32_t current_grid_sensor_surface_color(){return theme.surface_sensor;}
 void set_card_content_disabled(lv_obj_t*,bool){}
 
 struct BtnSlot {void *config=nullptr;lv_obj_t *btn=nullptr,*icon_lbl=nullptr,*text_lbl=nullptr,
@@ -244,7 +244,20 @@ void control_modal_apply_panel_layout(lv_obj_t*,lv_obj_t *panel,const ControlMod
 void control_modal_style_chrome_button(lv_obj_t *back,const ControlModalLayout &layout,bool){back->w=back->h=layout.back_size;back->y=layout.back_inset_y;}
 void control_modal_center_tab_icon(lv_obj_t*){}
 
+void display_apply_main_width(lv_obj_t*,const DisplayProfile&){}
+void display_apply_slot_text_width(const BtnSlot&,const DisplayProfile&){}
+int lv_obj_get_style_pad_top(lv_obj_t *o,int){return o->padding;}
+void lv_obj_set_style_translate_y(lv_obj_t*,int,int){}
+void lv_obj_set_style_text_opa(lv_obj_t *o,int opacity,int){o->text_opacity=opacity;}
+constexpr int LV_OPA_70=178,LV_OPA_50=127;
+using Refresh=void(*)(void*,const ThemePalette&);
+std::map<lv_obj_t*,std::pair<Refresh,void*>> refreshes;
+bool register_theme_refresh(lv_obj_t *owner,Refresh cb,void *context){refreshes[owner]={cb,context};return true;}
+void unregister_theme_refresh(lv_obj_t *owner){refreshes.erase(owner);}
+struct CardPalette{bool has_sensor_color=false;uint32_t surface_sensor_val=0;};
 // @production_helpers
+bool apply_subpage_back_colors(lv_obj_t *o,const std::string&,const DisplayProfile&){apply_button_colors(o,true,theme.surface_card,true,theme.surface_card);return true;}
+
 void ha_release_callbacks_for_owner(void *owner);
 #include "button_grid_power.h"
 
@@ -268,7 +281,7 @@ int parse_precision(const std::string &s){return s.empty()?0:std::stoi(s);}
 template<class T>T *grid_delete_with_owner(lv_obj_t *o,T *p){lv_obj_add_event_cb(o,[](lv_event_t *e){delete static_cast<T*>(lv_event_get_user_data(e));},LV_EVENT_DELETE,p);return p;}
 std::vector<PowerCardCtx*> main_allocations;
 template<class T>T *grid_track_runtime_allocation(lv_obj_t*,T *p){main_allocations.push_back(p);return p;}
-struct CardPalette{};
+
 namespace espcontrol { enum class DisplayTakeoverKind; }
 namespace esphome::artwork_image { class ArtworkImage; }
 using DisplayModalProfile=espcontrol::modal::DeviceProfile;
@@ -277,7 +290,7 @@ namespace espcontrol::cards {
 namespace card_runtime {enum class CardDriverId {POWER,SUBPAGE,OTHER};}
 enum class Surface {MAIN_GRID,SUBPAGE};
 struct Context {struct {card_runtime::CardDriverId driver=card_runtime::CardDriverId::POWER;}runtime;Surface surface=Surface::MAIN_GRID;};
-void sensor_driver_apply_background(BtnSlot &s,const CardPalette&){s.btn->bg=0x313131;}
+void sensor_driver_apply_background(BtnSlot &s,const CardPalette&p){s.btn->bg=p.surface_sensor_val;}
 }
 // @navigation_helpers
 #include "button_grid_power_driver.h"
@@ -465,7 +478,7 @@ int main(){
     control_modal_force_close_active();assert(title=="18°C"&&subscriptions==10);
     normal_title="Subpage";power_flow_open(card);control_modal_force_close_active();assert(title=="Subpage");
   }
-  // Native large-display grids: diagram left three columns, Back + values right.
+  // Native large-display grids: Back + Sensor slots left, diagram right three columns.
   card->grid_cols=5;card->grid_gap=10;card->continuous_corners=true;
   for(int rows:{3,4}){
     card->grid_rows=rows;
@@ -491,51 +504,70 @@ int main(){
       assert(std::abs((home.x1+home.x2+grid.x1+grid.x2)/4.0-(paths.x1+paths.x2)/2.0)<=.5);
       assert(ui.area->x+ui.area->w/2.0==ui.diagram->w/2.0);
       assert(ui.area->y+ui.area->h/2.0==ui.diagram->h/2.0);
-      lv_area_t back_bounds,header_bounds,diagram_bounds;
-      lv_obj_get_coords(ui.shell.close_btn,&back_bounds);lv_obj_get_coords(ui.back_area,&header_bounds);lv_obj_get_coords(ui.diagram,&diagram_bounds);
-      assert(back_bounds.x1==header_bounds.x1+(rows==3?(ui.back_area->w-frame.back_size)/2:0)&&back_bounds.x1>diagram_bounds.x2);
-      assert(ui.status->parent==ui.back_area&&ui.back_area->gcols==(rows==3?1:2));
-      const auto center=ui.area->y+ui.area->h/2.0;frame.back_size=54;power_flow_layout();
-      assert(ui.area->y+ui.area->h/2.0==center);frame.back_size=36;
+      lv_area_t back_bounds,diagram_bounds;
+      lv_obj_get_coords(ui.back_area,&back_bounds);lv_obj_get_coords(ui.diagram,&diagram_bounds);
+      assert(back_bounds.x2<diagram_bounds.x1);
+      assert(ui.shell.close_btn->flags&LV_OBJ_FLAG_HIDDEN);
+      assert(ui.status->parent==ui.diagram&&ui.back_area->gcols==(rows==3?1:2));
+      assert(ui.back_slot.icon_lbl->text=="\U000F0141");
+      assert(ui.back_slot.text_lbl->text==espcontrol_i18n("Back"));
       publish("sensor.b","-35000");publish("sensor.g","-1042");publish("sensor.soc","78");publish("sensor.soc","%","unit_of_measurement");
       power_flow_layout();lv_obj_update_layout(ui.dashboard);
-      assert(ui.values[3]->text=="-35000 W"&&ui.sidebar.values[3]->text=="-35000"&&ui.sidebar.units[3]->text=="W");
-      assert(ui.sidebar.values[2]->text=="-1042"&&ui.sidebar.units[2]->text=="W");
+      assert(ui.values[3]->text=="-35000 W"&&ui.sidebar[3].sensor_lbl->text=="-35000"&&ui.sidebar[3].unit_lbl->text=="W");
+      assert(ui.sidebar[2].sensor_lbl->text=="-1042"&&ui.sidebar[2].unit_lbl->text=="W");
       card->data.model.set_polarity({true,true});power_card_update(card);
-      assert(ui.values[2]->text=="1042 W"&&ui.sidebar.values[3]->text=="35000");
-      assert(ui.sidebar.details[3]->text==espcontrol_i18n("Discharging"));
+      assert(ui.values[2]->text=="1042 W"&&ui.sidebar[3].sensor_lbl->text=="35000");
+      assert(ui.sidebar[3].secondary_lbl->text==std::string("78% \u00b7 ")+espcontrol_i18n("Discharging"));
       card->data.model.set_polarity({false,false});power_card_update(card);
-      assert(ui.sidebar.nodes[3]->children.size()==3&&ui.sidebar.soc->parent==ui.sidebar.details[3]->parent);
-      assert(ui.sidebar.soc->text=="78% · "&&ui.sidebar.details[3]->text==espcontrol_i18n("Charging"));
-      assert(ui.sidebar.details[2]->text==espcontrol_i18n("Exporting"));
+      assert(ui.sidebar[3].secondary_lbl->text==std::string("78% · ")+espcontrol_i18n("Charging"));
+      assert(ui.sidebar[2].secondary_lbl->text==espcontrol_i18n("Exporting"));
       for(size_t i=0;i<4;++i){
-        auto *n=ui.sidebar.nodes[i];assert(n->continuous&&!(n->flags&LV_OBJ_FLAG_CLICKABLE));
-        assert((n->flags&(LV_OBJ_FLAG_USER_1|LV_OBJ_FLAG_USER_3))==(LV_OBJ_FLAG_USER_1|LV_OBJ_FLAG_USER_3));
-        assert(n->x>=ui.diagram->x+ui.diagram->w&&n->x+n->w<=ui.dashboard->w);
+        auto &side=ui.sidebar[i];auto *n=side.btn;
+        assert(n->continuous&&!(n->flags&LV_OBJ_FLAG_CLICKABLE));
+        assert(n->padding==card->slot.btn->padding);
+        assert(n->x+n->w<=ui.diagram->x);
         assert(n->y>=0&&n->y+n->h<=ui.dashboard->h);
-        assert(ui.sidebar.details[i]->color==theme.text_muted);
-        assert(ui.sidebar.values[i]->parent==ui.sidebar.measurements[i]);
-        assert(ui.sidebar.units[i]->parent==ui.sidebar.measurements[i]);
-        assert(ui.sidebar.units[i]->font==&small_font&&ui.sidebar.units[i]->pad_bottom==6);
-        assert(ui.sidebar.measurements[i]->cross==LV_FLEX_ALIGN_END);
-        assert(power_flow_text_width(lv_label_get_text(ui.sidebar.values[i]),ui.sidebar.values[i]->font)
-          +power_flow_text_width("W",ui.sidebar.units[i]->font)<=n->w);
-        const int detail_width=power_flow_text_width(lv_label_get_text(ui.sidebar.details[i]),ui.sidebar.details[i]->font)
-          +(i==3?power_flow_text_width(lv_label_get_text(ui.sidebar.soc),ui.sidebar.soc->font):0);
-        assert(detail_width<=n->w);
+        assert(side.icon_lbl->flags&LV_OBJ_FLAG_HIDDEN);
+        assert(side.subpage_lbl->flags&LV_OBJ_FLAG_HIDDEN);
+        assert(side.sensor_lbl->font==&sensor_font);
+        assert(side.text_lbl->max_h>=side.text_lbl->font->line_height); // first update cannot clamp before grid allocation
+        assert(side.unit_lbl->font==card->slot.text_lbl->font);
+        assert(side.unit_lbl->pad_bottom==6&&side.sensor_container->cross==LV_FLEX_ALIGN_END);
+        assert(side.sensor_lbl->parent==side.sensor_container);
+        int levels=0;for(auto *p=side.sensor_lbl;p&&p!=ui.shell.overlay;p=p->parent)++levels;
+        assert(levels==5); // no deeper than the corrected diagram text chain
+        assert(side.secondary_lbl->flags&LV_OBJ_FLAG_HIDDEN || side.secondary_lbl->font==side.text_lbl->font);
       }
+      assert(ui.sidebar[2].secondary_lbl->text_opacity==LV_OPA_70);
+      assert(ui.sidebar[3].secondary_lbl->text_opacity==LV_OPA_70);
+      assert(ui.sidebar[0].secondary_lbl->flags&LV_OBJ_FLAG_HIDDEN);
+      assert(ui.sidebar[1].secondary_lbl->flags&LV_OBJ_FLAG_HIDDEN);
+      assert(refreshes.size()==1&&refreshes.count(ui.back_area)==1);
+      const auto saved_theme=theme;
+      for(auto sensor_surface:{0xffffffu,0x212121u}){
+        theme.surface_sensor=sensor_surface;theme.surface_card=sensor_surface==0xffffff?0xffffff:0x313131;
+        theme.text_primary=sensor_surface==0xffffff?0x212121:0xffffff;
+        auto binding=refreshes.at(ui.back_area);binding.first(binding.second,theme);
+        for(auto &side:ui.sidebar)assert(side.btn->bg==sensor_surface&&side.sensor_lbl->color==theme.text_primary);
+        assert(ui.back_area->bg==theme.surface_card&&ui.back_area->pressed_bg==theme.surface_card);
+        ui.back_area->state=LV_STATE_PRESSED;send(ui.back_area,LV_EVENT_PRESSED);
+        assert(ui.back_slot.text_lbl->color==display_text_color_for_bg(theme.surface_card));
+        ui.back_area->state=0;send(ui.back_area,LV_EVENT_RELEASED);
+      }
+      theme=saved_theme;auto binding=refreshes.at(ui.back_area);binding.first(binding.second,theme);
       const int count=objects;assert(count<=113&&sizeof(PowerFlowUi)<=2304);
       publish("sensor.soc","unavailable");publish("sensor.b","unavailable");
-      assert(ui.sidebar.soc->text.empty()&&ui.sidebar.details[3]->text==espcontrol_i18n("Unavailable"));
-      assert(ui.values[3]->text=="--"&&ui.sidebar.values[3]->text=="--"&&ui.sidebar.units[3]->text.empty());
+      assert(ui.sidebar[3].secondary_lbl->text==espcontrol_i18n("Unavailable"));
+      assert(ui.values[3]->text=="--"&&ui.sidebar[3].sensor_lbl->text=="--"&&ui.sidebar[3].unit_lbl->text.empty());
       power_flow_layout();assert(objects==count&&subscriptions==10);
       // A rotated viewport falls back without deleting/recreating model or view.
       std::swap(frame.panel_w,frame.panel_h);power_flow_layout();
-      assert(!ui.grid.large&&ui.sidebar.nodes[0]->flags&LV_OBJ_FLAG_HIDDEN);
+      assert(!ui.grid.large&&ui.sidebar[0].btn->flags&LV_OBJ_FLAG_HIDDEN);
+      assert(!(ui.shell.close_btn->flags&LV_OBJ_FLAG_HIDDEN)&&ui.back_area->flags&LV_OBJ_FLAG_HIDDEN);
       assert(ui.area->x+ui.area->w/2.0==frame.panel_w/2.0);
       assert(ui.area->y+ui.area->h/2.0==frame.panel_h/2.0);
       std::swap(frame.panel_w,frame.panel_h);power_flow_layout();assert(ui.grid.large&&objects==count);
-      control_modal_force_close_active();assert(subscriptions==10);
+      send(ui.back_area,LV_EVENT_CLICKED);assert(subscriptions==10&&!power_flow_ui().card&&refreshes.empty());
       publish("sensor.b","-500");publish("sensor.g","0");
     }
   }

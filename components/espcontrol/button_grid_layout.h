@@ -467,20 +467,21 @@ inline void layout_button_label_with_secondary(
     ? lv_obj_get_width(s.subpage_lbl) + 6 : 0;
   const lv_coord_t width = std::max<lv_coord_t>(1, lv_obj_get_content_width(s.btn) - gutter);
   lv_obj_set_width(s.text_lbl, width);
-  if (!s.secondary_lbl || lv_obj_has_flag(s.secondary_lbl, LV_OBJ_FLAG_HIDDEN)) {
-    lv_obj_align(s.text_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-    return;
+  const bool secondary_visible = s.secondary_lbl &&
+    !lv_obj_has_flag(s.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+  if (secondary_visible) {
+    lv_obj_set_width(s.secondary_lbl, width);
+    lv_obj_set_style_text_font(s.secondary_lbl, font, LV_PART_MAIN);
+    lv_label_set_long_mode(s.secondary_lbl, LV_LABEL_LONG_DOT);
+    lv_obj_align(s.secondary_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   }
-  lv_obj_set_width(s.secondary_lbl, width);
-  lv_obj_set_style_text_font(s.secondary_lbl, font, LV_PART_MAIN);
-  lv_label_set_long_mode(s.secondary_lbl, LV_LABEL_LONG_DOT);
-  lv_obj_align(s.secondary_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-  lv_obj_align(s.text_lbl, LV_ALIGN_BOTTOM_LEFT, 0, -line - 2);
+  lv_obj_align(s.text_lbl, LV_ALIGN_BOTTOM_LEFT, 0, secondary_visible ? -line - 2 : 0);
+  if (!secondary_visible && !reserve_value) return;
   if (reserve_value && s.sensor_container) {
     // Retain existing fonts. Bound the shared primary label to the space left
     // below the numeric row instead of overlapping it on small grid spans.
     const lv_coord_t available = lv_obj_get_content_height(s.btn) -
-      lv_obj_get_height(s.sensor_container) - line - 6;
+      lv_obj_get_height(s.sensor_container) - (secondary_visible ? line : 0) - 6;
     const lv_coord_t existing_max = lv_obj_get_style_max_height(s.text_lbl, LV_PART_MAIN);
     lv_obj_set_style_max_height(s.text_lbl,
       std::min(existing_max, std::max<lv_coord_t>(1, available)), LV_PART_MAIN);
@@ -501,7 +502,7 @@ inline void layout_button_label_with_secondary(
     lv_obj_move_foreground(s.subpage_lbl);
   }
   lv_obj_move_foreground(s.text_lbl);
-  lv_obj_move_foreground(s.secondary_lbl);
+  if (secondary_visible) lv_obj_move_foreground(s.secondary_lbl);
 }
 
 inline void set_subpage_chevron_visible(BtnSlot &s, bool visible,

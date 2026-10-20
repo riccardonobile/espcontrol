@@ -2179,6 +2179,7 @@ inline void grid_phase2(
       cfg.subpage_chevron_font);
     setup_subpage_back_card(back_slot, display, sp_back_label);
     apply_card_label_line_clamp(back_slot.text_lbl, cfg, sp_ord.back_row_span);
+    configure_button_label_wrap(back_slot.text_lbl);
     const bool back_neutral_background = apply_subpage_back_colors(back_btn, sp_order_str, display);
 
     lv_obj_add_event_cb(back_btn, [](lv_event_t *e) {

@@ -30,7 +30,7 @@ nav_helpers = '\n'.join(function(name) for name in (
 contrast = '\n'.join(function(name, layout_source) for name in (
     'apply_button_colors', 'apply_card_descendant_text_color', 'sync_card_checked_text_color',
     'card_text_contrast_event_cb', 'bind_card_text_contrast_events'))
-sensor = '\n'.join(function(name, (headers / 'button_grid_subpages.h').read_text(encoding='utf-8')) for name in ('create_grid_card_button', 'create_card_sensor_container'))
+sensor = '\n'.join(function(name, (headers / 'button_grid_subpages.h').read_text(encoding='utf-8')) for name in ('create_grid_card_button', 'create_card_sensor_container', 'create_dynamic_card_slot', 'setup_subpage_back_card'))
 theme_source = (headers / 'theme_runtime_ui.h').read_text(encoding='utf-8')
 theme_helpers = '\n'.join(function(name, theme_source) for name in ('theme_grid_state_text_color', 'theme_apply_grid_button'))
 
@@ -39,6 +39,7 @@ grid_source = (headers / 'button_grid_grid.h').read_text(encoding='utf-8')
 font_roles = re.search(r'struct DisplayFontRoles \{[\s\S]*?^\};', display_source, re.M)[0]
 grid_config = re.search(r'struct GridConfig \{[\s\S]*?^\};', grid_source, re.M)[0]
 small_font = function('display_small_text_font', display_source)
+sensor += '\n' + function('apply_standard_sensor_number_style', grid_source)
 modal_source = (headers / 'button_grid_modal.h').read_text(encoding='utf-8')
 modal_shell = re.search(r'struct ControlModalShell \{[\s\S]*?^\};', modal_source, re.M)[0]
 template = Path(__file__).with_name('power_ui_test.cpp.in').read_text(encoding='utf-8')

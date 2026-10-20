@@ -56,10 +56,12 @@ input sensors may still report W or kW. Grid/Battery values in Power Flow retain
 or charging. The muted status caption also names the direction. Battery SOC
 and activity share one row beneath its signed watt value.
 
-On supported landscape 7-inch panels, the diagram occupies the left three
-columns and three rows; 10-inch panels use three columns and four rows. Back
-and four live readings fill the remaining two columns. Smaller or portrait
-layouts retain the compact view. Both areas share the same readings.
+On supported landscape 7-inch panels, the diagram occupies the right three
+columns and three rows; 10-inch panels use the right three columns and four rows.
+A subpage-style Back card and four native Sensor-style readings fill the left
+two columns. Each reading shows watts above its label, with Grid/Battery activity
+below. Smaller or portrait layouts retain the compact view and Back arrow. Both
+areas share the same readings.
 
 Configure four Home Assistant `sensor.*` entities reporting W or kW:
 

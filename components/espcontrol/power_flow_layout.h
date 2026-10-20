@@ -30,11 +30,11 @@ inline FlowDashboardGrid flow_dashboard_grid(const espcontrol::modal::DeviceProf
   if (!family || cols != 5 || width <= height) return {};
   FlowDashboardGrid grid;
   grid.large = true; grid.cols = cols; grid.rows = rows;
-  grid.diagram = {0, 0, 3, rows};
-  grid.back = {3, 0, rows == 3 ? 1 : 2, 1};
+  grid.diagram = {2, 0, 3, rows};
+  grid.back = {0, 0, rows == 3 ? 1 : 2, 1};
   grid.values = rows == 3
-    ? std::array<FlowGridCell, 4>{{{4, 0, 1, 1}, {3, 1, 1, 1}, {4, 1, 1, 1}, {3, 2, 2, 1}}}
-    : std::array<FlowGridCell, 4>{{{3, 1, 1, 1}, {4, 1, 1, 1}, {3, 2, 2, 1}, {3, 3, 2, 1}}};
+    ? std::array<FlowGridCell, 4>{{{1, 0, 1, 1}, {0, 1, 1, 1}, {1, 1, 1, 1}, {0, 2, 2, 1}}}
+    : std::array<FlowGridCell, 4>{{{0, 1, 1, 1}, {1, 1, 1, 1}, {0, 2, 2, 1}, {0, 3, 2, 1}}};
   return grid;
 }
 struct FlowViewport { int x, y, width, height; };
