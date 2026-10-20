@@ -530,6 +530,7 @@ int main(){
         assert(side.icon_lbl->flags&LV_OBJ_FLAG_HIDDEN);
         assert(side.subpage_lbl->flags&LV_OBJ_FLAG_HIDDEN);
         assert(side.sensor_lbl->font==&sensor_font);
+        assert(side.sensor_lbl->h==sensor_font.line_height); // long decimals remain one native-font row
         assert(side.text_lbl->max_h>=side.text_lbl->font->line_height); // first update cannot clamp before grid allocation
         assert(side.unit_lbl->font==card->slot.text_lbl->font);
         assert(side.unit_lbl->pad_bottom==6&&side.sensor_container->cross==LV_FLEX_ALIGN_END);

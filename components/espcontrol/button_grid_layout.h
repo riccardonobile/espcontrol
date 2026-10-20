@@ -460,6 +460,12 @@ inline void layout_button_label_with_secondary(
     BtnSlot &s, bool reserve_value = false, bool navigation = false) {
   if (!s.text_lbl) return;
   configure_button_label_wrap(s.text_lbl);
+  if (reserve_value && s.sensor_lbl) {
+    // LVGL's DOT mode can still wrap when height is content-sized. Keep the
+    // native measurement font on one line, reserving the adjacent unit.
+    const auto *value_font = lv_obj_get_style_text_font(s.sensor_lbl, LV_PART_MAIN);
+    if (value_font) lv_obj_set_height(s.sensor_lbl, value_font->line_height);
+  }
   lv_obj_update_layout(s.btn);
   const lv_font_t *font = lv_obj_get_style_text_font(s.text_lbl, LV_PART_MAIN);
   const lv_coord_t line = font && font->line_height > 0 ? font->line_height : 16;

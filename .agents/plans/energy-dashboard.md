@@ -1383,3 +1383,8 @@ shell/peripherals are fixtures: captures and coordinates are component-layout
 evidence, not exact device screenshots, P4 stack measurements or visual approval.
 The diagram's shallow panel-owned labels and stable renderer are preserved.
 Bounded hardware diagnostics remain for stack/heap/layout review on both devices.
+
+A follow-up native check with three decimal places also caught LVGL DOT mode
+wrapping a content-height numeric label into two rows. The shared optional
+measurement bound now fixes its height to the existing numeric font line before
+layout, preserving the native ellipsis/unit behavior without shrinking fonts.
