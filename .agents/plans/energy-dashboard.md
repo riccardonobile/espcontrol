@@ -1388,3 +1388,12 @@ A follow-up native check with three decimal places also caught LVGL DOT mode
 wrapping a content-height numeric label into two rows. The shared optional
 measurement bound now fixes its height to the existing numeric font line before
 layout, preserving the native ellipsis/unit behavior without shrinking fonts.
+
+The native probe also opens directly in Light before switching to Dark. It
+caught the refresh registry's initial Dark cache skipping the new sidebar owner
+on that first transition. After all slots and tracks exist, Power now primes
+that owner with apply_current_theme(), following the existing registration
+contract. Cached owners are skipped; no theme-mode mutation, tree rebuild or
+additional registration is introduced. This also covers a temporarily hidden
+landscape sidebar after rotation. The failing and corrected native runs are
+retained with the retest artifacts.

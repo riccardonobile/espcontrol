@@ -671,5 +671,8 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   power_flow_update(ctx);
   power_flow_diagnostic_stage("initial.update.end");
   power_flow_layout();
+  // Bindings start with compile-time Dark. Record the active palette after all
+  // native slots exist so a view opened in Light also refreshes on Light->Dark.
+  if (ui.back_area) apply_current_theme();
   power_flow_diagnostic_stage("open.ready");
 }

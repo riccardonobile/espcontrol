@@ -254,6 +254,9 @@ using Refresh=void(*)(void*,const ThemePalette&);
 std::map<lv_obj_t*,std::pair<Refresh,void*>> refreshes;
 bool register_theme_refresh(lv_obj_t *owner,Refresh cb,void *context){refreshes[owner]={cb,context};return true;}
 void unregister_theme_refresh(lv_obj_t *owner){refreshes.erase(owner);}
+int theme_refresh_applies=0;
+void apply_current_theme(){++theme_refresh_applies;for(auto entry:refreshes)entry.second.first(entry.second.second,theme);}
+
 struct CardPalette{bool has_sensor_color=false;uint32_t surface_sensor_val=0;};
 // @production_helpers
 bool apply_subpage_back_colors(lv_obj_t *o,const std::string&,const DisplayProfile&){apply_button_colors(o,true,theme.surface_card,true,theme.surface_card);return true;}
@@ -487,7 +490,9 @@ int main(){
     frame.panel_w=frame.sw-16;frame.panel_h=frame.sh-50;frame.inset=18;
     for(const char *language:{"en","de","fr","it","cs","pl","fi","ru","uk"}){
       set_espcontrol_language(language);
+      const int applies_before=theme_refresh_applies;
       power_flow_open(card);auto &ui=power_flow_ui();
+      assert(theme_refresh_applies==applies_before+1); // prime each new native owner after construction
       assert(subscriptions==10&&ui.grid.large&&ui.grid.diagram.cols==3&&ui.grid.diagram.rows==rows);
       assert(ui.dashboard->layout==LV_LAYOUT_GRID&&ui.diagram->gcols==3&&ui.diagram->grows==rows);
       lv_area_t paths;lv_obj_get_coords(ui.area,&paths);
