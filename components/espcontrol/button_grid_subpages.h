@@ -396,6 +396,17 @@ inline BtnSlot create_dynamic_card_slot(lv_obj_t *btn,
   return slot;
 }
 
+// Shared visual setup for native subpage-return cards. Navigation is supplied
+// by the owner (screen return or closing a detail view).
+inline void setup_subpage_back_card(BtnSlot &slot, const DisplayProfile &display,
+                                     const std::string &label) {
+  display_apply_main_width(slot.icon_lbl, display);
+  display_apply_slot_text_width(slot, display);
+  lv_label_set_display_text(slot.icon_lbl, "\U000F0141");
+  lv_label_set_display_text(slot.text_lbl, label.c_str());
+  configure_button_label_wrap(slot.text_lbl);
+}
+
 // Extract the order string (everything before the first pipe) from subpage config
 inline std::string get_subpage_order(const std::string &sp_cfg) {
   if (sp_cfg.empty()) return "";
