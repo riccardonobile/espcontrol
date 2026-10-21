@@ -284,6 +284,7 @@ inline void power_flow_apply_large_surfaces(const ThemePalette &theme) {
   lv_obj_set_style_bg_color(ui.diagram,
     lv_color_hex(display_correct_color(theme.surface_card, ui.card->display)), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(ui.diagram, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(ui.diagram, lv_obj_get_style_pad_top(ui.card->slot.btn, LV_PART_MAIN), LV_PART_MAIN);
   apply_grid_card_corners(ui.diagram, control_modal_card_radius(ui.card->slot.btn), ui.card->continuous_corners);
 }
 inline void power_flow_layout() {
@@ -329,6 +330,7 @@ inline void power_flow_layout() {
     if (ui.back_area) {
       lv_obj_set_style_bg_color(ui.shell.panel, lv_color_hex(display_correct_color(current_theme().surface_secondary, ui.card->display)), LV_PART_MAIN);
       lv_obj_set_style_bg_opa(ui.diagram, LV_OPA_TRANSP, LV_PART_MAIN);
+      lv_obj_set_style_pad_all(ui.diagram, 0, LV_PART_MAIN);
     }
     lv_obj_set_layout(ui.dashboard, LV_LAYOUT_NONE);
     lv_obj_set_style_pad_all(ui.dashboard, 0, LV_PART_MAIN);
@@ -338,9 +340,13 @@ inline void power_flow_layout() {
     for (auto &slot : ui.sidebar) power_flow_set_visible(slot.btn, false);
   }
   lv_obj_update_layout(ui.dashboard);
+  // Native card padding contributes to the existing total diagram inset;
+  // subtract it from the inner viewport so this surface fix does not move nodes.
+  const int diagram_inset = large ? std::max<int>(0, layout.inset -
+    lv_obj_get_style_pad_top(ui.card->slot.btn, LV_PART_MAIN)) : layout.inset;
   const auto viewport = espcontrol::power::flow_viewport(
-    lv_obj_get_content_width(ui.diagram), lv_obj_get_content_height(ui.diagram), layout.inset,
-    large ? layout.inset : lv_obj_get_y(ui.shell.close_btn) + lv_obj_get_height(ui.shell.close_btn) + layout.title_gap);
+    lv_obj_get_content_width(ui.diagram), lv_obj_get_content_height(ui.diagram), diagram_inset,
+    large ? diagram_inset : lv_obj_get_y(ui.shell.close_btn) + lv_obj_get_height(ui.shell.close_btn) + layout.title_gap);
   const int width = viewport.width, height = viewport.height;
   const auto *body = display_volume_label_font(ui.card->display,
     lv_obj_get_style_text_font(ui.card->slot.text_lbl, LV_PART_MAIN));

@@ -542,7 +542,7 @@ int main(){
       assert(ui.dashboard->children.size()==6); // Back + four readings + Flow: no mega-card wrapper
       assert(ui.shell.panel->bg==theme.background&&ui.shell.panel->radius==0);
       assert(ui.diagram->bg==theme.surface_card&&ui.diagram->bg_opacity==LV_OPA_COVER);
-      assert(ui.diagram->continuous);
+      assert(ui.diagram->continuous&&ui.diagram->padding==card->slot.btn->padding);
       assert(ui.dashboard->layout==LV_LAYOUT_GRID&&ui.diagram->gcols==3&&ui.diagram->grows==rows);
       lv_area_t paths;lv_obj_get_coords(ui.area,&paths);
       for(auto *node:ui.nodes){
