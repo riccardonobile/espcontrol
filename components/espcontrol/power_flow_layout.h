@@ -68,7 +68,7 @@ inline FlowFamily flow_family(int width, int height) {
 }
 inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
                                   double node_width = 138, double node_height = 108,
-                                  double side_node_width = 0) {
+                                  double side_node_width = 0, bool refine_clearance = false) {
   FlowGeometry out;
   const double cx = width / 2.0, cy = height / 2.0;
   const double margin = std::max(4.0, std::min(width, height) * .02);
@@ -77,7 +77,12 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
   const double hh = std::min(node_height / 2, height * .24);
   const double dx = std::max(0.0, cx - side_hw - margin);
   const double dy = std::max(0.0, cy - hh - margin);
-  const double port = std::min(18.0, std::min({hw, side_hw, hh}) / 3), gap = 4;
+  // Portrait retains its approved coordinates byte-for-byte. Other profiles
+  // gain 3 px between ports and 4 px of endpoint safety outside the text box.
+  const double port = refine_clearance
+    ? std::min(21.0, std::min({hw, side_hw, hh}) / 3 + 3)
+    : std::min(18.0, std::min({hw, side_hw, hh}) / 3);
+  const double gap = refine_clearance ? 8 : 4;
   out.nodes = {{{cx, cy - dy}, {cx + dx, cy}, {cx - dx, cy}, {cx, cy + dy}}};
   // Attachment points depend only on the content rectangle and compiled text
   // metrics, never readings, activity, SOC availability or edge visibility.

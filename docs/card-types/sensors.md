@@ -61,7 +61,8 @@ columns and three rows; 10-inch panels use the right three columns and four rows
 A subpage-style Back card and four native Sensor-style readings fill the left
 two columns. Each reading shows watts above its label, with Grid/Battery activity
 below. Smaller or portrait layouts retain the compact view and Back arrow. Both
-areas share the same readings.
+areas share the same readings. The landscape page uses six separate native cards,
+including the diagram, against the normal page background.
 
 Configure four Home Assistant `sensor.*` entities reporting W or kW:
 
@@ -76,7 +77,10 @@ Configure four Home Assistant `sensor.*` entities reporting W or kW:
 Battery sign inversion only if your sensors use the opposite convention.
 Unknown or invalid readings are not treated as zero. Flow arrows are inferred
 allocations, not measured physical routes; incomplete or inconsistent readings
-hide the arrows while retaining valid readings.
+hide the arrows while retaining valid readings. Valid sensor updates arriving
+within a fixed 200 ms window are displayed together to reduce brief mismatches
+between separately updated sensors. Unavailable inputs clear arrows immediately;
+persistent imbalance still hides them after the window.
 
 The web card preview uses placeholders, not live measurements. It follows the
 selected Dark/Light theme, or Active Theme in Auto mode.

@@ -46,6 +46,7 @@ struct PowerCardCtx;
 inline PowerCardCtx *&power_card_contexts() { static PowerCardCtx *head = nullptr; return head; }
 inline void power_flow_hide();
 inline void power_flow_update(PowerCardCtx *ctx);
+inline void power_flow_log_balance(PowerCardCtx *ctx, const char *source, bool published);
 
 struct PowerCardCtx {
   BtnSlot slot{};
@@ -55,6 +56,9 @@ struct PowerCardCtx {
   int grid_cols = 1, grid_rows = 1, grid_gap = 0;
   bool continuous_corners = false;
   bool has_soc = false;
+  // One fixed-window publication timer per changing card, never per edge.
+  lv_timer_t *publish_timer = nullptr;
+  uint32_t input_updated_ms[4]{};
   PowerCardCtx *next = nullptr;
   ~PowerCardCtx();
 };
@@ -92,8 +96,35 @@ inline void power_card_update(PowerCardCtx *ctx) {
   power_flow_update(ctx);
   if (changed) notify_dashboard_content_changed();
 }
+// Publish one snapshot after a bounded burst of HA callbacks. Do not restart
+// the window: continuous changes cannot postpone an inconsistent result forever.
+constexpr uint32_t POWER_UPDATE_BATCH_MS = 200;
+inline void power_card_cancel_publish(PowerCardCtx *ctx) {
+  if (ctx->publish_timer) lv_timer_delete(ctx->publish_timer);
+  ctx->publish_timer = nullptr;
+}
+inline void power_card_input_changed(PowerCardCtx *ctx, size_t index) {
+  if (index < 4) ctx->input_updated_ms[index] = lv_tick_get();
+  power_flow_log_balance(ctx, "callback", false);
+  if (ctx->data.model.calculation.validity == espcontrol::power::CalculationValidity::UNAVAILABLE) {
+    power_card_cancel_publish(ctx);
+    power_card_update(ctx);
+  } else if (!ctx->publish_timer) {
+    ctx->publish_timer = lv_timer_create([](lv_timer_t *timer) {
+      auto *owner = static_cast<PowerCardCtx *>(lv_timer_get_user_data(timer));
+      owner->publish_timer = nullptr;
+      power_card_update(owner);
+    }, POWER_UPDATE_BATCH_MS, ctx);
+    if (ctx->publish_timer) lv_timer_set_repeat_count(ctx->publish_timer, 1);
+    else {
+      ESP_LOGW("power", "Cannot batch Power updates; publishing current readings immediately");
+      power_card_update(ctx);
+    }
+  }
+}
 inline void power_cards_disconnected() {
   for (auto *ctx = power_card_contexts(); ctx; ctx = ctx->next) {
+    power_card_cancel_publish(ctx);
     ctx->data.disconnect();
     power_card_update(ctx);
   }
@@ -186,7 +217,8 @@ struct PowerFlowUi : PowerFlowNodes {
   bool laying_out = false;
   bool diagnostic_draw_begin = false, diagnostic_draw_end = false;
   bool diagnostic_geometry_pending = false;
-  unsigned diagnostic_updates = 0;
+  unsigned diagnostic_updates = 0, balance_diagnostics = 0;
+  espcontrol::power::CalculationValidity diagnostic_validity = espcontrol::power::CalculationValidity::UNAVAILABLE;
 };
 inline PowerFlowUi &power_flow_ui() { static PowerFlowUi ui; return ui; }
 inline const PowerFlowUi &power_flow_reset_value() {
@@ -224,6 +256,7 @@ inline void power_flow_hide() {
   power_flow_diagnostic_stage("close.end");
 }
 inline PowerCardCtx::~PowerCardCtx() {
+  power_card_cancel_publish(this);
   if (power_flow_ui().card == this) power_flow_hide();
   ha_release_callbacks_for_owner(this);
   auto **entry = &power_card_contexts();
@@ -241,6 +274,18 @@ inline int power_flow_text_width(const char *text, const lv_font_t *font) {
   lv_text_get_size(&size, text, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
   return size.x;
 }
+inline void power_flow_apply_large_surfaces(const ThemePalette &theme) {
+  auto &ui = power_flow_ui();
+  if (!ui.card || !ui.grid.large || !ui.back_area) return;
+  // Existing objects only: page outside six sibling cards, no extra draw frames.
+  lv_obj_set_style_bg_color(ui.shell.panel,
+    lv_color_hex(display_correct_color(theme.background, ui.card->display)), LV_PART_MAIN);
+  lv_obj_set_style_radius(ui.shell.panel, 0, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(ui.diagram,
+    lv_color_hex(display_correct_color(theme.surface_card, ui.card->display)), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(ui.diagram, LV_OPA_COVER, LV_PART_MAIN);
+  apply_grid_card_corners(ui.diagram, control_modal_card_radius(ui.card->slot.btn), ui.card->continuous_corners);
+}
 inline void power_flow_layout() {
   auto &ui = power_flow_ui();
   if (!ui.card || !ui.area || ui.laying_out) return;
@@ -256,6 +301,7 @@ inline void power_flow_layout() {
   ui.grid = espcontrol::power::flow_dashboard_grid(ui.card->display.modal,
     ui.card->grid_cols, ui.card->grid_rows, panel_w, panel_h);
   const bool large = ui.grid.large && ui.sidebar[0].btn;
+  power_flow_apply_large_surfaces(current_theme());
   lv_obj_set_size(ui.dashboard, panel_w, panel_h);
   lv_obj_set_pos(ui.dashboard, 0, 0);
   auto place = [](lv_obj_t *object, const espcontrol::power::FlowGridCell &cell) {
@@ -280,6 +326,10 @@ inline void power_flow_layout() {
       place(ui.sidebar[i].btn, ui.grid.values[i]);
     }
   } else {
+    if (ui.back_area) {
+      lv_obj_set_style_bg_color(ui.shell.panel, lv_color_hex(display_correct_color(current_theme().surface_secondary, ui.card->display)), LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(ui.diagram, LV_OPA_TRANSP, LV_PART_MAIN);
+    }
     lv_obj_set_layout(ui.dashboard, LV_LAYOUT_NONE);
     lv_obj_set_style_pad_all(ui.dashboard, 0, LV_PART_MAIN);
     lv_obj_set_pos(ui.diagram, 0, 0);
@@ -323,7 +373,8 @@ inline void power_flow_layout() {
   const int side_node_w = std::min<int>(std::lround(width * .48), measure(text_font, value_font, false));
   const int node_h = text_h * 2 + value_h + 6;
   const auto geometry = espcontrol::power::flow_geometry(width, height,
-    espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h, side_node_w);
+    espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h, side_node_w,
+    layout.sw >= layout.sh);
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, viewport.x, viewport.y);
   // Large views use the native Back card; compact views retain the shell arrow.
@@ -383,6 +434,7 @@ inline void power_flow_layout() {
   }
   if (text_font) lv_obj_set_style_text_font(ui.soc, text_font, LV_PART_MAIN);
   lv_obj_set_height(ui.soc, text_h);
+  lv_obj_set_style_text_color(ui.soc, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
   if (large) {
     for (auto &slot : ui.sidebar) {
       apply_standard_sensor_number_style(slot, ui.card->display);
@@ -414,6 +466,25 @@ inline void power_flow_update_nodes(PowerFlowNodes &ui, PowerCardCtx *ctx) {
     power_set_text(ui.details[i], detail);
   }
 }
+// Bounded hardware evidence: callback ages are local arrival ages, not HA's
+// measurement timestamps. Record raw transitions as well as published snapshots.
+inline void power_flow_log_balance(PowerCardCtx *ctx, const char *source, bool published) {
+  auto &ui = power_flow_ui();
+  if (!ctx || ui.card != ctx) return;
+  const auto &calc = ctx->data.model.calculation;
+  if (ui.balance_diagnostics < 12 && (published || ui.balance_diagnostics == 0 || calc.validity != ui.diagnostic_validity)) {
+    ui.diagnostic_validity = calc.validity;
+    ++ui.balance_diagnostics;
+    const uint32_t now = lv_tick_get();
+    ESP_LOGW("power_balance", "source=%s state=%u watts=[%.2f,%.2f,%.2f,%.2f] valid=[%u,%u,%u,%u] residual=%.2f tolerance=%.2f callback_age_ms=[%lu,%lu,%lu,%lu] batch_ms=%lu",
+      source, static_cast<unsigned>(calc.validity), calc.nodes[0].value, calc.nodes[1].value, calc.nodes[2].value, calc.nodes[3].value,
+      static_cast<unsigned>(calc.nodes[0].valid()), static_cast<unsigned>(calc.nodes[1].valid()),
+      static_cast<unsigned>(calc.nodes[2].valid()), static_cast<unsigned>(calc.nodes[3].valid()), calc.residual_w, calc.tolerance_w,
+      static_cast<unsigned long>(now - ctx->input_updated_ms[0]), static_cast<unsigned long>(now - ctx->input_updated_ms[1]),
+      static_cast<unsigned long>(now - ctx->input_updated_ms[2]), static_cast<unsigned long>(now - ctx->input_updated_ms[3]),
+      static_cast<unsigned long>(POWER_UPDATE_BATCH_MS));
+  }
+}
 inline void power_flow_update(PowerCardCtx *ctx) {
   auto &ui = power_flow_ui();
   if (!ctx || ui.card != ctx) return;
@@ -423,6 +494,7 @@ inline void power_flow_update(PowerCardCtx *ctx) {
     power_flow_diagnostic_stage("model.update.begin", ++ui.diagnostic_updates);
   }
   const auto &calc = ctx->data.model.calculation;
+  power_flow_log_balance(ctx, "publish", true);
   power_flow_update_nodes(ui, ctx);
   for (size_t i = 0; i < 4; ++i) {
     auto &slot = ui.sidebar[i];
@@ -531,7 +603,7 @@ inline bool power_flow_create_nodes(PowerFlowNodes &ui, lv_obj_t *parent,
     if (ui.details[i]) lv_obj_set_width(ui.details[i], LV_SIZE_CONTENT);
     if (!ui.values[i] || !ui.details[i]) return false;
     if (i == 3) {
-      // SOC is measurement text; the adjacent activity retains the muted role.
+      // The whole combined third row shares the native muted text role.
       ui.soc = power_flow_label(ui.detail_rows[i], label_font);
       if (!ui.soc) return false;
       lv_obj_set_width(ui.soc, LV_SIZE_CONTENT);
@@ -630,6 +702,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
     if (!register_theme_refresh(ui.back_area, [](void *, const ThemePalette &theme) {
       auto &live = power_flow_ui();
       if (!live.card) return;
+      power_flow_apply_large_surfaces(theme);
       apply_subpage_back_colors(live.back_area, "", live.card->display);
       theme_apply_grid_button(live.back_area,
         display_correct_color(theme.surface_card, live.card->display), theme, false, false);

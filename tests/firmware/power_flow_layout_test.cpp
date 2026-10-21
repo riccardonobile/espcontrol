@@ -100,6 +100,26 @@ int main() {
       assert(!(p.x>n.x-box[2]/2.0 && p.x<n.x+box[2]/2.0 &&
                p.y>n.y-box[3]/2.0 && p.y<n.y+box[3]/2.0));
   }
+  // Approved renderer/radius stays fixed. Only endpoints/port spacing change;
+  // portrait explicitly opts out, including node centers and scale.
+  for(auto size:{std::array<int,2>{600,500},{660,620}}){
+    const auto old=flow_geometry(size[0],size[1],FlowFamily::SQUARE,210,90,170);
+    const auto refined=flow_geometry(size[0],size[1],FlowFamily::SQUARE,210,90,170,true);
+    for(size_t n=0;n<4;++n)assert(same(old.nodes[n],refined.nodes[n]));
+    assert(refined.ports[0][2].x-refined.ports[0][1].x==old.ports[0][2].x-old.ports[0][1].x+3);
+    assert(refined.ports[3][1].y==refined.nodes[3].y-45-8);
+    assert(refined.ports[0][1].y==refined.nodes[0].y+45+8);
+    for(size_t i:{0,2,3,4})assert(refined.arcs[i].radius==old.arcs[i].radius&&refined.arcs[i].radius==32);
+    for(size_t j=0;j<FLOW_POINT_COUNT;++j)assert(same(refined.paths[4][j],refined.paths[6][FLOW_POINT_COUNT-1-j]));
+    for(size_t n=0;n<4;++n)for(auto port:refined.ports[n]){
+      const auto node=refined.nodes[n];
+      const double gap=n==0?port.y-node.y-45:n==3?node.y-45-port.y:n==1?node.x-85-port.x:port.x-node.x-85;
+      assert(gap==8);
+    }
+  }
+  const auto portrait=flow_geometry(436,584,FlowFamily::PORTRAIT,198,69,142,false);
+  const auto portrait_default=flow_geometry(436,584,FlowFamily::PORTRAIT,198,69,142);
+  for(size_t n=0;n<4;++n){assert(same(portrait.nodes[n],portrait_default.nodes[n]));for(size_t k=0;k<3;++k)assert(same(portrait.ports[n][k],portrait_default.ports[n][k]));}
   CardData data;
   data.model.set_polarity({true,false});
   data.state(1,"1"); assert(!data.model.readings[1].valid()); // no assumed W

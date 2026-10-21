@@ -91,12 +91,12 @@ inline bool power_driver_bind_data(BtnSlot &slot, const ParsedCfg &config,
     if (entities[i].empty()) continue;
     const bool state = ha_subscribe_state(entities[i], [ctx, i](esphome::StringRef value) {
       ctx->data.state(i, std::string_view(value.c_str(), value.size()));
-      power_card_update(ctx);
+      power_card_input_changed(ctx, i);
     }, HA_SUBSCRIPTION_SCOPE_DEFAULT, true);
     const bool unit = ha_subscribe_attribute(entities[i], "unit_of_measurement",
       [ctx, i](esphome::StringRef value) {
         ctx->data.unit(i, std::string_view(value.c_str(), value.size()));
-        power_card_update(ctx);
+        power_card_input_changed(ctx, i);
       }, HA_SUBSCRIPTION_SCOPE_DEFAULT, true);
     if (!state || !unit) ESP_LOGW("power", "Unable to bind Power input %s", entities[i].c_str());
   }

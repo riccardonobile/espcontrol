@@ -14,11 +14,20 @@
 
 std::vector<std::string> diagnostic_logs;
 template<class... Args> void test_log(const char *tag,const char *format,Args... args){
-  if(std::string(tag)!="power_diag")return;
+  if(std::string(tag)!="power_diag"&&std::string(tag)!="power_balance")return;
   char text[256];snprintf(text,sizeof(text),format,args...);diagnostic_logs.emplace_back(text);
 }
 #define ESP_LOGW(...) test_log(__VA_ARGS__)
 
+uint32_t test_now=0;
+uint32_t lv_tick_get(){return test_now;}
+struct lv_timer_t {void(*callback)(lv_timer_t*);void *data;uint32_t due;};
+std::vector<lv_timer_t*> timers;
+lv_timer_t *lv_timer_create(void(*cb)(lv_timer_t*),uint32_t period,void *data){auto *t=new lv_timer_t{cb,data,test_now+period};timers.push_back(t);return t;}
+void *lv_timer_get_user_data(lv_timer_t *t){return t->data;}
+void lv_timer_set_repeat_count(lv_timer_t*,int){}
+void lv_timer_delete(lv_timer_t *t){timers.erase(std::find(timers.begin(),timers.end(),t));delete t;}
+void advance(uint32_t ms){test_now+=ms;auto copy=timers;for(auto *t:copy)if(int32_t(test_now-t->due)>=0){t->callback(t);lv_timer_delete(t);}}
 using lv_coord_t=int; using lv_value_precise_t=int32_t;
 struct lv_point_precise_t { lv_value_precise_t x,y; };
 // Exercise ESP-IDF targets where LVGL int32_t metrics differ from host int.
@@ -52,7 +61,7 @@ using EventCallback=void (*)(lv_event_t*);
 struct lv_obj_t {
   std::string text;
   lv_font_t const *font=nullptr;
-  int text_opacity=255,line_width=2,layout=0,padding=0,pad_row=0,gcol=0,grow=0,gcols=1,grows=1;
+  int radius=0,bg_opacity=0,text_opacity=255,line_width=2,layout=0,padding=0,pad_row=0,gcol=0,grow=0,gcols=1,grows=1;
   bool flex_center=false,continuous=false;
   const lv_coord_t *columns=nullptr,*rows=nullptr;
   int x=0,y=0,w=140,h=16,flags=0,state=0,max_h=32767,max_w=32767,mode=0,flex=0,pad_bottom=0,pad_column=0,cross=0;
@@ -136,7 +145,8 @@ int lv_obj_get_style_max_height(lv_obj_t *o,int){return o->max_h;}
 int lv_obj_get_style_pad_column(lv_obj_t *o,int){return o->pad_column;}
 void lv_obj_set_style_max_width(lv_obj_t *o,int w,int){o->max_w=w;}
 void lv_obj_set_align(lv_obj_t*,int){}
-void lv_obj_set_style_bg_opa(lv_obj_t*,int,int){}
+void lv_obj_set_style_bg_opa(lv_obj_t *o,int v,int){o->bg_opacity=v;}
+void lv_obj_set_style_radius(lv_obj_t *o,int r,int){o->radius=r;}
 void lv_obj_set_style_border_width(lv_obj_t*,int,int){}
 void lv_obj_set_style_pad_all(lv_obj_t *o,int p,int){o->padding=p;}
 void lv_obj_set_style_pad_bottom(lv_obj_t *o,int p,int){o->pad_bottom=p;}
@@ -202,7 +212,7 @@ void apply_icon_width_compensation(lv_obj_t*,int){}
 void notify_dashboard_content_changed(){++notifications;}
 void apply_push_button_transition(lv_obj_t*){}
 const char *find_icon(const char*){return "icon";}
-struct Theme {uint32_t text_primary=0xffffff,surface_card=0x313131,text_muted=0xb0b0b0,control_neutral=0x313131,surface_sensor=0x212121;};
+struct Theme {uint32_t background=0,surface_secondary=0x212121,text_primary=0xffffff,surface_card=0x313131,text_muted=0xb0b0b0,control_neutral=0x313131,surface_sensor=0x212121;};
 Theme theme;
 const Theme &current_theme(){return theme;}
 uint32_t current_button_primary_color(){return 0xff8c00;}
@@ -307,8 +317,9 @@ BtnSlot make_slot(bool main){
   s.secondary_lbl=lv_label_create(s.btn);
   apply_button_colors(s.btn,true,current_button_primary_color(),true,theme.surface_card);return s;
 }
-void publish(std::string id,std::string value,std::string attribute=""){
+void publish(std::string id,std::string value,std::string attribute="",bool settle=true){
   auto copy=bindings;for(auto &b:copy)if(b.entity==id&&b.attribute==attribute)b.callback({value});
+  if(settle)advance(200);
 }
 int main(){
   using namespace espcontrol::cards;
@@ -359,6 +370,40 @@ int main(){
   }
   publish("sensor.h","1000");
   auto *card=power_card_for_button(slot.btn);
+  // Reproduce a mixed HA snapshot: no tolerance increase or retained invalid
+  // arrows. Publish latest readings together at a non-extendable 200 ms deadline.
+  power_flow_open(card);auto &batch_ui=power_flow_ui();
+  publish("sensor.h","1200","",false);
+  assert(card->data.model.calculation.validity==espcontrol::power::CalculationValidity::INCONSISTENT);
+  assert(card->data.model.calculation.residual_w==-200&&card->data.model.calculation.tolerance_w==34);
+  assert(batch_ui.values[1]->text=="1000 W"&&timers.size()==1);
+  advance(100);publish("sensor.b","-300","",false);
+  advance(99);assert(batch_ui.values[1]->text=="1000 W");
+  advance(1);assert(batch_ui.values[1]->text=="1200 W"&&batch_ui.status->flags&LV_OBJ_FLAG_HIDDEN);
+  assert(timers.empty());
+  assert(std::any_of(diagnostic_logs.begin(),diagnostic_logs.end(),[](const auto &s){return s.find("source=callback state=1 watts=[1500.00,1200.00,0.00,-500.00]")==0;}));
+  assert(std::any_of(diagnostic_logs.begin(),diagnostic_logs.end(),[](const auto &s){return s.find("source=publish state=2 watts=[1500.00,1200.00,0.00,-300.00]")==0;}));
+  // Persistent discrepancy is visible at the original deadline despite more callbacks.
+  publish("sensor.h","2000","",false);advance(100);
+  publish("sensor.h","2100","",false);advance(100);
+  assert(batch_ui.status->text=="Inconsistent readings"&&batch_ui.lines[0]->flags&LV_OBJ_FLAG_HIDDEN);
+  // Oscillation around the 30 W threshold resolves using only the final snapshot.
+  publish("sensor.h","1231","",false);advance(100);publish("sensor.h","1229","",false);advance(100);
+  assert(batch_ui.status->flags&LV_OBJ_FLAG_HIDDEN);
+  publish("sensor.h","1231");assert(batch_ui.status->text=="Inconsistent readings");
+  // Unavailable clears immediately, cancels pending publication; no stale expiry.
+  publish("sensor.h","1200","",false);assert(timers.size()==1);
+  publish("sensor.s","unavailable","",false);assert(timers.empty()&&batch_ui.status->text=="Unavailable");
+  advance(1000);assert(batch_ui.status->text=="Unavailable");
+  publish("sensor.s","1500");publish("sensor.b","-500");publish("sensor.h","1000");
+  publish("sensor.g","-0.4");assert(batch_ui.values[2]->text=="0 W");
+  publish("sensor.g","0.4");assert(batch_ui.values[2]->text=="0 W");
+  publish("sensor.g","0");
+  publish("sensor.h","1100","",false);assert(timers.size()==1);
+  power_cards_disconnected();assert(timers.empty()&&batch_ui.status->text=="Unavailable");
+  for(auto id:{"sensor.s","sensor.h","sensor.g","sensor.b"})publish(id,"W","unit_of_measurement");
+  publish("sensor.s","1500");publish("sensor.h","1000");publish("sensor.g","0");publish("sensor.b","-500");
+  assert(batch_ui.status->flags&LV_OBJ_FLAG_HIDDEN);power_flow_hide();
   assert(power_reading_text({3500,espcontrol::power::ReadingValidity::VALID},0)=="3500 W");
   assert(power_reading_text({1042.25,espcontrol::power::ReadingValidity::VALID},2)=="1042.25 W");
   assert(power_driver_handle_main_click(context,cfg,slot.btn));
@@ -419,7 +464,7 @@ int main(){
     assert(drawn_lines.size()==2&&drawn_arcs.empty());
     assert(drawn_lines[0].p1.x==drawn_lines[0].p2.x&&drawn_lines[1].p1.y==drawn_lines[1].p2.y);
     ui.paths[0]=saved;
-    assert(ui.details[3]->color==theme.text_muted);
+    assert(ui.details[3]->color==theme.text_muted&&ui.soc->color==theme.text_muted);
     assert(ui.details[3]->mode==LV_LABEL_LONG_CLIP);
     assert(ui.soc->mode==LV_LABEL_LONG_CLIP);
     assert(ui.values[3]->text=="-500 W"); // normalized polarity is visible as well as caption
@@ -494,6 +539,10 @@ int main(){
       power_flow_open(card);auto &ui=power_flow_ui();
       assert(theme_refresh_applies==applies_before+1); // prime each new native owner after construction
       assert(subscriptions==10&&ui.grid.large&&ui.grid.diagram.cols==3&&ui.grid.diagram.rows==rows);
+      assert(ui.dashboard->children.size()==6); // Back + four readings + Flow: no mega-card wrapper
+      assert(ui.shell.panel->bg==theme.background&&ui.shell.panel->radius==0);
+      assert(ui.diagram->bg==theme.surface_card&&ui.diagram->bg_opacity==LV_OPA_COVER);
+      assert(ui.diagram->continuous);
       assert(ui.dashboard->layout==LV_LAYOUT_GRID&&ui.diagram->gcols==3&&ui.diagram->grows==rows);
       lv_area_t paths;lv_obj_get_coords(ui.area,&paths);
       for(auto *node:ui.nodes){
@@ -616,7 +665,9 @@ int main(){
   assert(battery_ui.details[3]->text=="Charging");
   publish("sensor.soc","78");publish("sensor.b","unavailable");
   assert(battery_ui.soc->text=="78% · "&&battery_ui.details[3]->text=="Unavailable");
-  lv_obj_del(sub.btn);assert(subscriptions==0&&objects==0&&!power_flow_ui().card&&!power_card_contexts());
+  for(auto id:{"sensor.s","sensor.h"})publish(id,"W","unit_of_measurement");
+  publish("sensor.s","1500","",false);publish("sensor.h","1000","",false);publish("sensor.g","0","",false);publish("sensor.b","-500","",false);assert(timers.size()==1);
+  lv_obj_del(sub.btn);assert(timers.empty());advance(1000);assert(subscriptions==0&&objects==0&&!power_flow_ui().card&&!power_card_contexts());
   auto no_soc=make_slot(false);cfg.soc.clear();
   power_driver_setup_visual(no_soc,cfg,context,{},GridConfig{},2);
   power_driver_bind_data(no_soc,cfg,context,profile,GridConfig{});assert(subscriptions==8);
