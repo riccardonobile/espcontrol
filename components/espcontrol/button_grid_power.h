@@ -378,9 +378,11 @@ inline void power_flow_layout() {
   // clearance with a wider SOC/translated caption belonging to another node.
   const int side_node_w = std::min<int>(std::lround(width * .48), measure(text_font, value_font, false));
   const int node_h = text_h * 2 + value_h + 6;
+  const bool refine_clearance = large || (layout.sw == layout.sh &&
+    ui.card->display.modal.layout_family == DisplayModalLayoutFamily::LARGE_SQUARE);
   const auto geometry = espcontrol::power::flow_geometry(width, height,
     espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h, side_node_w,
-    layout.sw >= layout.sh);
+    refine_clearance);
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, viewport.x, viewport.y);
   // Large views use the native Back card; compact views retain the shell arrow.

@@ -424,6 +424,8 @@ int main(){
   assert(slot.secondary_lbl->font==&label_font);
   control_modal_force_close_active();label_font.line_height=16;small_font.line_height=12;
   for(auto size: {std::array<int,2>{320,480},{480,480},{720,720},{1280,800},{800,480},{720,1280}}){
+    card->display.modal.layout_family=size[0]==720&&size[1]==720
+      ? DisplayModalLayoutFamily::LARGE_SQUARE : DisplayModalLayoutFamily::COMPACT_SQUARE;
     normal_title="18°C";
     frame.sw=size[0];frame.sh=size[1];frame.panel_w=size[0]-16;frame.panel_h=size[1]-50;
     power_flow_open(card);assert(subscriptions==10&&title=="Power Dashboard");
@@ -630,7 +632,17 @@ int main(){
   frame.sw=480;frame.sh=480;frame.panel_w=464;frame.panel_h=430;frame.inset=18;
   power_flow_open(card);
   assert(power_flow_ui().nodes[1]->w<power_flow_ui().nodes[3]->w);
-  for(size_t i:{0,2,3,4})assert(power_flow_ui().paths[i].arc.radius>0);
+  auto &small_ui=power_flow_ui();
+  const auto unchanged=espcontrol::power::flow_geometry(small_ui.area->w,small_ui.area->h,
+    espcontrol::power::FlowFamily::SQUARE,small_ui.nodes[0]->w,small_ui.nodes[0]->h,small_ui.nodes[1]->w);
+  for(size_t i=0;i<7;++i){
+    assert(small_ui.paths[i].arc.radius==unchanged.arcs[i].radius);
+    for(size_t j=0;j<espcontrol::power::FLOW_POINT_COUNT;++j){
+      assert(small_ui.paths[i].points[j].x==espcontrol::power::flow_coordinate<int>(unchanged.paths[i][j].x));
+      assert(small_ui.paths[i].points[j].y==espcontrol::power::flow_coordinate<int>(unchanged.paths[i][j].y));
+    }
+  }
+  for(size_t i:{0,2,3,4})assert(small_ui.paths[i].arc.radius>0);
   power_flow_hide();
   set_espcontrol_language("en");frame.inset=8;card->display.modal={};card->grid_cols=1;card->grid_rows=1;
   fail_after=9;const int base_objects=objects;power_flow_open(card);

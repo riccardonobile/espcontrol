@@ -77,7 +77,7 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
   const double hh = std::min(node_height / 2, height * .24);
   const double dx = std::max(0.0, cx - side_hw - margin);
   const double dy = std::max(0.0, cy - hh - margin);
-  // Portrait retains its approved coordinates byte-for-byte. Other profiles
+  // Portrait retains its approved coordinates byte-for-byte. Opted-in profiles
   // gain 3 px between ports and 4 px of endpoint safety outside the text box.
   const double port = refine_clearance
     ? std::min(21.0, std::min({hw, side_hw, hh}) / 3 + 3)
