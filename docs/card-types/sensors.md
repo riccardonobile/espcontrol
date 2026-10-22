@@ -62,7 +62,9 @@ A subpage-style Back card and four native Sensor-style readings fill the left
 two columns. Each reading shows watts above its label, with Grid/Battery activity
 below. Smaller or portrait layouts retain the compact view and Back arrow. Both
 areas share the same readings. The landscape page uses six separate native cards,
-including the diagram, against the normal page background.
+including the diagram, aligned with Home's grid against the normal page background.
+On every display, the diagram uses the native non-interactive information-card
+surface and follows theme changes while open.
 
 Configure four Home Assistant `sensor.*` entities reporting W or kW:
 
