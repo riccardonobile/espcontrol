@@ -120,6 +120,20 @@ int main() {
   const auto portrait=flow_geometry(436,584,FlowFamily::PORTRAIT,198,69,142,false);
   const auto portrait_default=flow_geometry(436,584,FlowFamily::PORTRAIT,198,69,142);
   for(size_t n=0;n<4;++n){assert(same(portrait.nodes[n],portrait_default.nodes[n]));for(size_t k=0;k<3;++k)assert(same(portrait.ports[n][k],portrait_default.ports[n][k]));}
+  // 720-square can use one native title gap from its reserved navigation band.
+  // Only Solar/Battery and their ports move; scale/radius/side nodes stay fixed.
+  const auto square_before=flow_geometry(656,433,FlowFamily::SQUARE,238,102,151,true);
+  const auto square_after=flow_geometry(656,433,FlowFamily::SQUARE,238,102,151,true,15);
+  assert(square_after.nodes[0].y==square_before.nodes[0].y-15);
+  assert(square_after.nodes[3].y==square_before.nodes[3].y+15);
+  assert(same(square_before.nodes[1],square_after.nodes[1])&&same(square_before.nodes[2],square_after.nodes[2]));
+  assert(square_before.scale==square_after.scale);
+  for(size_t n=0;n<4;++n)for(size_t port=0;port<3;++port){
+    assert(square_before.ports[n][port].x==square_after.ports[n][port].x);
+    assert(square_after.ports[n][port].y==square_before.ports[n][port].y+(n==0?-15:n==3?15:0));
+  }
+  for(size_t i:{0,2,3,4})assert(square_before.arcs[i].radius==square_after.arcs[i].radius&&square_after.arcs[i].radius==32);
+  for(size_t j=0;j<FLOW_POINT_COUNT;++j)assert(same(square_after.paths[4][j],square_after.paths[6][FLOW_POINT_COUNT-1-j]));
   CardData data;
   data.model.set_polarity({true,false});
   data.state(1,"1"); assert(!data.model.readings[1].valid()); // no assumed W

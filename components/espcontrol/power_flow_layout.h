@@ -68,7 +68,8 @@ inline FlowFamily flow_family(int width, int height) {
 }
 inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
                                   double node_width = 138, double node_height = 108,
-                                  double side_node_width = 0, bool refine_clearance = false) {
+                                  double side_node_width = 0, bool refine_clearance = false,
+                                  double vertical_spread = 0) {
   FlowGeometry out;
   const double cx = width / 2.0, cy = height / 2.0;
   const double margin = std::max(4.0, std::min(width, height) * .02);
@@ -76,7 +77,9 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
   const double side_hw = side_node_width > 0 ? std::min(side_node_width / 2, width * .24) : hw;
   const double hh = std::min(node_height / 2, height * .24);
   const double dx = std::max(0.0, cx - side_hw - margin);
-  const double dy = std::max(0.0, cy - hh - margin);
+  // A caller may use measured space outside the symmetric path viewport.
+  // This changes only Solar/Battery placement, not scale, port spacing or radius rules.
+  const double dy = std::max(0.0, cy - hh - margin) + std::max(0.0, vertical_spread);
   // Portrait retains its approved coordinates byte-for-byte. Opted-in profiles
   // gain 3 px between ports and 4 px of endpoint safety outside the text box.
   const double port = refine_clearance

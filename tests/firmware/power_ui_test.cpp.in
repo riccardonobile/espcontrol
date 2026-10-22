@@ -84,7 +84,8 @@ lv_obj_t *lv_obj_create(lv_obj_t *parent) {
   ++objects;return obj;
 }
 lv_obj_t *lv_btn_create(lv_obj_t *p){return lv_obj_create(p);}
-void apply_grid_card_corners(lv_obj_t *o,int,bool continuous){o->continuous=continuous;}
+void apply_grid_card_corners(lv_obj_t *o,int radius,bool continuous){o->radius=radius;o->continuous=continuous;}
+bool card_uses_continuous_corners(lv_obj_t *o){return o->continuous;}
 void lv_obj_set_style_shadow_width(lv_obj_t*,int,int){}
 lv_obj_t *lv_label_create(lv_obj_t *p){return lv_obj_create(p);}
 lv_obj_t *lv_line_create(lv_obj_t *p){return lv_obj_create(p);}
@@ -430,6 +431,29 @@ int main(){
     frame.sw=size[0];frame.sh=size[1];frame.panel_w=size[0]-16;frame.panel_h=size[1]-50;
     power_flow_open(card);assert(subscriptions==10&&title=="Power Dashboard");
     auto &ui=power_flow_ui();assert(ui.lines[0]->events[0].data==&ui.paths[0]);
+    assert(refreshes.size()==1&&refreshes.count(ui.diagram));
+    assert(ui.shell.panel->bg==theme.surface_sensor&&ui.shell.panel->bg_opacity==LV_OPA_COVER);
+    assert(ui.shell.panel->radius==control_modal_card_radius(card->slot.btn));
+    assert(!(ui.shell.panel->flags&LV_OBJ_FLAG_CLICKABLE));
+    assert(ui.diagram->bg_opacity==LV_OPA_TRANSP&&!(ui.diagram->flags&LV_OBJ_FLAG_CLICKABLE));
+    // Passive surfaces use the same driver role, independent from action cards.
+    const auto initial_theme=theme;
+    for(auto surface:{0xf5f5f5u,0x212121u}){
+      theme.surface_sensor=surface;apply_current_theme();
+      assert(ui.shell.panel->bg==surface);
+    }
+    theme=initial_theme;apply_current_theme();
+    const bool square_refined=frame.sw==720&&frame.sh==720;
+    const auto original=espcontrol::power::flow_geometry(ui.area->w,ui.area->h,
+      espcontrol::power::flow_family(frame.sw,frame.sh),ui.nodes[0]->w,ui.nodes[0]->h,ui.nodes[1]->w,square_refined);
+    const int spread=square_refined?std::min<int>(frame.title_gap,ui.area->y/4):0;
+    for(size_t i=0;i<4;++i){
+      const int offset=i==0?-spread:i==3?spread:0;
+      assert(ui.nodes[i]->y==ui.area->y+std::lround(original.nodes[i].y-ui.nodes[i]->h/2.0)+offset);
+      assert(ui.nodes[i]->x==ui.area->x+std::lround(original.nodes[i].x-ui.nodes[i]->w/2.0));
+    }
+    for(size_t i:{0,2,3,4})assert(ui.paths[i].arc.radius==original.arcs[i].radius);
+
     auto count_stage=[](const char *prefix){return std::count_if(diagnostic_logs.begin(),diagnostic_logs.end(),[&](const auto &s){return s.find(prefix)==0;});};
     assert(ui.diagnostic_updates==1);
     const int update_logs=count_stage("stage=model.update.begin");
@@ -477,8 +501,10 @@ int main(){
     for(auto *node:ui.nodes){
       assert(node->parent==ui.shell.panel);
       lv_area_t b;lv_obj_get_coords(node,&b);
-      assert(b.x1>=path_bounds.x1&&b.y1>=path_bounds.y1);
-      assert(b.x2<=path_bounds.x2+1&&b.y2<=path_bounds.y2+1);
+      lv_area_t card_bounds;lv_obj_get_coords(ui.shell.panel,&card_bounds);
+      assert(b.x1>=path_bounds.x1&&b.x2<=path_bounds.x2+1);
+      assert(b.y1>=card_bounds.y1&&b.y2<=card_bounds.y2);
+      if(!square_refined)assert(b.y1>=path_bounds.y1&&b.y2<=path_bounds.y2+1);
     }
     for(auto *icon:ui.icons){
       int levels=0;for(auto *p=icon;p&&p!=ui.shell.overlay;p=p->parent)++levels;
@@ -543,9 +569,18 @@ int main(){
       assert(subscriptions==10&&ui.grid.large&&ui.grid.diagram.cols==3&&ui.grid.diagram.rows==rows);
       assert(ui.dashboard->children.size()==6); // Back + four readings + Flow: no mega-card wrapper
       assert(ui.shell.panel->bg==theme.background&&ui.shell.panel->radius==0);
-      assert(ui.diagram->bg==theme.surface_card&&ui.diagram->bg_opacity==LV_OPA_COVER);
+      assert(ui.diagram->bg==theme.surface_sensor&&ui.diagram->bg_opacity==LV_OPA_COVER);
       assert(ui.diagram->continuous&&ui.diagram->padding==card->slot.btn->padding);
       assert(ui.dashboard->layout==LV_LAYOUT_GRID&&ui.diagram->gcols==3&&ui.diagram->grows==rows);
+      assert(ui.dashboard->padding==0&&ui.dashboard->pad_column==card->grid_gap&&ui.dashboard->pad_row==card->grid_gap);
+      // Home already reserves HUD/outer margins in the modal frame: first/last
+      // native cells must reach those exact bounds, with only native grid gaps.
+      lv_area_t page_bounds,first_bounds,last_bounds;
+      lv_obj_get_content_coords(ui.shell.panel,&page_bounds);
+      lv_obj_get_coords(ui.back_area,&first_bounds);lv_obj_get_coords(ui.diagram,&last_bounds);
+      assert(first_bounds.x1==page_bounds.x1&&first_bounds.y1==page_bounds.y1);
+      assert(last_bounds.x2==page_bounds.x2&&last_bounds.y1==page_bounds.y1&&last_bounds.y2==page_bounds.y2);
+      assert(!(ui.diagram->flags&LV_OBJ_FLAG_CLICKABLE));
       lv_area_t paths;lv_obj_get_coords(ui.area,&paths);
       for(auto *node:ui.nodes){
         assert(node->parent==ui.shell.panel);
@@ -599,19 +634,20 @@ int main(){
       assert(ui.sidebar[3].secondary_lbl->text_opacity==LV_OPA_70);
       assert(ui.sidebar[0].secondary_lbl->flags&LV_OBJ_FLAG_HIDDEN);
       assert(ui.sidebar[1].secondary_lbl->flags&LV_OBJ_FLAG_HIDDEN);
-      assert(refreshes.size()==1&&refreshes.count(ui.back_area)==1);
+      assert(refreshes.size()==1&&refreshes.count(ui.diagram)==1);
       const auto saved_theme=theme;
       for(auto sensor_surface:{0xffffffu,0x212121u}){
         theme.surface_sensor=sensor_surface;theme.surface_card=sensor_surface==0xffffff?0xffffff:0x313131;
         theme.text_primary=sensor_surface==0xffffff?0x212121:0xffffff;
-        auto binding=refreshes.at(ui.back_area);binding.first(binding.second,theme);
+        auto binding=refreshes.at(ui.diagram);binding.first(binding.second,theme);
         for(auto &side:ui.sidebar)assert(side.btn->bg==sensor_surface&&side.sensor_lbl->color==theme.text_primary);
+        assert(ui.diagram->bg==sensor_surface&&ui.shell.panel->bg==theme.background);
         assert(ui.back_area->bg==theme.surface_card&&ui.back_area->pressed_bg==theme.surface_card);
         ui.back_area->state=LV_STATE_PRESSED;send(ui.back_area,LV_EVENT_PRESSED);
         assert(ui.back_slot.text_lbl->color==display_text_color_for_bg(theme.surface_card));
         ui.back_area->state=0;send(ui.back_area,LV_EVENT_RELEASED);
       }
-      theme=saved_theme;auto binding=refreshes.at(ui.back_area);binding.first(binding.second,theme);
+      theme=saved_theme;auto binding=refreshes.at(ui.diagram);binding.first(binding.second,theme);
       const int count=objects;assert(count<=113&&sizeof(PowerFlowUi)<=2304);
       publish("sensor.soc","unavailable");publish("sensor.b","unavailable");
       assert(ui.sidebar[3].secondary_lbl->text==espcontrol_i18n("Unavailable"));

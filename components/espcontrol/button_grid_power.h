@@ -274,18 +274,28 @@ inline int power_flow_text_width(const char *text, const lv_font_t *font) {
   lv_text_get_size(&size, text, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
   return size.x;
 }
-inline void power_flow_apply_large_surfaces(const ThemePalette &theme) {
+inline void power_flow_apply_surfaces(const ThemePalette &theme) {
   auto &ui = power_flow_ui();
-  if (!ui.card || !ui.grid.large || !ui.back_area) return;
-  // Existing objects only: page outside six sibling cards, no extra draw frames.
-  lv_obj_set_style_bg_color(ui.shell.panel,
-    lv_color_hex(display_correct_color(theme.background, ui.card->display)), LV_PART_MAIN);
-  lv_obj_set_style_radius(ui.shell.panel, 0, LV_PART_MAIN);
-  lv_obj_set_style_bg_color(ui.diagram,
-    lv_color_hex(display_correct_color(theme.surface_card, ui.card->display)), LV_PART_MAIN);
-  lv_obj_set_style_bg_opa(ui.diagram, LV_OPA_COVER, LV_PART_MAIN);
-  lv_obj_set_style_pad_all(ui.diagram, lv_obj_get_style_pad_top(ui.card->slot.btn, LV_PART_MAIN), LV_PART_MAIN);
-  apply_grid_card_corners(ui.diagram, control_modal_card_radius(ui.card->slot.btn), ui.card->continuous_corners);
+  if (!ui.card) return;
+  const bool large = ui.grid.large && ui.back_area;
+  // Passive Sensor role on every profile. Compact keeps the existing panel as
+  // its single card; large views style the existing diagram, never a wrapper.
+  auto *surface = large ? ui.diagram : ui.shell.panel;
+  lv_obj_set_style_bg_color(surface,
+    lv_color_hex(display_correct_color(theme.surface_sensor, ui.card->display)), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(surface, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_clear_flag(surface, LV_OBJ_FLAG_CLICKABLE);
+  apply_grid_card_corners(surface, control_modal_card_radius(ui.card->slot.btn), ui.card->continuous_corners);
+  if (large) {
+    lv_obj_set_style_bg_color(ui.shell.panel,
+      lv_color_hex(display_correct_color(theme.background, ui.card->display)), LV_PART_MAIN);
+    apply_grid_card_corners(ui.shell.panel, 0, card_uses_continuous_corners(ui.shell.panel));
+    lv_obj_set_style_pad_all(ui.diagram, lv_obj_get_style_pad_top(ui.card->slot.btn, LV_PART_MAIN), LV_PART_MAIN);
+  } else {
+    lv_obj_set_style_bg_opa(ui.diagram, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(ui.diagram, 0, LV_PART_MAIN);
+    apply_grid_card_corners(ui.diagram, 0, card_uses_continuous_corners(ui.diagram));
+  }
 }
 inline void power_flow_layout() {
   auto &ui = power_flow_ui();
@@ -302,7 +312,7 @@ inline void power_flow_layout() {
   ui.grid = espcontrol::power::flow_dashboard_grid(ui.card->display.modal,
     ui.card->grid_cols, ui.card->grid_rows, panel_w, panel_h);
   const bool large = ui.grid.large && ui.sidebar[0].btn;
-  power_flow_apply_large_surfaces(current_theme());
+  power_flow_apply_surfaces(current_theme());
   lv_obj_set_size(ui.dashboard, panel_w, panel_h);
   lv_obj_set_pos(ui.dashboard, 0, 0);
   auto place = [](lv_obj_t *object, const espcontrol::power::FlowGridCell &cell) {
@@ -310,8 +320,10 @@ inline void power_flow_layout() {
                          LV_GRID_ALIGN_STRETCH, cell.row, cell.rows);
   };
   if (large) {
-    const int gap = ui.card->grid_gap > 0 ? ui.card->grid_gap : layout.title_gap;
-    lv_obj_set_style_pad_all(ui.dashboard, layout.inset, LV_PART_MAIN);
+    const int gap = ui.card->grid_gap;
+    // The shell already follows Home's content bounds, including HUD/margins.
+    // A second modal inset would shrink every grid cell a second time.
+    lv_obj_set_style_pad_all(ui.dashboard, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_column(ui.dashboard, gap, LV_PART_MAIN);
     lv_obj_set_style_pad_row(ui.dashboard, gap, LV_PART_MAIN);
     for (int col = 0; col < ui.grid.cols; ++col) ui.columns[col] = LV_GRID_FR(1);
@@ -327,11 +339,6 @@ inline void power_flow_layout() {
       place(ui.sidebar[i].btn, ui.grid.values[i]);
     }
   } else {
-    if (ui.back_area) {
-      lv_obj_set_style_bg_color(ui.shell.panel, lv_color_hex(display_correct_color(current_theme().surface_secondary, ui.card->display)), LV_PART_MAIN);
-      lv_obj_set_style_bg_opa(ui.diagram, LV_OPA_TRANSP, LV_PART_MAIN);
-      lv_obj_set_style_pad_all(ui.diagram, 0, LV_PART_MAIN);
-    }
     lv_obj_set_layout(ui.dashboard, LV_LAYOUT_NONE);
     lv_obj_set_style_pad_all(ui.dashboard, 0, LV_PART_MAIN);
     lv_obj_set_pos(ui.diagram, 0, 0);
@@ -380,9 +387,13 @@ inline void power_flow_layout() {
   const int node_h = text_h * 2 + value_h + 6;
   const bool refine_clearance = large || (layout.sw == layout.sh &&
     ui.card->display.modal.layout_family == DisplayModalLayoutFamily::LARGE_SQUARE);
+  // Only the approved 720-square view uses some of its symmetric navigation
+  // reserve: at most one native title gap, bounded by a quarter of the reserve.
+  const int vertical_spread = layout.sw == 720 && layout.sh == 720 && refine_clearance && !large
+    ? std::min<int>(layout.title_gap, viewport.y / 4) : 0;
   const auto geometry = espcontrol::power::flow_geometry(width, height,
     espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h, side_node_w,
-    refine_clearance);
+    refine_clearance, vertical_spread);
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, viewport.x, viewport.y);
   // Large views use the native Back card; compact views retain the shell arrow.
@@ -705,26 +716,27 @@ inline void power_flow_open(PowerCardCtx *ctx) {
       palette.surface_sensor_val = display_correct_color(current_theme().surface_sensor, ctx->display);
       espcontrol::cards::sensor_driver_apply_background(slot, palette);
     }
-    // Generic modal chrome cannot disambiguate white Sensor/Back surfaces in
-    // Light. One owner-scoped callback reapplies their existing native roles.
-    if (!register_theme_refresh(ui.back_area, [](void *, const ThemePalette &theme) {
-      auto &live = power_flow_ui();
-      if (!live.card) return;
-      power_flow_apply_large_surfaces(theme);
-      apply_subpage_back_colors(live.back_area, "", live.card->display);
-      theme_apply_grid_button(live.back_area,
-        display_correct_color(theme.surface_card, live.card->display), theme, false, false);
-      for (auto &slot : live.sidebar)
-        theme_apply_grid_button(slot.btn,
-          display_correct_color(theme.surface_sensor, live.card->display), theme, false, true);
-    }, nullptr)) ESP_LOGW("power", "Theme refresh registry full; Power sidebar cannot follow theme changes");
-    lv_obj_add_event_cb(ui.back_area, [](lv_event_t *event) {
-      unregister_theme_refresh(static_cast<lv_obj_t *>(lv_event_get_target(event)));
-    }, LV_EVENT_DELETE, nullptr);
   }
   power_flow_diagnostic_stage("all.nodes.ready");
   ui.status = power_flow_label(ui.shell.panel, label_font);
   if (!ui.status) { power_flow_hide(); return; }
+  // An explicit owner is required even in compact views: generic modal chrome
+  // cannot distinguish passive Sensor surfaces from other neutral roles.
+  if (!register_theme_refresh(ui.diagram, [](void *, const ThemePalette &theme) {
+    auto &live = power_flow_ui();
+    if (!live.card) return;
+    power_flow_apply_surfaces(theme);
+    if (!live.back_area) return;
+    apply_subpage_back_colors(live.back_area, "", live.card->display);
+    theme_apply_grid_button(live.back_area,
+      display_correct_color(theme.surface_card, live.card->display), theme, false, false);
+    for (auto &slot : live.sidebar)
+      theme_apply_grid_button(slot.btn,
+        display_correct_color(theme.surface_sensor, live.card->display), theme, false, true);
+  }, nullptr)) ESP_LOGW("power", "Theme refresh registry full; Power surfaces cannot follow theme changes");
+  lv_obj_add_event_cb(ui.diagram, [](lv_event_t *event) {
+    unregister_theme_refresh(static_cast<lv_obj_t *>(lv_event_get_target(event)));
+  }, LV_EVENT_DELETE, nullptr);
   lv_obj_add_event_cb(ui.shell.panel, [](lv_event_t *) { power_flow_layout(); }, LV_EVENT_SIZE_CHANGED, nullptr);
   lv_obj_add_event_cb(ui.shell.overlay, [](lv_event_t *) {
     // Covers externally deleted overlays as well as the ordinary close path.
@@ -754,6 +766,6 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   power_flow_layout();
   // Bindings start with compile-time Dark. Record the active palette after all
   // native slots exist so a view opened in Light also refreshes on Light->Dark.
-  if (ui.back_area) apply_current_theme();
+  apply_current_theme();
   power_flow_diagnostic_stage("open.ready");
 }
