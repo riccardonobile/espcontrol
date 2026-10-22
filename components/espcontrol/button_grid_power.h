@@ -387,9 +387,9 @@ inline void power_flow_layout() {
   const int node_h = text_h * 2 + value_h + 6;
   const bool refine_clearance = large || (layout.sw == layout.sh &&
     ui.card->display.modal.layout_family == DisplayModalLayoutFamily::LARGE_SQUARE);
-  // Only the approved 720-square view uses some of its symmetric navigation
-  // reserve: at most one native title gap, bounded by a quarter of the reserve.
-  const int vertical_spread = layout.sw == 720 && layout.sh == 720 && refine_clearance && !large
+  // Large Square uses some of its symmetric navigation reserve: at most one
+  // native title gap, bounded by a quarter of the reserve. Compact profiles opt out.
+  const int vertical_spread = refine_clearance && !large
     ? std::min<int>(layout.title_gap, viewport.y / 4) : 0;
   const auto geometry = espcontrol::power::flow_geometry(width, height,
     espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h, side_node_w,
