@@ -64,7 +64,8 @@ below. Smaller or portrait layouts retain the compact view and Back arrow. Both
 areas share the same readings. The landscape page uses six separate native cards,
 including the diagram, aligned with Home's grid against the normal page background.
 On every display, the diagram uses the native non-interactive information-card
-surface and follows theme changes while open.
+surface and follows theme changes while open. Node positions and arrow attachment
+points stay fixed as readings, activity and SOC availability change.
 
 Configure four Home Assistant `sensor.*` entities reporting W or kW:
 

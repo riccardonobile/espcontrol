@@ -347,13 +347,21 @@ inline void power_flow_layout() {
     for (auto &slot : ui.sidebar) power_flow_set_visible(slot.btn, false);
   }
   lv_obj_update_layout(ui.dashboard);
-  // Native card padding contributes to the existing total diagram inset;
-  // subtract it from the inner viewport so this surface fix does not move nodes.
+  // Retain the prior native inset/navigation viewport as the typography and
+  // stroke-scale reference; envelope placement uses the actual card content.
   const int diagram_inset = large ? std::max<int>(0, layout.inset -
     lv_obj_get_style_pad_top(ui.card->slot.btn, LV_PART_MAIN)) : layout.inset;
-  const auto viewport = espcontrol::power::flow_viewport(
+  const auto reference_viewport = espcontrol::power::flow_viewport(
     lv_obj_get_content_width(ui.diagram), lv_obj_get_content_height(ui.diagram), diagram_inset,
     large ? diagram_inset : lv_obj_get_y(ui.shell.close_btn) + lv_obj_get_height(ui.shell.close_btn) + layout.title_gap);
+  // Keep native font selection and approved stroke/head scale independent of
+  // the larger placement region. Portrait/constrained compact retain their
+  // established navigation reserve and node centres.
+  const bool square_envelopes = large || (layout.sw == layout.sh &&
+    ui.card->display.modal.layout_family == DisplayModalLayoutFamily::LARGE_SQUARE);
+  const espcontrol::power::FlowViewport viewport = square_envelopes
+    ? espcontrol::power::FlowViewport{0, 0, lv_obj_get_content_width(ui.diagram), lv_obj_get_content_height(ui.diagram)}
+    : reference_viewport;
   const int width = viewport.width, height = viewport.height;
   const auto *body = display_volume_label_font(ui.card->display,
     lv_obj_get_style_text_font(ui.card->slot.text_lbl, LV_PART_MAIN));
@@ -375,25 +383,20 @@ inline void power_flow_layout() {
     w = std::max(w, power_flow_text_width(ui.card->precision ? "-8888888.888 W" : "-8888888 W", value));
     return w + 8;
   };
-  if (body && compact && (measure(body, body) > width * .42 || body->line_height * 3 + 6 > height * .42))
+  if (body && compact && (measure(body, body) > reference_viewport.width * .42 || body->line_height * 3 + 6 > reference_viewport.height * .42))
     text_font = value_font = compact;
   else if (compact) text_font = compact;
   const int text_h = text_font ? text_font->line_height : 20;
   const int value_h = value_font ? value_font->line_height : text_h;
   const int node_w = std::min<int>(std::lround(width * .48), measure(text_font, value_font));
-  // Grid/Home never need the combined Battery row: do not consume route
-  // clearance with a wider SOC/translated caption belonging to another node.
+  // Keep measured legacy compact widths; common-square sizing takes the
+  // maximum across all four names, numeric bounds and SOC/activity captions.
   const int side_node_w = std::min<int>(std::lround(width * .48), measure(text_font, value_font, false));
   const int node_h = text_h * 2 + value_h + 6;
-  const bool refine_clearance = large || (layout.sw == layout.sh &&
-    ui.card->display.modal.layout_family == DisplayModalLayoutFamily::LARGE_SQUARE);
-  // Large Square uses some of its symmetric navigation reserve: at most one
-  // native title gap, bounded by a quarter of the reserve. Compact profiles opt out.
-  const int vertical_spread = refine_clearance && !large
-    ? std::min<int>(layout.title_gap, viewport.y / 4) : 0;
-  const auto geometry = espcontrol::power::flow_geometry(width, height,
-    espcontrol::power::flow_family(layout.sw, layout.sh), node_w, node_h, side_node_w,
-    refine_clearance, vertical_spread);
+  const auto family = espcontrol::power::flow_family(layout.sw, layout.sh);
+  const auto geometry = espcontrol::power::flow_geometry(width, height, family,
+    node_w, node_h, side_node_w, square_envelopes, square_envelopes,
+    espcontrol::power::flow_render_scale(reference_viewport.width, reference_viewport.height, family));
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, viewport.x, viewport.y);
   // Large views use the native Back card; compact views retain the shell arrow.
@@ -446,10 +449,26 @@ inline void power_flow_layout() {
     if (icon_font && icon_font->line_height)
       apply_icon_width_compensation(ui.icons[i], 256 * text_h / icon_font->line_height);
     control_modal_center_tab_icon(ui.icons[i]);
-    const int this_width = i == 1 || i == 2 ? side_node_w : node_w;
-    lv_obj_set_size(ui.nodes[i], this_width, node_h);
+    const int this_width = geometry.square_size > 0 ? static_cast<int>(geometry.square_size)
+      : i == 1 || i == 2 ? side_node_w : node_w;
+    const int this_height = geometry.square_size > 0 ? this_width : node_h;
+    // Solar/Home have no activity row: centre their actual two visible rows,
+    // retaining the approved blank third-row reserve on legacy compact views.
+    power_flow_set_visible(ui.detail_rows[i], geometry.square_size == 0 || i >= 2);
+    lv_obj_set_size(ui.nodes[i], this_width, this_height);
+    // A bounded square cannot grow for an unusually wide translation. Keep
+    // the existing native CLIP mode and constrain the combined row too;
+    // otherwise its content width pushes the whole flex column off centre.
+    const bool bounded = geometry.square_size > 0;
+    const int soc_width = i == 3 && ui.card->has_soc
+      ? power_flow_text_width("100% · ", text_font) : 0;
+    lv_obj_set_style_max_width(ui.names[i], bounded
+      ? std::max(1, this_width - text_h - 4) : LV_COORD_MAX, LV_PART_MAIN);
+    lv_obj_set_style_max_width(ui.detail_rows[i], bounded ? this_width : LV_COORD_MAX, LV_PART_MAIN);
+    lv_obj_set_style_max_width(ui.details[i], bounded
+      ? std::max(1, this_width - soc_width) : LV_COORD_MAX, LV_PART_MAIN);
     lv_obj_set_pos(ui.nodes[i], node_x + std::lround(geometry.nodes[i].x - this_width / 2.0),
-                    node_y + std::lround(geometry.nodes[i].y - node_h / 2.0));
+                    node_y + std::lround(geometry.nodes[i].y - this_height / 2.0));
   }
   if (text_font) lv_obj_set_style_text_font(ui.soc, text_font, LV_PART_MAIN);
   lv_obj_set_height(ui.soc, text_h);

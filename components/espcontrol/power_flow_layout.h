@@ -61,31 +61,51 @@ struct FlowGeometry {
   std::array<FlowArc, 7> arcs{}; // Native clockwise sector; reversal shares it
   std::array<std::array<Point, 3>, 7> heads{};
   double scale = 1;
+  double square_size = 0, radial_distance = 0, port_spacing = 0;
 };
 inline FlowFamily flow_family(int width, int height) {
   return width * 5 > height * 6 ? FlowFamily::LANDSCAPE
        : height * 5 > width * 6 ? FlowFamily::PORTRAIT : FlowFamily::SQUARE;
 }
+inline double flow_render_scale(int width, int height, FlowFamily family) {
+  const double ref_w = family == FlowFamily::LANDSCAPE ? 620 : 520;
+  const double ref_h = family == FlowFamily::PORTRAIT ? 620 : 430;
+  return std::max(0.0, std::min(width / ref_w, height / ref_h));
+}
+inline double flow_port_spacing(double half_width, double half_height, double side_half_width,
+                                bool refined) {
+  const double bounded = std::min({half_width, half_height, side_half_width}) / 3;
+  // One additional 2 px centre-to-centre separation, never accumulated on relayout.
+  return (refined ? std::min(21.0, bounded + 3) : std::min(18.0, bounded)) + 2;
+}
 inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
                                   double node_width = 138, double node_height = 108,
                                   double side_node_width = 0, bool refine_clearance = false,
-                                  double vertical_spread = 0) {
+                                  bool square_envelopes = false, double render_scale = 0) {
   FlowGeometry out;
   const double cx = width / 2.0, cy = height / 2.0;
   const double margin = std::max(4.0, std::min(width, height) * .02);
-  const double hw = std::min(node_width / 2, width * .24);
-  const double side_hw = side_node_width > 0 ? std::min(side_node_width / 2, width * .24) : hw;
-  const double hh = std::min(node_height / 2, height * .24);
-  const double dx = std::max(0.0, cx - side_hw - margin);
-  // A caller may use measured space outside the symmetric path viewport.
-  // This changes only Solar/Battery placement, not scale, port spacing or radius rules.
-  const double dy = std::max(0.0, cy - hh - margin) + std::max(0.0, vertical_spread);
-  // Portrait retains its approved coordinates byte-for-byte. Opted-in profiles
-  // gain 3 px between ports and 4 px of endpoint safety outside the text box.
-  const double port = refine_clearance
-    ? std::min(21.0, std::min({hw, side_hw, hh}) / 3 + 3)
-    : std::min(18.0, std::min({hw, side_hw, hh}) / 3);
+  double hw = std::min(node_width / 2, width * .24);
+  double side_hw = side_node_width > 0 ? std::min(side_node_width / 2, width * .24) : hw;
+  double hh = std::min(node_height / 2, height * .24);
+  const double port = flow_port_spacing(hw, hh, side_hw, refine_clearance);
   const double gap = refine_clearance ? 8 : 4;
+  out.scale = render_scale > 0 ? render_scale : flow_render_scale(width, height, family);
+  double dx = std::max(0.0, cx - side_hw - margin);
+  double dy = std::max(0.0, cy - hh - margin);
+  if (square_envelopes) {
+    // Preserve a 32 px quarter-circle and an arrowhead-length tangent run.
+    // Wider bounded text uses native clipping rather than moving live ports.
+    const double maximum = std::floor(std::min(width, height) / 2.0 -
+                                      gap - port - 32 - 11 * out.scale);
+    if (maximum >= node_height) {
+      out.square_size = std::min(std::max({node_width, node_height, side_node_width}), maximum);
+      out.radial_distance = (std::min(width, height) - out.square_size) / 2;
+      hw = side_hw = hh = out.square_size / 2;
+      dx = dy = out.radial_distance;
+    }
+  }
+  out.port_spacing = port;
   out.nodes = {{{cx, cy - dy}, {cx + dx, cy}, {cx - dx, cy}, {cx, cy + dy}}};
   // Attachment points depend only on the content rectangle and compiled text
   // metrics, never readings, activity, SOC availability or edge visibility.
@@ -96,8 +116,10 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
   auto straight = [](Point a, Point b) { return FlowPath{{a, a, b, b}}; };
   auto bend = [&](size_t index, Point a, Point b, int sign, bool top) {
     // One radius for mirrored elbows, constrained by actual node clearance.
-    const int r = std::max(0, static_cast<int>(std::floor(std::min({32.0,
-      std::abs(b.y - a.y) * .42, std::abs(b.x - a.x) * .42}))));
+    const double room = out.square_size > 0
+      ? std::min(std::abs(b.y - a.y), std::abs(b.x - a.x)) - 11 * out.scale
+      : std::min(std::abs(b.y - a.y), std::abs(b.x - a.x)) * .42;
+    const int r = std::max(0, static_cast<int>(std::floor(std::min(32.0, room))));
     const Point center{a.x + sign * r, b.y + (top ? -r : r)};
     out.paths[index] = {{{a}, {a.x, center.y}, {center.x, b.y}, {b}}};
     const int start = top ? (sign > 0 ? 90 : 0) : (sign > 0 ? 180 : 270);
@@ -111,9 +133,6 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
   out.paths[5] = straight(out.ports[2][1], out.ports[1][1]);
   std::reverse_copy(out.paths[4].begin(), out.paths[4].end(), out.paths[6].begin());
   out.arcs[6] = out.arcs[4]; // Identical sector, opposite traversal/arrowhead.
-  const double ref_w = family == FlowFamily::LANDSCAPE ? 620 : 520;
-  const double ref_h = family == FlowFamily::PORTRAIT ? 620 : 430;
-  out.scale = std::max(0.0, std::min(width / ref_w, height / ref_h));
   const std::array<Point, 7> directions = {{{1,0}, {0,1}, {-1,0}, {1,0}, {-1,0}, {1,0}, {0,1}}};
   for (size_t i = 0; i < 7; ++i) {
     const Point end = out.paths[i].back(), dir = directions[i];

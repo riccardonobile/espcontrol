@@ -120,20 +120,67 @@ int main() {
   const auto portrait=flow_geometry(436,584,FlowFamily::PORTRAIT,198,69,142,false);
   const auto portrait_default=flow_geometry(436,584,FlowFamily::PORTRAIT,198,69,142);
   for(size_t n=0;n<4;++n){assert(same(portrait.nodes[n],portrait_default.nodes[n]));for(size_t k=0;k<3;++k)assert(same(portrait.ports[n][k],portrait_default.ports[n][k]));}
-  // 720-square can use one native title gap from its reserved navigation band.
-  // Only Solar/Battery and their ports move; scale/radius/side nodes stay fixed.
-  const auto square_before=flow_geometry(656,433,FlowFamily::SQUARE,238,102,151,true);
-  const auto square_after=flow_geometry(656,433,FlowFamily::SQUARE,238,102,151,true,15);
-  assert(square_after.nodes[0].y==square_before.nodes[0].y-15);
-  assert(square_after.nodes[3].y==square_before.nodes[3].y+15);
-  assert(same(square_before.nodes[1],square_after.nodes[1])&&same(square_before.nodes[2],square_after.nodes[2]));
-  assert(square_before.scale==square_after.scale);
-  for(size_t n=0;n<4;++n)for(size_t port=0;port<3;++port){
-    assert(square_before.ports[n][port].x==square_after.ports[n][port].x);
-    assert(square_after.ports[n][port].y==square_before.ports[n][port].y+(n==0?-15:n==3?15:0));
+  // Production content regions/native compiled-font envelopes. The same
+  // geometry owns all four squares, the radial distance and fixed ports.
+  for(auto profile:{std::array<int,8>{722,713,176,75,114,698,689,1}, {572,521,158,69,103,560,509,1},
+                    {710,655,238,102,151,656,433,0}, {722,713,260,75,190,698,689,1}, {572,521,187,69,138,560,509,1}}){
+    const int w=profile[0],h=profile[1];
+    const auto family=profile[7]?FlowFamily::LANDSCAPE:FlowFamily::SQUARE;
+    const double scale=flow_render_scale(profile[5],profile[6],family);
+    const auto square=flow_geometry(w,h,family,profile[2],profile[3],profile[4],true,true,scale);
+    const double e=square.square_size,half=e/2,d=square.radial_distance;
+    assert(e>0&&e>=profile[3]);
+    assert(d==(std::min(w,h)-e)/2);
+    const auto legacy=flow_geometry(w,h,FlowFamily::SQUARE,profile[2],profile[3],profile[4],true);
+    assert(square.port_spacing==legacy.port_spacing);
+    const double old_spacing=std::min(21.0,std::min({profile[2]/2.0,profile[3]/2.0,profile[4]/2.0})/3+3);
+    assert(square.port_spacing==old_spacing+2);
+    for(auto node:square.nodes){
+      assert(std::abs(std::hypot(node.x-w/2.0,node.y-h/2.0)-d)<1e-8);
+      assert(node.x-half>=0&&node.x+half<=w&&node.y-half>=0&&node.y+half<=h);
+    }
+    for(size_t n=0;n<4;++n)for(size_t port=0;port<3;++port){
+      const auto p=square.ports[n][port],node=square.nodes[n];
+      const double gap=n==0?p.y-node.y-half:n==3?node.y-half-p.y:n==1?node.x-half-p.x:p.x-node.x-half;
+      assert(std::abs(gap-8)<1e-8);
+      const double offset=n==0||n==3?p.x-node.x:p.y-node.y;
+      assert(std::abs(offset-(static_cast<int>(port)-1)*square.port_spacing)<1e-8);
+    }
+    // Test painted straights, complete circular elbows and arrowhead strokes
+    // against EVERY envelope, not merely endpoint centreline distances.
+    const int stroke=(std::max<int>(2,std::lround(3.2*square.scale))+1)&~1;
+    // Neighbouring incoming arrowheads at Home/Battery cannot overlap even
+    // with the full painted stroke/cap footprint included.
+    assert(square.port_spacing>11*square.scale+stroke);
+    auto clearance=[&](Point p){
+      for(auto node:square.nodes){
+        const double dx=std::max(std::abs(p.x-node.x)-half,0.0);
+        const double dy=std::max(std::abs(p.y-node.y)-half,0.0);
+        assert(std::hypot(dx,dy)-stroke/2.0>=5.99);
+      }
+    };
+    auto segment=[&](Point a,Point b){for(int i=0;i<=100;++i)clearance({a.x+(b.x-a.x)*i/100,a.y+(b.y-a.y)*i/100});};
+    for(size_t i=0;i<7;++i){
+      const auto &path=square.paths[i];const auto &arc=square.arcs[i];
+      segment(path[0],arc.radius?path[1]:path[3]);
+      if(arc.radius){
+        assert(arc.radius==32);segment(path[2],path[3]);
+        for(int a=arc.start_angle;a<=arc.end_angle;++a){const double angle=a*std::acos(-1)/180;
+          clearance({arc.center.x+arc.radius*std::cos(angle),arc.center.y+arc.radius*std::sin(angle)});}
+      }
+      segment(square.heads[i][0],square.heads[i][1]);segment(square.heads[i][1],square.heads[i][2]);
+      for(size_t j=0;j<FLOW_POINT_COUNT;++j)assert(same(square.paths[4][j],square.paths[6][FLOW_POINT_COUNT-1-j]));
+    }
   }
-  for(size_t i:{0,2,3,4})assert(square_before.arcs[i].radius==square_after.arcs[i].radius&&square_after.arcs[i].radius==32);
-  for(size_t j=0;j<FLOW_POINT_COUNT;++j)assert(same(square_after.paths[4][j],square_after.paths[6][FLOW_POINT_COUNT-1-j]));
+  // Portrait's measured 434x583 placement region cannot retain its approved
+  // node centres with equal squares: Grid's old left edge is 8.68 px, while
+  // a 158 px square at that centre would extend to -18.82 px. Keep that
+  // profile's rectangular boxes and centres; only symmetric port spacing grows.
+  const auto approved_portrait=flow_geometry(434,583,FlowFamily::PORTRAIT,158,69,103);
+  assert(approved_portrait.square_size==0);
+  assert(same(approved_portrait.nodes[0],{217,43.18}));
+  assert(same(approved_portrait.nodes[2],{60.18,291.5}));
+  assert(approved_portrait.port_spacing==13.5);
   CardData data;
   data.model.set_polarity({true,false});
   data.state(1,"1"); assert(!data.model.readings[1].valid()); // no assumed W
