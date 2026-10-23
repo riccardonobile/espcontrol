@@ -285,7 +285,11 @@ inline void power_flow_apply_surfaces(const ThemePalette &theme) {
     lv_color_hex(display_correct_color(theme.surface_sensor, ui.card->display)), LV_PART_MAIN);
   lv_obj_set_style_bg_opa(surface, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_clear_flag(surface, LV_OBJ_FLAG_CLICKABLE);
-  apply_grid_card_corners(surface, control_modal_card_radius(ui.card->slot.btn), ui.card->continuous_corners);
+  // Power Flow uses the native circular radius by user choice. LVGL 9.5's
+  // bitmap-mask blend reduces full alpha (255*255 >> 8) to 254, revealing
+  // Home through a compact masked panel. Avoid that layer for Flow only;
+  // native sidebar/Back cards retain their existing continuous corners.
+  apply_grid_card_corners(surface, control_modal_card_radius(ui.card->slot.btn), false);
   if (large) {
     lv_obj_set_style_bg_color(ui.shell.panel,
       lv_color_hex(display_correct_color(theme.background, ui.card->display)), LV_PART_MAIN);

@@ -424,6 +424,8 @@ int main(){
   assert(power_flow_ui().names[3]->font==&small_font);
   assert(slot.secondary_lbl->font==&label_font);
   control_modal_force_close_active();label_font.line_height=16;small_font.line_height=12;
+  // Continuous Home cards must not force a bitmap layer onto Power Flow.
+  card->continuous_corners=true;
   for(auto size: {std::array<int,2>{320,480},{480,480},{720,720},{1280,800},{800,480},{720,1280}}){
     card->display.modal.layout_family=size[0]==720&&size[1]==720
       ? DisplayModalLayoutFamily::LARGE_SQUARE : DisplayModalLayoutFamily::COMPACT_SQUARE;
@@ -433,7 +435,7 @@ int main(){
     auto &ui=power_flow_ui();assert(ui.lines[0]->events[0].data==&ui.paths[0]);
     assert(refreshes.size()==1&&refreshes.count(ui.diagram));
     assert(ui.shell.panel->bg==theme.surface_sensor&&ui.shell.panel->bg_opacity==LV_OPA_COVER);
-    assert(ui.shell.panel->radius==control_modal_card_radius(card->slot.btn));
+    assert(ui.shell.panel->radius==control_modal_card_radius(card->slot.btn)&&!ui.shell.panel->continuous);
     assert(!(ui.shell.panel->flags&LV_OBJ_FLAG_CLICKABLE));
     assert(ui.diagram->bg_opacity==LV_OPA_TRANSP&&!(ui.diagram->flags&LV_OBJ_FLAG_CLICKABLE));
     // Passive surfaces use the same driver role, independent from action cards.
@@ -583,7 +585,7 @@ int main(){
       assert(ui.dashboard->children.size()==6); // Back + four readings + Flow: no mega-card wrapper
       assert(ui.shell.panel->bg==theme.background&&ui.shell.panel->radius==0);
       assert(ui.diagram->bg==theme.surface_sensor&&ui.diagram->bg_opacity==LV_OPA_COVER);
-      assert(ui.diagram->continuous&&ui.diagram->padding==card->slot.btn->padding);
+      assert(!ui.diagram->continuous&&ui.diagram->padding==card->slot.btn->padding);
       assert(ui.dashboard->layout==LV_LAYOUT_GRID&&ui.diagram->gcols==3&&ui.diagram->grows==rows);
       assert(ui.dashboard->padding==0&&ui.dashboard->pad_column==card->grid_gap&&ui.dashboard->pad_row==card->grid_gap);
       // Home already reserves HUD/outer margins in the modal frame: first/last
