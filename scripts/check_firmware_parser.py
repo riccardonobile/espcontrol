@@ -47,6 +47,7 @@ LAYOUT_HEADER = ROOT / "components" / "espcontrol" / "button_grid_layout.h"
 LIMITS_HEADER = ROOT / "components" / "espcontrol" / "button_grid_limits.h"
 STRING_HEADER = ROOT / "components" / "espcontrol" / "button_grid_string.h"
 DISPLAY_TEXT_HEADER = ROOT / "components" / "espcontrol" / "display_text.h"
+DISPLAY_COLOR_HEADER = ROOT / "components" / "espcontrol" / "display_color.h"
 BUTTON_GRID_FACADE = ROOT / "components" / "espcontrol" / "button_grid.h"
 CARD_NORMALIZATION_FIXTURES = ROOT / "common" / "config" / "card_normalization_fixtures.json"
 DEVICES_DIR = ROOT / "devices"
@@ -110,6 +111,7 @@ struct BtnSlot {
   lv_obj_t *sensor_lbl = nullptr;
   lv_obj_t *unit_lbl = nullptr;
   lv_obj_t *subpage_lbl = nullptr;
+  lv_obj_t *secondary_lbl = nullptr;
 };
 struct lv_disp_t {};
 struct lv_font_t { int line_height = 16; };
@@ -124,8 +126,7 @@ static int lv_test_hor_res = 480;
 static int lv_test_ver_res = 480;
 static int lv_obj_move_background_calls = 0;
 static lv_obj_t *lv_active_screen = nullptr;
-inline const char *espcontrol_i18n(const char *text) { return text ? text : ""; }
-inline std::string espcontrol_i18n(const std::string &text) { return text; }
+#include "i18n_generated.h"
 constexpr int LV_PART_MAIN = 0;
 constexpr int LV_STATE_CHECKED = 1;
 constexpr int LV_STATE_PRESSED = 2;
@@ -133,6 +134,7 @@ constexpr int LV_STATE_DEFAULT = 0;
 constexpr int LV_STATE_DISABLED = 4;
 constexpr int LV_LABEL_LONG_WRAP = 0;
 constexpr int LV_LABEL_LONG_CLIP = 1;
+constexpr int LV_LABEL_LONG_DOT = 2;
 constexpr int LV_TEXT_ALIGN_LEFT = 0;
 constexpr int LV_TEXT_ALIGN_CENTER = 1;
 constexpr int LV_TEXT_ALIGN_RIGHT = 2;
@@ -140,6 +142,7 @@ constexpr int LV_SIZE_CONTENT = -1;
 constexpr int LV_ALIGN_TOP_LEFT = 0;
 constexpr int LV_ALIGN_TOP_MID = 1;
 constexpr int LV_ALIGN_TOP_RIGHT = 2;
+constexpr int LV_ALIGN_RIGHT_MID = 3;
 constexpr int LV_ALIGN_BOTTOM_LEFT = 0;
 [[maybe_unused]] constexpr int LV_ALIGN_BOTTOM_RIGHT = 1;
 constexpr int LV_GRID_ALIGN_START = 0;
@@ -148,6 +151,7 @@ constexpr int LV_OPA_COVER = 255;
 constexpr int LV_OPA_50 = 128;
 constexpr int LV_OBJ_FLAG_CLICKABLE = 1;
 constexpr int LV_OBJ_FLAG_HIDDEN = 2;
+constexpr int LV_OBJ_FLAG_USER_2 = 4;
 constexpr int LV_GRAD_DIR_HOR = 1;
 inline int lv_color_hex(uint32_t value) { return static_cast<int>(value); }
 inline int lv_pct(int value) { return value; }
@@ -170,6 +174,10 @@ inline const lv_font_t *lv_obj_get_style_text_font(lv_obj_t *, lv_style_selector
   static const lv_font_t font;
   return &font;
 }
+inline void lv_obj_set_style_text_font(lv_obj_t *, const lv_font_t *, lv_style_selector_t) {}
+inline int lv_obj_get_style_max_height(lv_obj_t *, lv_style_selector_t) { return 32767; }
+inline void lv_obj_set_style_max_height(lv_obj_t *, int, lv_style_selector_t) {}
+inline void lv_obj_set_style_max_width(lv_obj_t *, int, lv_style_selector_t) {}
 inline void lv_obj_set_style_opa(lv_obj_t *, int, int) {}
 inline void lv_obj_set_style_text_opa(lv_obj_t *, int, int) {}
 inline void lv_obj_add_state(lv_obj_t *, int) {}
@@ -182,6 +190,8 @@ inline uint32_t lv_obj_get_child_cnt(lv_obj_t *) { return 0; }
 inline lv_obj_t *lv_obj_get_child(lv_obj_t *, uint32_t) { return nullptr; }
 inline int lv_obj_get_width(lv_obj_t *obj) { return obj ? obj->width : 480; }
 inline int lv_obj_get_height(lv_obj_t *) { return 480; }
+inline int lv_obj_get_content_width(lv_obj_t *obj) { return lv_obj_get_width(obj); }
+inline int lv_obj_get_content_height(lv_obj_t *obj) { return lv_obj_get_height(obj); }
 inline int lv_obj_get_style_pad_left(lv_obj_t *, int) { return 0; }
 inline int lv_obj_get_style_pad_right(lv_obj_t *, int) { return 0; }
 inline int lv_obj_get_style_pad_top(lv_obj_t *, int) { return 0; }
@@ -206,7 +216,12 @@ inline const char *lv_label_get_text(lv_obj_t *obj) { return obj ? obj->text.c_s
 inline void lv_obj_align(lv_obj_t *, int, int, int) {}
 constexpr int LV_EVENT_CHILD_CHANGED = 1;
 constexpr int LV_EVENT_DELETE = 2;
-struct lv_event_t { lv_obj_t *target; void *data; };
+constexpr int LV_EVENT_ALL = 0;
+constexpr int LV_EVENT_PRESSED = 3;
+constexpr int LV_EVENT_RELEASED = 4;
+constexpr int LV_EVENT_PRESS_LOST = 5;
+struct lv_event_t { lv_obj_t *target; void *data; int code = 0; };
+inline int lv_event_get_code(lv_event_t *event) { return event->code; }
 inline void *lv_event_get_user_data(lv_event_t *event) { return event->data; }
 inline lv_obj_t *lv_event_get_target(lv_event_t *event) { return event->target; }
 inline void lv_obj_add_event_cb(lv_obj_t *obj, lv_event_cb_t cb, int code, void *data) {
@@ -221,8 +236,8 @@ inline void lv_obj_remove_event_cb_with_user_data(lv_obj_t *obj, lv_event_cb_t c
 inline void test_send_event(lv_obj_t *obj, int code) {
   const auto handlers = obj->handlers;
   for (const auto &h : handlers) {
-    if (h.code != code) continue;
-    lv_event_t event{obj, h.data};
+    if (h.code != code && h.code != LV_EVENT_ALL) continue;
+    lv_event_t event{obj, h.data, code};
     h.callback(&event);
   }
 }
@@ -238,11 +253,25 @@ inline void lv_obj_move_foreground(lv_obj_t *obj) {
 inline void lv_obj_move_background(lv_obj_t *) { lv_obj_move_background_calls++; }
 
 #include "temperature_unit.h"
+#include "display_color.h"
 #include "button_grid_config_parser.h"
 #include "backlight.h"
 #include "button_grid_layout.h"
 
 int main() {
+  auto power_saved = parse_cfg("sensor.home;Power Dashboard;Auto;Auto;;;power;;solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,battery_soc_entity=sensor.soc,invert_grid,invert_battery");
+  const auto power_config = espcontrol::power::decode_config_v1(power_saved);
+  assert(power_config.home_entity == "sensor.home");
+  assert(power_config.solar_entity == "sensor.solar");
+  assert(power_config.grid_entity == "sensor.grid");
+  assert(power_config.battery_entity == "sensor.battery");
+  assert(power_config.battery_soc_entity == "sensor.soc");
+  assert(power_config.invert_grid && power_config.invert_battery);
+  const auto power_defaults = espcontrol::power::decode_config_v1(parse_cfg(";;;;;;power;;"));
+  assert(power_defaults.home_entity.empty() && power_defaults.solar_entity.empty());
+  assert(power_defaults.grid_entity.empty() && power_defaults.battery_entity.empty());
+  assert(power_defaults.battery_soc_entity.empty());
+  assert(!power_defaults.invert_grid && !power_defaults.invert_battery);
   int row_span = 0;
   int col_span = 0;
   grid_token_spans('\0', row_span, col_span);
@@ -522,8 +551,8 @@ int main() {
   auto weather_today = parse_cfg("weather.home;;;;;;weather;today;large_numbers");
   assert(weather_today.type == "weather");
   assert(weather_today.precision == "today");
-  assert(weather_today.options == "large_numbers");
-  assert(card_large_numbers_enabled(weather_today));
+  assert(weather_today.options.empty()); // Forecast layouts discard the obsolete size option.
+  assert(!card_large_numbers_enabled(weather_today));
   auto weather_invalid_mode = parse_cfg("weather.home;;;;;;weather;bad;large_numbers");
   assert(weather_invalid_mode.type == "weather");
   assert(weather_invalid_mode.precision == "");
@@ -676,6 +705,15 @@ int main() {
   assert(cover_art_advanced.options == "speaker_group_entity=sensor.cover_art_speakers,volume_max=75");
   assert(media_speaker_group_entity(cover_art_advanced) == "sensor.cover_art_speakers");
   assert(media_volume_max_percent(cover_art_advanced) == 75);
+  auto cover_art_modal_options = parse_cfg("media_player.sonos;Living;Auto;Auto;cover_art;;media;;power_entity=media_player.tv,media_tabs=power%7Cvolume");
+  auto cover_art_modal_config = espcontrol::media::decode_config_v1(cover_art_modal_options);
+  assert(cover_art_modal_config.power_entity == "media_player.tv");
+  assert(cover_art_modal_config.control_tabs.count == 2);
+  assert(cover_art_modal_config.control_tabs.tabs[0] == MediaControlTab::POWER);
+  auto shared_modal_options = parse_cfg("media_player.sonos;Living;Auto;Auto;control_modal;;media;;power_entity=media_player.tv,media_tabs=volume%7Cpower");
+  auto shared_modal_config = espcontrol::media::decode_config_v1(shared_modal_options);
+  assert(shared_modal_config.power_entity == "media_player.tv");
+  assert(shared_modal_config.control_tabs.tabs[0] == MediaControlTab::VOLUME);
   auto legacy_cover_art = parse_cfg("media_player.office;Now Playing;Auto;Auto;now_playing;;media;progress;media_cover_art");
   assert(legacy_cover_art.sensor == "cover_art");
   assert(legacy_cover_art.precision == "");
@@ -1059,11 +1097,16 @@ def main() -> int:
     with TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         shutil.copy2(PARSER_HEADER, tmp_path / "button_grid_config_parser.h")
+        for name in ("power_card_config.h", "button_grid_saved_config_power_generated.h"):
+            shutil.copy2(ROOT / "components" / "espcontrol" / name, tmp_path / name)
+        shutil.copy2(PARSER_HEADER.with_name("i18n_generated.h"), tmp_path / "i18n_generated.h")
+        shutil.copy2(DISPLAY_COLOR_HEADER, tmp_path / "display_color.h")
         shutil.copy2(MEDIA_CONFIG_HEADER, tmp_path / "button_grid_media_config.h")
         shutil.copy2(ROOT / "components" / "espcontrol" / "temperature_unit.h", tmp_path / "temperature_unit.h")
         shutil.copy2(ROOT / "components" / "espcontrol" / "sun_calc.h", tmp_path / "sun_calc.h")
         shutil.copy2(DISPLAY_COLOR_HEADER, tmp_path / "display_color.h")
         shutil.copy2(SCREEN_LOCK_STATE_HEADER, tmp_path / "screen_lock_state.h")
+        shutil.copy2(SCREEN_LOCK_STATE_HEADER.with_name("screensaver_pin.h"), tmp_path / "screensaver_pin.h")
         shutil.copy2(CONTRACT_HEADER, tmp_path / "button_grid_contract_generated.h")
         shutil.copy2(CARD_RUNTIME_HEADER, tmp_path / "button_grid_card_runtime.h")
         shutil.copy2(CARD_REGISTRY_HEADER, tmp_path / "button_grid_card_registry.h")
@@ -1094,6 +1137,7 @@ def main() -> int:
         shutil.copy2(LIMITS_HEADER, tmp_path / "button_grid_limits.h")
         shutil.copy2(STRING_HEADER, tmp_path / "button_grid_string.h")
         shutil.copy2(STRING_HEADER.parent / "camera_refresh_policy.h", tmp_path / "camera_refresh_policy.h")
+        shutil.copy2(STRING_HEADER.parent / "media_control_tabs.h", tmp_path / "media_control_tabs.h")
         shutil.copy2(DISPLAY_TEXT_HEADER, tmp_path / "display_text.h")
         lvgl_stub = tmp_path / "esphome" / "components" / "lvgl" / "lvgl_esphome.h"
         lvgl_stub.parent.mkdir(parents=True, exist_ok=True)

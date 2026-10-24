@@ -28,7 +28,8 @@ Choose **Lit When Active** when an active status should use the on colour. It is
 ## Useful Details
 
 - A Time card needs a value in days, hours, minutes, seconds, milliseconds, or microseconds. You can select the unit manually when Auto cannot identify it.
-- Unknown, unavailable, or invalid values are left blank rather than guessed.
+- Icon cards show a dimmed dash while waiting for a reading or when the entity is unknown or unavailable. Their chosen icons return when valid data arrives. Door/Window and Presence cards use the same treatment, so missing data never looks like a confirmed closed or clear state.
+- Numeric and Time cards show a placeholder for unknown, unavailable, or invalid values.
 - Changes made in Home Assistant update the panel automatically.
 - To show a device-local sensor, change **Source** to **Local Sensor** and follow the [Local Sensor](/card-types/local-sensors) setup.
 
@@ -38,3 +39,56 @@ Choose **Lit When Active** when an active status should use the on colour. It is
 | `sensor.ups_battery_runtime` | Time |
 | `binary_sensor.laundry_running` | Icon |
 | `text_sensor.washing_machine_status` | Text |
+
+## Power Dashboard
+
+Choose **Power** to show instantaneous Home consumption in **watts (W)**. Tap the card
+on the panel to open **Power Flow**. The label defaults to **Power Dashboard**;
+the secondary line summarizes Battery and Grid activity. Power is a navigation
+card: tapping opens the view without toggling an entity or calling a service.
+
+Power needs **at least two grid columns** on the main grid and subpages. The
+editor only expands into free space; move neighboring cards yourself if needed.
+Previously saved narrow cards retain label-only navigation until resized, without
+moving or deleting any card. Unsupported narrow saves/restores are rejected
+before writes. Existing precision settings now mean decimal places in watts;
+input sensors may still report W or kW. Grid/Battery values in Power Flow retain their signs: negative means exporting
+or charging. The muted status caption also names the direction. Battery SOC
+and activity share one row beneath its signed watt value.
+
+On supported landscape 7-inch panels, the diagram occupies the right three
+columns and three rows; 10-inch panels use the right three columns and four rows.
+A subpage-style Back card and four native Sensor-style readings fill the left
+two columns. Each reading shows watts above its label, with Grid/Battery activity
+below. Smaller or portrait layouts retain the compact view and Back arrow. Both
+areas share the same readings. The landscape page uses six separate native cards,
+including the diagram, aligned with Home's grid against the normal page background.
+On every display, the diagram uses the native non-interactive information-card
+surface and follows theme changes while open. Node positions and arrow attachment
+points stay fixed as readings, activity and SOC availability change.
+
+Configure four Home Assistant `sensor.*` entities reporting W or kW:
+
+| Reading | Default sign convention |
+|---|---|
+| Home power | Positive consumption |
+| Solar power | Positive production |
+| Grid power | Positive importing; negative exporting |
+| Battery power | Positive discharging; negative charging |
+
+**Battery SOC** is optional and must report a percentage. Enable the Grid or
+Battery sign inversion only if your sensors use the opposite convention.
+Unknown or invalid readings are not treated as zero. Flow arrows are inferred
+allocations, not measured physical routes; incomplete or inconsistent readings
+hide the arrows while retaining valid readings. Valid sensor updates arriving
+within a fixed 200 ms window are displayed together to reduce brief mismatches
+between separately updated sensors. Unavailable inputs clear arrows immediately;
+persistent imbalance still hides them after the window.
+
+The web card preview uses placeholders, not live measurements. It follows the
+selected Dark/Light theme, or Active Theme in Auto mode.
+
+Current firmware supports **4 KiB per card or subpage**. Save and restore use
+this panel's advertised capacity and reject oversized settings without truncation.
+Older firmware may retain a 255-byte card limit or shared chunked subpage storage;
+shorter entity IDs/labels or omitting optional SOC can help on those installations.

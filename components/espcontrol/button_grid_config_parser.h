@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "button_grid_card_runtime.h"
+#include "media_control_tabs.h"
 #include "button_grid_string.h"
 #include "camera_refresh_policy.h"
 #include "button_grid_saved_config_action_generated.h"
@@ -23,6 +24,7 @@
 #include "button_grid_saved_config_webhook_generated.h"
 #include "button_grid_saved_config_subpage_generated.h"
 #include "button_grid_saved_config_switch_generated.h"
+#include "button_grid_saved_config_power_generated.h"
 #include "button_grid_saved_config_date_time_generated.h"
 #include "button_grid_saved_config_fan_generated.h"
 #include "button_grid_saved_config_media_generated.h"
@@ -59,6 +61,8 @@ constexpr const char *LABEL_DISPLAY_OPTION = card_runtime_option_name_label_disp
 constexpr const char *NUMBER_DISPLAY_OPTION = card_runtime_option_name_number_display();
 constexpr const char *TEMPERATURE_STEP_OPTION = card_runtime_option_name_temperature_step();
 constexpr const char *VOLUME_MAX_OPTION = card_runtime_option_name_volume_max();
+constexpr const char *MEDIA_CONTROL_TABS_OPTION = card_runtime_option_name_media_tabs();
+constexpr const char *MEDIA_POWER_ENTITY_OPTION = card_runtime_option_name_power_entity();
 constexpr const char *MEDIA_SPEAKER_GROUP_ENTITY_OPTION = card_runtime_option_name_speaker_group_entity();
 constexpr const char *MEDIA_PLAYLIST_CONTENT_ID_OPTION = card_runtime_option_name_playlist_content_id();
 constexpr const char *MEDIA_PLAYLIST_CONTENT_TYPE_OPTION = card_runtime_option_name_playlist_content_type();
@@ -241,6 +245,51 @@ inline std::string cfg_option_value(const std::string &options, const char *name
   return "";
 }
 
+inline std::string normalize_card_color_value(std::string value) {
+  if (!value.empty() && value[0] == '#') value.erase(0, 1);
+  if (value.size() != 6) return "";
+  for (char &ch : value) {
+    if (!std::isxdigit(static_cast<unsigned char>(ch))) return "";
+    ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+  }
+  return value;
+}
+
+inline std::string card_color_options_normalized(const std::string &options) {
+  const std::string mode = cfg_option_value(options, "card_active_color");
+  const bool explicit_mode = mode == "theme" || mode == "custom";
+  const std::string on = normalize_card_color_value(cfg_option_value(options, "card_on_color"));
+  std::string off = normalize_card_color_value(cfg_option_value(options, "card_off_color"));
+  if (off.empty() && !explicit_mode) off = on;
+  std::string out = off.empty() ? "" : "card_off_color=" + off;
+  if (explicit_mode) {
+    if (!out.empty()) out += ",";
+    out += "card_active_color=" + mode;
+  }
+  if (mode == "custom" && !on.empty()) out += ",card_on_color=" + on;
+  return out;
+}
+
+inline std::string options_without_card_colors(const std::string &options) {
+  std::string out;
+  size_t start = 0;
+  while (start < options.size()) {
+    size_t end = options.find(',', start);
+    if (end == std::string::npos) end = options.size();
+    const std::string token = options.substr(start, end - start);
+    if (token.compare(0, 14, "card_on_color=") != 0 &&
+        token.compare(0, 15, "card_off_color=") != 0 &&
+        token.compare(0, 18, "card_active_color=") != 0) {
+      if (!token.empty()) {
+        if (!out.empty()) out += ",";
+        out += token;
+      }
+    }
+    start = end + 1;
+  }
+  return out;
+}
+
 inline bool large_numbers_explicitly_disabled(const std::string &options) {
   return cfg_option_value(options, "large_numbers") == "off";
 }
@@ -323,15 +372,32 @@ inline std::string trim_saved_option_value(const std::string &value) {
 }
 
 #include "button_grid_media_config.h"
+#include "power_card_config.h"
+
+inline void append_media_control_tabs_option(std::string &out, const std::string &options) {
+  const bool power_available = !trim_saved_option_value(cfg_option_value(options, MEDIA_POWER_ENTITY_OPTION)).empty();
+  const std::string tabs = espcontrol::media::normalize_control_tabs_value(
+    cfg_option_value(options, MEDIA_CONTROL_TABS_OPTION), power_available);
+  if (tabs == espcontrol::media::normalize_control_tabs_value("", power_available)) return;
+  if (!out.empty()) out += ",";
+  out += std::string(MEDIA_CONTROL_TABS_OPTION) + "=" + encode_compact_field(tabs);
+}
 
 inline std::string media_card_options_normalized(const std::string &options,
                                                  const std::string &mode) {
   if (mode == "control_modal") {
     std::string out;
+    const std::string power_entity = trim_saved_option_value(
+      cfg_option_value(options, MEDIA_POWER_ENTITY_OPTION));
+    if (!power_entity.empty()) {
+      out = std::string(MEDIA_POWER_ENTITY_OPTION) + "=" + encode_compact_field(power_entity);
+    }
+    append_media_control_tabs_option(out, options);
     std::string speaker_group_entity = trim_saved_option_value(
       cfg_option_value(options, MEDIA_SPEAKER_GROUP_ENTITY_OPTION));
     if (!speaker_group_entity.empty()) {
-      out = std::string(MEDIA_SPEAKER_GROUP_ENTITY_OPTION) + "=" +
+      if (!out.empty()) out += ",";
+      out += std::string(MEDIA_SPEAKER_GROUP_ENTITY_OPTION) + "=" +
         encode_compact_field(speaker_group_entity);
     }
     if (cfg_option_value(options, "label_display") == "label") {
@@ -416,6 +482,12 @@ inline std::string media_card_options_normalized(const std::string &options,
       if (!out.empty()) out += ",";
       out += std::string(VOLUME_MAX_OPTION) + "=" + std::to_string(max_pct);
     }
+    const std::string power_entity = trim_saved_option_value(cfg_option_value(options, MEDIA_POWER_ENTITY_OPTION));
+    if (!power_entity.empty()) {
+      if (!out.empty()) out += ",";
+      out += std::string(MEDIA_POWER_ENTITY_OPTION) + "=" + encode_compact_field(power_entity);
+    }
+    append_media_control_tabs_option(out, options);
     return out;
   }
   if (mode != "volume" && mode != "position") return "";
@@ -436,17 +508,17 @@ inline void normalize_saved_config_media_fields(ParsedCfg &p) {
   if (p.sensor == "now_playing" && cfg_option_token_present(p.options, MEDIA_COVER_ART_OPTION)) {
     p.sensor = "cover_art";
   }
-  if (p.sensor == "previous" && p.label == "Skip Previous") p.label = "Previous";
-  if (p.sensor == "next" && p.label == "Skip Next") p.label = "Next";
+  if (p.sensor == "previous" && p.label == "Skip Previous") p.label = espcontrol_i18n("Previous");
+  if (p.sensor == "next" && p.label == "Skip Next") p.label = espcontrol_i18n("Next");
   if (p.sensor == "volume") {
-    if (p.label.empty() || p.label == "Media") p.label = "Volume";
+    if (p.label.empty() || p.label == "Media") p.label = espcontrol_i18n("Volume");
     p.icon = "Auto";
   }
   if (p.sensor == "playlist") {
-    if (p.label.empty() || p.label == "Media") p.label = "Playlist";
+    if (p.label.empty() || p.label == "Media") p.label = espcontrol_i18n("Playlist");
     if (p.icon.empty() || p.icon == "Auto") p.icon = "Music";
   }
-  if (p.sensor == "position" && (p.label.empty() || p.label == "Track")) p.label = "Position";
+  if (p.sensor == "position" && (p.label.empty() || p.label == "Track")) p.label = espcontrol_i18n("Position");
   if (p.sensor == "now_playing") {
     p.precision = card_runtime_media_now_playing_control(p.precision) ? p.precision : "";
   } else if (p.sensor == "cover_art") {
@@ -458,12 +530,9 @@ inline void normalize_saved_config_media_fields(ParsedCfg &p) {
   }
 }
 
-inline std::string weather_card_options_normalized(const std::string &options,
-                                                   const ParsedCfg &p) {
-  if (!card_runtime_weather_forecast_precision(p.precision)) return "";
-  std::string out;
-  append_large_numbers_option(out, options);
-  return out;
+inline std::string weather_card_options_normalized(const std::string &, const ParsedCfg &) {
+  // All forecast modes use the compact day layout; legacy number sizing is obsolete.
+  return "";
 }
 
 inline std::string normalize_image_modal_mode(const std::string &value) {
@@ -1247,22 +1316,22 @@ inline std::string normalize_saved_config_webhook_options(
   return webhook_card_options_normalized(options);
 }
 
-inline const char *saved_config_subpage_default_label(const std::string &kind) {
-  if (kind == "switch") return "Switch";
-  if (kind == "lights") return "Lighting";
-  if (kind == "climate") return "Climate";
-  if (kind == "presence") return "Presence";
-  if (kind == "media") return "Media";
-  if (kind == "alarm") return "Alarm";
-  if (kind == "cover") return "Cover";
-  if (kind == "garage") return "Garage";
-  if (kind == "gate") return "Gate";
-  if (kind == "lock") return "Lock";
-  if (kind == "vacuum") return "Vacuum";
-  if (kind == "lawn_mower") return "Lawn Mower";
-  if (kind == "weather") return "Weather";
-  if (kind == "sensor") return "Sensor";
-  if (kind == "image") return "Camera";
+inline const char *saved_config_subpage_default_label_key(const std::string &kind) {
+  if (kind == "switch") return "label_switch";
+  if (kind == "lights") return "label_lighting";
+  if (kind == "climate") return "climate";
+  if (kind == "presence") return "presence";
+  if (kind == "media") return "media";
+  if (kind == "alarm") return "alarm";
+  if (kind == "cover") return "cover";
+  if (kind == "garage") return "label_garage";
+  if (kind == "gate") return "gate";
+  if (kind == "lock") return "lock";
+  if (kind == "vacuum") return "vacuum";
+  if (kind == "lawn_mower") return "lawn_mower";
+  if (kind == "weather") return "weather";
+  if (kind == "sensor") return "label_sensor";
+  if (kind == "image") return "label_camera";
   return "";
 }
 
@@ -1288,7 +1357,11 @@ inline const char *saved_config_subpage_default_icon(const std::string &kind) {
 inline void normalize_saved_config_subpage_fields(ParsedCfg &p) {
   const std::string kind = normalize_subpage_kind(cfg_option_value(p.options, "subpage_kind"));
   if (kind.empty()) return;
-  if (p.label.empty()) p.label = saved_config_subpage_default_label(kind);
+  const char *label_key = saved_config_subpage_default_label_key(kind);
+  // The editor serializes preset defaults as English labels.
+  if (p.label.empty() || p.label == espcontrol_i18n_key_en(label_key)) {
+    p.label = espcontrol_i18n_key(label_key);
+  }
   if (p.icon.empty() || p.icon == "Auto") p.icon = saved_config_subpage_default_icon(kind);
   p.icon_on = "Auto";
   p.sensor = "indicator";
@@ -1302,6 +1375,9 @@ inline std::string normalize_saved_config_subpage_options(
 }
 
 inline ParsedCfg normalize_parsed_cfg(ParsedCfg p) {
+  const std::string card_colors = card_color_options_normalized(p.options);
+  p.options = options_without_card_colors(p.options);
+  const bool normalized_saved_power = normalize_saved_config_power(p, espcontrol::power::normalize_options);
   migrate_saved_config_action_legacy(p);
   const bool was_legacy_text_sensor = p.type == "text_sensor";
   migrate_saved_config_sensor_legacy(p);
@@ -1348,15 +1424,20 @@ inline ParsedCfg normalize_parsed_cfg(ParsedCfg p) {
   const bool normalized_saved_occupancy = normalize_saved_config_occupancy(
       p, normalize_saved_config_occupancy_fields,
       normalize_saved_config_occupancy_options);
-  if (!normalized_saved_static && !normalized_saved_fan && !normalized_saved_mower && !normalized_saved_occupancy && !normalized_saved_access && !p.type.empty() && p.type != "action" && p.type != "alarm" && p.type != "alarm_action" && !climate_card_type(p.type) && p.type != "webhook" && p.type != "sensor" && p.type != "media" && p.type != "subpage" && p.type != "image" && p.type != "wifi_qr" && p.type != "wifi_qr_card" && p.type != "light_control" && p.type != "vacuum" && !card_large_numbers_supported(p)) {
+  if (!normalized_saved_power && !normalized_saved_static && !normalized_saved_fan && !normalized_saved_mower && !normalized_saved_occupancy && !normalized_saved_access && !p.type.empty() && p.type != "action" && p.type != "alarm" && p.type != "alarm_action" && !climate_card_type(p.type) && p.type != "webhook" && p.type != "sensor" && p.type != "media" && p.type != "subpage" && p.type != "image" && p.type != "wifi_qr" && p.type != "wifi_qr_card" && p.type != "light_control" && p.type != "vacuum" && !card_large_numbers_supported(p)) {
     p.options.clear();
   }
-  if ((p.type == "wifi_qr" || p.type == "wifi_qr_card") && p.label.empty()) {
-    p.label = "Connect";
+  if ((p.type == "wifi_qr" || p.type == "wifi_qr_card") &&
+      (p.label.empty() || p.label == "Connect")) {
+    p.label = espcontrol_i18n_key("label_connect");
   }
   normalize_saved_config_sensor(p, was_legacy_text_sensor,
                                 normalize_saved_config_sensor_fields,
                                 sensor_card_options_normalized);
+  if (!card_colors.empty()) {
+    if (!p.options.empty()) p.options += ",";
+    p.options += card_colors;
+  }
   return p;
 }
 

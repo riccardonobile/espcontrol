@@ -55,8 +55,11 @@
     "test": "npm run check:fast",
     "test:ci": "npm run check:ci",
     "test:firmware": "python3 scripts/check_tasks.py run-task firmware-tests",
+    "test:device-web": "python3 scripts/test_device_web_transport.py",
+    "check:device-web-transport-tests": "python3 scripts/check_tasks.py run-task device-web-transport-tests",
     "test:web-unit": "python3 scripts/check_tasks.py run-task web-unit",
     "test:web-browser": "python3 scripts/check_tasks.py run-task web-browser-smoke",
+    "test:preview-resize": "node scripts/check_preview_resize.js",
     "test:mutations": "python3 scripts/check_tasks.py run-task mutations",
     "webserver:build": "python3 scripts/build.py www",
     "docs:check-installer": "node scripts/check_docs_installer.js --browser"
@@ -72,7 +75,7 @@
   "overrides": {
     "esp-web-tools": {
       "esptool-js": "0.7.0",
-      "@material/web": "2.5.0"
+      "@material/web": "2.4.1"
     }
   }
 }

@@ -8,6 +8,7 @@ device-specific wiring.
 import esphome.codegen as cg
 from esphome.components.esp32 import VARIANT_ESP32S3, get_esp32_variant
 from esphome.components import text
+from esphome.components.lvgl.defines import add_lv_use
 import esphome.config_validation as cv
 from esphome.const import CONF_ID
 from esphome.core import CORE, CoroPriority, coroutine_with_priority
@@ -31,6 +32,7 @@ CONF_WEB_AUTH_PASSWORD = "web_auth_password"
 espcontrol_ns = cg.global_ns.namespace("espcontrol")
 EspControlApp = espcontrol_ns.class_("EspControlApp", cg.Component)
 PanelIdentity = espcontrol_ns.class_("PanelIdentity", cg.Component)
+ResetBoot = espcontrol_ns.namespace("reset").class_("ResetBoot", cg.Component)
 
 PANEL_CONFIG_BUTTON_SCHEMA = cv.Schema(
     {
@@ -59,6 +61,7 @@ CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(EspControlApp),
         cv.GenerateID("identity_id"): cv.declare_id(PanelIdentity),
+        cv.GenerateID("reset_boot_id"): cv.declare_id(ResetBoot),
         cv.Optional(CONF_ACTION_RESPONSES, default=True): cv.boolean,
         cv.Optional(CONF_PANEL_CONFIG): PANEL_CONFIG_SCHEMA,
         cv.Optional(CONF_WEB_AUTH_USERNAME, default=""): cv.string_strict,
@@ -79,8 +82,15 @@ def _consume_endpoint_socket(config):
 CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, _consume_endpoint_socket)
 
 
+def register_power_flow_widgets():
+    # Power Flow creates native lines in C++, so YAML's widget discovery cannot
+    # find this dependency. Register it before LVGL emits its configuration.
+    add_lv_use("line")
+
+
 @coroutine_with_priority(CoroPriority.DIAGNOSTICS)
 async def to_code(config):
+    register_power_flow_widgets()
     # Run before safe_mode's early return and before any preference consumers.
     if CORE.config.get("preferences", {}).get("rtc_storage", False):
         raise cv.Invalid("EspControl reset requires flash preferences; remove preferences.rtc_storage")
@@ -98,6 +108,8 @@ async def to_code(config):
     password = web_auth.get("password", config[CONF_WEB_AUTH_PASSWORD])
     cg.add(espcontrol_ns.namespace("reset").early_startup(
         compiled_networks, username, password))
+    reset_boot = cg.new_Pvariable(config["reset_boot_id"])
+    await cg.register_component(reset_boot, {})
     identity = cg.new_Pvariable(config["identity_id"])
     await cg.register_component(identity, config)
     cg.add(identity.set_web_auth_credentials(username, password))
