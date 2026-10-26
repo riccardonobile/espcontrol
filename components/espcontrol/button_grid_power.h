@@ -361,9 +361,9 @@ inline void power_flow_layout() {
   // Keep native font selection and approved stroke/head scale independent of
   // the larger placement region. Portrait/constrained compact retain their
   // established navigation reserve and node centres.
-  const bool square_envelopes = large || (layout.sw == layout.sh &&
+  const bool shared_envelopes = large || (layout.sw == layout.sh &&
     ui.card->display.modal.layout_family == DisplayModalLayoutFamily::LARGE_SQUARE);
-  const espcontrol::power::FlowViewport viewport = square_envelopes
+  const espcontrol::power::FlowViewport viewport = shared_envelopes
     ? espcontrol::power::FlowViewport{0, 0, lv_obj_get_content_width(ui.diagram), lv_obj_get_content_height(ui.diagram)}
     : reference_viewport;
   const int width = viewport.width, height = viewport.height;
@@ -393,13 +393,13 @@ inline void power_flow_layout() {
   const int text_h = text_font ? text_font->line_height : 20;
   const int value_h = value_font ? value_font->line_height : text_h;
   const int node_w = std::min<int>(std::lround(width * .48), measure(text_font, value_font));
-  // Keep measured legacy compact widths; common-square sizing takes the
+  // Keep measured legacy compact widths; common-envelope sizing takes the
   // maximum across all four names, numeric bounds and SOC/activity captions.
   const int side_node_w = std::min<int>(std::lround(width * .48), measure(text_font, value_font, false));
   const int node_h = text_h * 2 + value_h + 6;
   const auto family = espcontrol::power::flow_family(layout.sw, layout.sh);
   const auto geometry = espcontrol::power::flow_geometry(width, height, family,
-    node_w, node_h, side_node_w, square_envelopes, square_envelopes,
+    node_w, node_h, side_node_w, shared_envelopes, shared_envelopes,
     espcontrol::power::flow_render_scale(reference_viewport.width, reference_viewport.height, family));
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, viewport.x, viewport.y);
@@ -453,17 +453,17 @@ inline void power_flow_layout() {
     if (icon_font && icon_font->line_height)
       apply_icon_width_compensation(ui.icons[i], 256 * text_h / icon_font->line_height);
     control_modal_center_tab_icon(ui.icons[i]);
-    const int this_width = geometry.square_size > 0 ? static_cast<int>(geometry.square_size)
+    const int this_width = geometry.envelope_width > 0 ? static_cast<int>(geometry.envelope_width)
       : i == 1 || i == 2 ? side_node_w : node_w;
-    const int this_height = geometry.square_size > 0 ? this_width : node_h;
+    const int this_height = geometry.envelope_height > 0 ? static_cast<int>(geometry.envelope_height) : node_h;
     // Solar/Home have no activity row: centre their actual two visible rows,
     // retaining the approved blank third-row reserve on legacy compact views.
-    power_flow_set_visible(ui.detail_rows[i], geometry.square_size == 0 || i >= 2);
+    power_flow_set_visible(ui.detail_rows[i], geometry.envelope_width == 0 || i >= 2);
     lv_obj_set_size(ui.nodes[i], this_width, this_height);
-    // A bounded square cannot grow for an unusually wide translation. Keep
+    // A bounded envelope cannot grow for an unusually wide translation. Keep
     // the existing native CLIP mode and constrain the combined row too;
     // otherwise its content width pushes the whole flex column off centre.
-    const bool bounded = geometry.square_size > 0;
+    const bool bounded = geometry.envelope_width > 0;
     const int soc_width = i == 3 && ui.card->has_soc
       ? power_flow_text_width("100% · ", text_font) : 0;
     lv_obj_set_style_max_width(ui.names[i], bounded

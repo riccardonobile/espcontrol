@@ -61,7 +61,7 @@ struct FlowGeometry {
   std::array<FlowArc, 7> arcs{}; // Native clockwise sector; reversal shares it
   std::array<std::array<Point, 3>, 7> heads{};
   double scale = 1;
-  double square_size = 0, radial_distance = 0, port_spacing = 0;
+  double envelope_width = 0, envelope_height = 0, radial_distance = 0, port_spacing = 0;
 };
 inline FlowFamily flow_family(int width, int height) {
   return width * 5 > height * 6 ? FlowFamily::LANDSCAPE
@@ -81,7 +81,7 @@ inline double flow_port_spacing(double half_width, double half_height, double si
 inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
                                   double node_width = 138, double node_height = 108,
                                   double side_node_width = 0, bool refine_clearance = false,
-                                  bool square_envelopes = false, double render_scale = 0) {
+                                  bool shared_envelopes = false, double render_scale = 0) {
   FlowGeometry out;
   const double cx = width / 2.0, cy = height / 2.0;
   const double margin = std::max(4.0, std::min(width, height) * .02);
@@ -93,15 +93,19 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
   out.scale = render_scale > 0 ? render_scale : flow_render_scale(width, height, family);
   double dx = std::max(0.0, cx - side_hw - margin);
   double dy = std::max(0.0, cy - hh - margin);
-  if (square_envelopes) {
-    // Preserve a 32 px quarter-circle and an arrowhead-length tangent run.
-    // Wider bounded text uses native clipping rather than moving live ports.
-    const double maximum = std::floor(std::min(width, height) / 2.0 -
-                                      gap - port - 32 - 11 * out.scale);
-    if (maximum >= node_height) {
-      out.square_size = std::min(std::max({node_width, node_height, side_node_width}), maximum);
-      out.radial_distance = (std::min(width, height) - out.square_size) / 2;
-      hw = side_hw = hh = out.square_size / 2;
+  if (shared_envelopes) {
+    // Width follows bounded native text; height follows the three-row stack.
+    // Leave a 32 px elbow and an arrowhead-length tangent on BOTH axes with
+    // one common radial distance. Do not spend caption width on empty height.
+    const double reserve = gap + port + 32 + 11 * out.scale;
+    const double maximum_width = std::floor(std::min(width / 2.0 - reserve,
+      std::min(width, height) - 2 * hh - 2 * reserve));
+    if (maximum_width >= 2 * port && height >= 4 * hh + 2 * reserve) {
+      out.envelope_width = std::min(2 * std::max(hw, side_hw), maximum_width);
+      out.envelope_height = 2 * hh;
+      hw = side_hw = out.envelope_width / 2;
+      out.radial_distance = std::min(width - out.envelope_width,
+                                     height - out.envelope_height) / 2;
       dx = dy = out.radial_distance;
     }
   }
@@ -116,7 +120,7 @@ inline FlowGeometry flow_geometry(int width, int height, FlowFamily family,
   auto straight = [](Point a, Point b) { return FlowPath{{a, a, b, b}}; };
   auto bend = [&](size_t index, Point a, Point b, int sign, bool top) {
     // One radius for mirrored elbows, constrained by actual node clearance.
-    const double room = out.square_size > 0
+    const double room = out.envelope_width > 0
       ? std::min(std::abs(b.y - a.y), std::abs(b.x - a.x)) - 11 * out.scale
       : std::min(std::abs(b.y - a.y), std::abs(b.x - a.x)) * .42;
     const int r = std::max(0, static_cast<int>(std::floor(std::min(32.0, room))));

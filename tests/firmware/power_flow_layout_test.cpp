@@ -121,63 +121,106 @@ int main() {
   const auto portrait_default=flow_geometry(436,584,FlowFamily::PORTRAIT,198,69,142);
   for(size_t n=0;n<4;++n){assert(same(portrait.nodes[n],portrait_default.nodes[n]));for(size_t k=0;k<3;++k)assert(same(portrait.ports[n][k],portrait_default.ports[n][k]));}
   // Production content regions/native compiled-font envelopes. The same
-  // geometry owns all four squares, the radial distance and fixed ports.
+  // geometry owns all four rectangles, the radial distance and fixed ports.
   for(auto profile:{std::array<int,8>{722,713,176,75,114,698,689,1}, {572,521,158,69,103,560,509,1},
                     {710,655,238,102,151,656,433,0}, {722,713,260,75,190,698,689,1}, {572,521,187,69,138,560,509,1}}){
     const int w=profile[0],h=profile[1];
     const auto family=profile[7]?FlowFamily::LANDSCAPE:FlowFamily::SQUARE;
     const double scale=flow_render_scale(profile[5],profile[6],family);
-    const auto square=flow_geometry(w,h,family,profile[2],profile[3],profile[4],true,true,scale);
-    const double e=square.square_size,half=e/2,d=square.radial_distance;
-    assert(e>0&&e>=profile[3]);
-    assert(d==(std::min(w,h)-e)/2);
+    const auto rectangle=flow_geometry(w,h,family,profile[2],profile[3],profile[4],true,true,scale);
+    const double ew=rectangle.envelope_width,eh=rectangle.envelope_height;
+    const double hw=ew/2,hh=eh/2,d=rectangle.radial_distance;
+    assert(ew>0&&eh==profile[3]&&ew!=eh);
+    assert(d==std::min(w-ew,h-eh)/2);
     const auto legacy=flow_geometry(w,h,FlowFamily::SQUARE,profile[2],profile[3],profile[4],true);
-    assert(square.port_spacing==legacy.port_spacing);
+    assert(rectangle.port_spacing==legacy.port_spacing);
     const double old_spacing=std::min(21.0,std::min({profile[2]/2.0,profile[3]/2.0,profile[4]/2.0})/3+3);
-    assert(square.port_spacing==old_spacing+2);
-    for(auto node:square.nodes){
+    assert(rectangle.port_spacing==old_spacing+2);
+    for(auto node:rectangle.nodes){
       assert(std::abs(std::hypot(node.x-w/2.0,node.y-h/2.0)-d)<1e-8);
-      assert(node.x-half>=0&&node.x+half<=w&&node.y-half>=0&&node.y+half<=h);
+      assert(node.x-hw>=0&&node.x+hw<=w&&node.y-hh>=0&&node.y+hh<=h);
     }
     for(size_t n=0;n<4;++n)for(size_t port=0;port<3;++port){
-      const auto p=square.ports[n][port],node=square.nodes[n];
-      const double gap=n==0?p.y-node.y-half:n==3?node.y-half-p.y:n==1?node.x-half-p.x:p.x-node.x-half;
+      const auto p=rectangle.ports[n][port],node=rectangle.nodes[n];
+      const double gap=n==0?p.y-node.y-hh:n==3?node.y-hh-p.y:n==1?node.x-hw-p.x:p.x-node.x-hw;
       assert(std::abs(gap-8)<1e-8);
       const double offset=n==0||n==3?p.x-node.x:p.y-node.y;
-      assert(std::abs(offset-(static_cast<int>(port)-1)*square.port_spacing)<1e-8);
+      assert(std::abs(offset-(static_cast<int>(port)-1)*rectangle.port_spacing)<1e-8);
     }
     // Test painted straights, complete circular elbows and arrowhead strokes
     // against EVERY envelope, not merely endpoint centreline distances.
-    const int stroke=(std::max<int>(2,std::lround(3.2*square.scale))+1)&~1;
+    const int stroke=(std::max<int>(2,std::lround(3.2*rectangle.scale))+1)&~1;
     // Neighbouring incoming arrowheads at Home/Battery cannot overlap even
     // with the full painted stroke/cap footprint included.
-    assert(square.port_spacing>11*square.scale+stroke);
+    assert(rectangle.port_spacing>11*rectangle.scale+stroke);
+    auto point_segment=[](Point p,Point a,Point b){
+      const double dx=b.x-a.x,dy=b.y-a.y;
+      const double t=std::clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy),0.0,1.0);
+      return std::hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
+    };
+    // All seven heads, including opposing Grid/Battery directions, stay
+    // distinct even when rounded caps and the full painted stroke are counted.
+    for(size_t i=0;i<7;++i)for(size_t j=i+1;j<7;++j)
+      for(size_t a=0;a<2;++a)for(size_t b=0;b<2;++b){
+        const auto p=rectangle.heads[i][a],q=rectangle.heads[i][a+1];
+        const auto r=rectangle.heads[j][b],s=rectangle.heads[j][b+1];
+        const double cross=(q.x-p.x)*(s.y-r.y)-(q.y-p.y)*(s.x-r.x);
+        if(std::abs(cross)>1e-8){
+          const double t=((r.x-p.x)*(s.y-r.y)-(r.y-p.y)*(s.x-r.x))/cross;
+          const double u=((r.x-p.x)*(q.y-p.y)-(r.y-p.y)*(q.x-p.x))/cross;
+          assert(!(t>=0&&t<=1&&u>=0&&u<=1));
+        }
+        assert(std::min({point_segment(p,r,s),point_segment(q,r,s),
+          point_segment(r,p,q),point_segment(s,p,q)})>stroke);
+      }
+
     auto clearance=[&](Point p){
-      for(auto node:square.nodes){
-        const double dx=std::max(std::abs(p.x-node.x)-half,0.0);
-        const double dy=std::max(std::abs(p.y-node.y)-half,0.0);
+      for(auto node:rectangle.nodes){
+        const double dx=std::max(std::abs(p.x-node.x)-hw,0.0);
+        const double dy=std::max(std::abs(p.y-node.y)-hh,0.0);
         assert(std::hypot(dx,dy)-stroke/2.0>=5.99);
       }
     };
     auto segment=[&](Point a,Point b){for(int i=0;i<=100;++i)clearance({a.x+(b.x-a.x)*i/100,a.y+(b.y-a.y)*i/100});};
     for(size_t i=0;i<7;++i){
-      const auto &path=square.paths[i];const auto &arc=square.arcs[i];
+      const auto &path=rectangle.paths[i];const auto &arc=rectangle.arcs[i];
       segment(path[0],arc.radius?path[1]:path[3]);
       if(arc.radius){
         assert(arc.radius==32);segment(path[2],path[3]);
         for(int a=arc.start_angle;a<=arc.end_angle;++a){const double angle=a*std::acos(-1)/180;
           clearance({arc.center.x+arc.radius*std::cos(angle),arc.center.y+arc.radius*std::sin(angle)});}
       }
-      segment(square.heads[i][0],square.heads[i][1]);segment(square.heads[i][1],square.heads[i][2]);
-      for(size_t j=0;j<FLOW_POINT_COUNT;++j)assert(same(square.paths[4][j],square.paths[6][FLOW_POINT_COUNT-1-j]));
+      segment(rectangle.heads[i][0],rectangle.heads[i][1]);segment(rectangle.heads[i][1],rectangle.heads[i][2]);
+      for(size_t j=0;j<FLOW_POINT_COUNT;++j)assert(same(rectangle.paths[4][j],rectangle.paths[6][FLOW_POINT_COUNT-1-j]));
     }
   }
+  // The previous native 720 square was 238x238 with d=208.5: direct
+  // vertical/horizontal lengths 163, shortest elbow tangent 27.5. Independent
+  // native width/height must improve BOTH routes, not just accept new bounds.
+  const double scale720=flow_render_scale(656,433,FlowFamily::SQUARE);
+  const auto recovered=flow_geometry(710,655,FlowFamily::SQUARE,238,102,151,true,true,scale720);
+  assert(recovered.envelope_width==238&&recovered.envelope_height==102);
+  assert(recovered.radial_distance==236&&recovered.port_spacing==22);
+  assert(recovered.paths[1].back().y-recovered.paths[1].front().y==354);
+  assert(recovered.paths[5].back().x-recovered.paths[5].front().x==218);
+  for(size_t edge:{0,2,3,4}){
+    const auto &path=recovered.paths[edge];
+    assert(std::hypot(path[1].x-path[0].x,path[1].y-path[0].y)>=123);
+    assert(std::hypot(path[3].x-path[2].x,path[3].y-path[2].y)>=55);
+    assert(recovered.arcs[edge].radius==32);
+  }
+  // Width and height respond independently; translations cannot force empty
+  // vertical space, and taller native rows do not widen a short caption.
+  const auto wider=flow_geometry(710,655,FlowFamily::SQUARE,260,102,151,true,true,scale720);
+  const auto taller=flow_geometry(710,655,FlowFamily::SQUARE,238,108,151,true,true,scale720);
+  assert(wider.envelope_width>recovered.envelope_width&&wider.envelope_height==102);
+  assert(taller.envelope_width==238&&taller.envelope_height==108);
   // Portrait's measured 434x583 placement region cannot retain its approved
   // node centres with equal squares: Grid's old left edge is 8.68 px, while
   // a 158 px square at that centre would extend to -18.82 px. Keep that
   // profile's rectangular boxes and centres; only symmetric port spacing grows.
   const auto approved_portrait=flow_geometry(434,583,FlowFamily::PORTRAIT,158,69,103);
-  assert(approved_portrait.square_size==0);
+  assert(approved_portrait.envelope_width==0&&approved_portrait.envelope_height==0);
   assert(same(approved_portrait.nodes[0],{217,43.18}));
   assert(same(approved_portrait.nodes[2],{60.18,291.5}));
   assert(approved_portrait.port_spacing==13.5);
