@@ -301,3 +301,7 @@ label_lighting=Világítás
 label_garage=Garázs
 label_sensor=Érzékelő
 label_camera=Kamera
+
+power_no_measurement=No measurement
+power_readings_only=Readings only
+power_stale=Stale

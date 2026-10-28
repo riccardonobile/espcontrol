@@ -21,20 +21,49 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
       const config = decodePowerCardConfigV1(card);
       const optionLabel = (name: string) => cardContractOptions("power").find(option => option.name === name)!.label;
       const sensors = [
-        { key: "entity", label: "Home power", value: config.homeEntity, note: "Positive consumption. Use an instantaneous power sensor reporting W or kW.", required: true },
-        { key: "solar_entity", label: optionLabel("solar_entity"), value: config.solarEntity, note: "Positive production. Required for complete inferred flows; W or kW.", required: true },
-        { key: "grid_entity", label: optionLabel("grid_entity"), value: config.gridEntity, note: "Positive importing, negative exporting; W or kW.", required: true },
-        { key: "battery_entity", label: optionLabel("battery_entity"), value: config.batteryEntity, note: "Positive discharging, negative charging; W or kW.", required: true },
-        { key: "battery_soc_entity", label: optionLabel("battery_soc_entity") + " (optional)", value: config.batterySocEntity, note: "A separate percentage sensor (0–100%). Does not affect power flows.", required: false },
+        { key: "entity", label: "Home power", value: config.homeEntity, note: "Positive consumption. Optional sensor reporting W or kW.", component: "home", bit: 2 },
+        { key: "solar_entity", label: optionLabel("solar_entity"), value: config.solarEntity, note: "Positive production; W or kW. Leave empty if installed but unmeasured.", component: "solar", bit: 1 },
+        { key: "grid_entity", label: optionLabel("grid_entity"), value: config.gridEntity, note: "Positive importing, negative exporting; W or kW. Sensor optional.", component: "grid", bit: 4 },
+        { key: "battery_entity", label: optionLabel("battery_entity"), value: config.batteryEntity, note: "Positive discharging, negative charging; W or kW. Sensor optional.", component: "battery", bit: 8 },
+        { key: "battery_soc_entity", label: optionLabel("battery_soc_entity") + " (optional)", value: config.batterySocEntity, note: "A separate percentage sensor (0–100%). Does not affect power flows.", component: "", bit: 8 },
       ];
+      const sensorFields: Array<{ bit: number; field: HTMLElement; input: HTMLInputElement }> = [];
       for (const sensor of sensors) {
+        const included = (config.installedComponents & sensor.bit) !== 0;
+        const present = sensor.component ? helpers.toggleRow(
+          sensor.component[0]!.toUpperCase() + sensor.component.slice(1) + " included in system",
+          helpers.idPrefix + "power-include-" + sensor.component, included) : null;
+        if (present) {
+          const componentField = document.createElement("div");
+          componentField.className = "sp-field";
+          componentField.appendChild(present.row);
+          panel.appendChild(componentField);
+          if (sensor.component === "home") helpers.requireField(present.input,
+            "Include at least one Power component.", undefined,
+            () => decodePowerCardConfigV1(card).installedComponents !== 0);
+        }
         const field = helpers.entityField(sensor.label, helpers.idPrefix + "power-" + sensor.key,
           sensor.value, "sensor." + (sensor.key === "entity" ? "home_power" : sensor.key.replace("_entity", "")),
           ["sensor"], null, false);
         panel.appendChild(field.field);
+        field.field.hidden = !included;
+        field.input.disabled = !included;
+        if (present) present.input.addEventListener("change", () => {
+          field.field.hidden = !present.input.checked;
+          field.input.disabled = !present.input.checked;
+          card.options = normalizePowerOptions(setConfigOption(card.options,
+            "exclude_" + sensor.component, !present.input.checked));
+          const mask = decodePowerCardConfigV1(card).installedComponents;
+          for (const control of sensorFields) {
+            control.field.hidden = !(mask & control.bit);
+            control.input.disabled = !(mask & control.bit);
+          }
+          helpers.saveField("options", card.options);
+        });
+        sensorFields.push({ bit: sensor.bit, field: field.field, input: field.input });
         if (sensor.key === "entity") helpers.markCardPrimaryField(field.field, "entity");
         helpers.requireField(field.input, "Choose a sensor entity (sensor.*) for " + sensor.label + ".", undefined,
-          (value: string) => (!sensor.required && !value.trim()) || validPowerEntity(value));
+          (value: string) => field.input.disabled || !value.trim() || validPowerEntity(value));
         const sync = () => {
           const value = field.input.value.trim();
           if (sensor.key === "entity") card.entity = value;
@@ -52,19 +81,18 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
         const toggle = helpers.toggleRow(optionLabel(name), helpers.idPrefix + "power-" + name,
           name === "invert_grid" ? config.invertGrid : config.invertBattery);
         panel.appendChild(toggle.row);
+        const bit = name === "invert_grid" ? 4 : 8;
+        toggle.row.hidden = !(config.installedComponents & bit);
+        toggle.input.disabled = !(config.installedComponents & bit);
+        sensorFields.push({ bit, field: toggle.row, input: toggle.input });
         toggle.input.addEventListener("change", () => {
           card.options = normalizePowerOptions(setConfigOption(card.options, name, toggle.input.checked));
           helpers.saveField("options", card.options);
         });
       }
-      const precision = helpers.precisionField(helpers.idPrefix + "power-precision", card.precision || "0", function (this: HTMLSelectElement) {
-        card.precision = this.value === "0" ? "" : this.value;
-        helpers.saveField("precision", card.precision);
-      });
-      panel.appendChild(precision.field);
       const note = document.createElement("div");
       note.className = "sp-apply-note";
-      note.textContent = "Requires at least two grid columns. Precision is decimal places in watts (never kW). Arrows are inferred allocations from aggregate readings, not measured individual routes. Preview uses placeholders, not live Home Assistant measurements. The device shows live Home power and Battery/Grid status. The card uses your shared accent when pressed; it does not display an icon.";
+      note.textContent = "Requires at least two grid columns. Power is shown in whole watts, rounded to nearest (halves away from zero); calculations keep full precision. Uncheck a component only when physically absent: it then contributes zero. An included component without a sensor stays unknown. Arrows require valid measurements for every included component; otherwise only readings/status are shown. Solar-first arrows are inferred allocations, not measured individual routes. Preview uses placeholders, not live Home Assistant measurements. The device shows live Home power and Battery/Grid status. The card uses your shared accent when pressed; it does not display an icon.";
       panel.appendChild(note);
       const sizeNote = document.createElement("div");
       sizeNote.className = "sp-apply-note";

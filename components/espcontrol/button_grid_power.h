@@ -69,14 +69,9 @@ inline bool power_set_text(lv_obj_t *label, const std::string &text) {
 }
 inline std::string power_reading_text(espcontrol::power::Reading reading, int precision,
                                       bool with_unit = true) {
-  if (!reading.valid()) return "--";
-  // Saved precision means fractional watts; model bounds protect the formatter.
-  char text[32];
-  format_fixed_decimal(text, sizeof(text), static_cast<float>(reading.value), precision);
-  // Preserve polarity, but suppress a sign when the displayed rounded value is zero.
-  if (text[0] == '-' && std::strspn(text + 1, "0.") == std::strlen(text + 1))
-    std::memmove(text, text + 1, std::strlen(text));
-  return std::string(text) + (with_unit ? " W" : "");
+  (void) precision; // Legacy saved field remains accepted; no fractional presentation.
+  const auto text = espcontrol::power::integer_watts(reading);
+  return text + (with_unit && text != "--" ? " W" : "");
 }
 inline PowerCardCtx *power_card_for_button(lv_obj_t *button) {
   for (auto *ctx = power_card_contexts(); ctx; ctx = ctx->next)
@@ -85,10 +80,20 @@ inline PowerCardCtx *power_card_for_button(lv_obj_t *button) {
 }
 inline void power_card_update(PowerCardCtx *ctx) {
   if (!ctx) return;
+  ctx->data.model.calculation.pending = false;
   const auto &home = ctx->data.model.calculation.nodes[1];
   bool changed = power_set_text(ctx->slot.sensor_lbl, power_reading_text(home, ctx->precision, false));
   changed |= power_set_text(ctx->slot.unit_lbl, home.valid() ? "W" : "");
-  changed |= power_set_text(ctx->slot.secondary_lbl, ctx->data.model.calculation.secondary_label());
+  const auto secondary = ctx->data.model.calculation.secondary_label();
+  changed |= power_set_text(ctx->slot.secondary_lbl, secondary);
+  if (ctx->slot.secondary_lbl && !lv_obj_has_flag(ctx->slot.sensor_container, LV_OBJ_FLAG_HIDDEN)) {
+    const bool hidden = lv_obj_has_flag(ctx->slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+    if (hidden != secondary.empty()) {
+      if (secondary.empty()) lv_obj_add_flag(ctx->slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+      else lv_obj_clear_flag(ctx->slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+      changed = true;
+    }
+  }
   if (changed) {
     layout_button_label_with_secondary(ctx->slot, true, true);
   }
@@ -102,6 +107,7 @@ constexpr uint32_t POWER_UPDATE_BATCH_MS = 200;
 inline void power_card_cancel_publish(PowerCardCtx *ctx) {
   if (ctx->publish_timer) lv_timer_delete(ctx->publish_timer);
   ctx->publish_timer = nullptr;
+  ctx->data.model.calculation.pending = false;
 }
 inline void power_card_input_changed(PowerCardCtx *ctx, size_t index) {
   if (index < 4) ctx->input_updated_ms[index] = lv_tick_get();
@@ -121,6 +127,7 @@ inline void power_card_input_changed(PowerCardCtx *ctx, size_t index) {
       power_card_update(ctx);
     }
   }
+  ctx->data.model.calculation.pending = ctx->publish_timer != nullptr;
 }
 inline void power_cards_disconnected() {
   for (auto *ctx = power_card_contexts(); ctx; ctx = ctx->next) {
@@ -201,6 +208,7 @@ struct PowerFlowNodes {
   lv_obj_t *details[4]{};
   lv_obj_t *detail_rows[4]{};
   lv_obj_t *soc = nullptr;
+  bool legacy_rows = true; // Retain the approved compact third-row reserve.
 };
 struct PowerFlowUi : PowerFlowNodes {
   PowerCardCtx *card = nullptr;
@@ -339,7 +347,8 @@ inline void power_flow_layout() {
     place(ui.back_area, ui.grid.back);
     power_flow_set_visible(ui.back_area, true);
     for (size_t i = 0; i < 4; ++i) {
-      power_flow_set_visible(ui.sidebar[i].btn, true);
+      power_flow_set_visible(ui.sidebar[i].btn,
+        ui.card->data.model.capabilities.includes(static_cast<espcontrol::power::Node>(i)));
       place(ui.sidebar[i].btn, ui.grid.values[i]);
     }
   } else {
@@ -363,6 +372,7 @@ inline void power_flow_layout() {
   // established navigation reserve and node centres.
   const bool shared_envelopes = large || (layout.sw == layout.sh &&
     ui.card->display.modal.layout_family == DisplayModalLayoutFamily::LARGE_SQUARE);
+  ui.legacy_rows = !shared_envelopes;
   const espcontrol::power::FlowViewport viewport = shared_envelopes
     ? espcontrol::power::FlowViewport{0, 0, lv_obj_get_content_width(ui.diagram), lv_obj_get_content_height(ui.diagram)}
     : reference_viewport;
@@ -458,7 +468,8 @@ inline void power_flow_layout() {
     const int this_height = geometry.envelope_height > 0 ? static_cast<int>(geometry.envelope_height) : node_h;
     // Solar/Home have no activity row: centre their actual two visible rows,
     // retaining the approved blank third-row reserve on legacy compact views.
-    power_flow_set_visible(ui.detail_rows[i], geometry.envelope_width == 0 || i >= 2);
+    power_flow_set_visible(ui.detail_rows[i], geometry.envelope_width == 0 || i >= 2 ||
+      !ui.card->data.model.calculation.nodes[i].valid());
     lv_obj_set_size(ui.nodes[i], this_width, this_height);
     // A bounded envelope cannot grow for an unusually wide translation. Keep
     // the existing native CLIP mode and constrain the combined row too;
@@ -488,16 +499,27 @@ inline void power_flow_layout() {
   ui.laying_out = false;
   power_flow_diagnostic_stage("layout.end");
 }
+inline std::string power_node_detail(const espcontrol::power::Calculation &calc, size_t index) {
+  using espcontrol::power::ReadingValidity;
+  const auto &reading = calc.nodes[index];
+  if (reading.validity == ReadingValidity::EXCLUDED) return {};
+  if (reading.validity == ReadingValidity::UNMEASURED) return espcontrol_i18n("No measurement");
+  if (reading.validity == ReadingValidity::STALE) return espcontrol_i18n("Stale");
+  if (!reading.valid()) return espcontrol_i18n("Unavailable");
+  if (index == 2) return espcontrol::power::status_text(calc.grid_status);
+  if (index == 3) return espcontrol::power::status_text(calc.battery_status);
+  return {};
+}
 inline void power_flow_update_nodes(PowerFlowNodes &ui, PowerCardCtx *ctx) {
   if (!ui.nodes[0]) return;
   const auto &calc = ctx->data.model.calculation;
   for (size_t i = 0; i < 4; ++i) {
+    power_flow_set_visible(ui.nodes[i], calc.capabilities.includes(static_cast<espcontrol::power::Node>(i)));
     power_set_text(ui.values[i], power_reading_text(calc.nodes[i], ctx->precision, !ui.units[i]));
     power_set_text(ui.units[i], calc.nodes[i].valid() ? "W" : "");
-    std::string detail;
-    if (i == 2) detail = espcontrol::power::status_text(calc.grid_status);
+    std::string detail = power_node_detail(calc, i);
+    power_flow_set_visible(ui.detail_rows[i], ui.legacy_rows || i >= 2 || !detail.empty());
     if (i == 3) {
-      detail = espcontrol::power::status_text(calc.battery_status);
       const bool available_soc = ctx->has_soc && ctx->data.model.battery_soc.valid();
       char soc[24] = "";
       if (available_soc)
@@ -541,12 +563,11 @@ inline void power_flow_update(PowerCardCtx *ctx) {
   for (size_t i = 0; i < 4; ++i) {
     auto &slot = ui.sidebar[i];
     if (!slot.btn) continue;
+    power_flow_set_visible(slot.btn, ui.grid.large && calc.capabilities.includes(static_cast<espcontrol::power::Node>(i)));
     power_set_text(slot.sensor_lbl, power_reading_text(calc.nodes[i], ctx->precision, false));
     power_set_text(slot.unit_lbl, calc.nodes[i].valid() ? "W" : "");
-    std::string detail;
-    if (i == 2) detail = espcontrol::power::status_text(calc.grid_status);
+    std::string detail = power_node_detail(calc, i);
     if (i == 3) {
-      detail = espcontrol::power::status_text(calc.battery_status);
       if (ctx->has_soc && ctx->data.model.battery_soc.valid()) {
         char soc[24];
         format_fixed_decimal(soc, sizeof(soc), ctx->data.model.battery_soc.value, 0);
@@ -568,7 +589,8 @@ inline void power_flow_update(PowerCardCtx *ctx) {
   }
   const char *state = calc.validity == espcontrol::power::CalculationValidity::UNAVAILABLE
     ? "Unavailable" : calc.validity == espcontrol::power::CalculationValidity::INCONSISTENT
-    ? "Inconsistent readings" : active ? "" : "Idle";
+    ? "Inconsistent readings" : calc.validity == espcontrol::power::CalculationValidity::READINGS_ONLY
+    ? "Readings only" : active || !calc.idle() ? "" : "Idle";
   power_set_text(ui.status, espcontrol_i18n(state));
   power_flow_set_visible(ui.status, *state != 0);
   if (diagnose) power_flow_diagnostic_stage("model.update.end", ui.diagnostic_updates);

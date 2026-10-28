@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 // Included after ParsedCfg and compact-option primitives, like Media's config.
@@ -13,10 +14,11 @@ struct ConfigV1 {
   std::string battery_soc_entity;
   bool invert_grid = false;
   bool invert_battery = false;
+  uint8_t installed_components = 0x0F; // Model order: Solar, Home, Grid, Battery.
 };
 
 inline ConfigV1 decode_config_v1(const ParsedCfg &saved) {
-  return {
+  ConfigV1 config{
     trim_saved_option_value(saved.entity),
     trim_saved_option_value(cfg_option_value(saved.options, "solar_entity")),
     trim_saved_option_value(cfg_option_value(saved.options, "grid_entity")),
@@ -25,6 +27,10 @@ inline ConfigV1 decode_config_v1(const ParsedCfg &saved) {
     cfg_option_token_present(saved.options, "invert_grid"),
     cfg_option_token_present(saved.options, "invert_battery"),
   };
+  const char *excluded[] = {"exclude_solar", "exclude_home", "exclude_grid", "exclude_battery"};
+  for (size_t i = 0; i < 4; ++i)
+    if (cfg_option_token_present(saved.options, excluded[i])) config.installed_components &= ~(1u << i);
+  return config;
 }
 
 inline std::string normalize_options(const std::string &options) {
@@ -35,7 +41,7 @@ inline std::string normalize_options(const std::string &options) {
     if (!out.empty()) out += ',';
     out += std::string(name) + '=' + encode_compact_field(value);
   }
-  for (const char *name : {"invert_grid", "invert_battery"}) {
+  for (const char *name : {"invert_grid", "invert_battery", "exclude_solar", "exclude_home", "exclude_grid", "exclude_battery"}) {
     if (!cfg_option_token_present(options, name)) continue;
     if (!out.empty()) out += ',';
     out += name;

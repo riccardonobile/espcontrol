@@ -301,3 +301,7 @@ label_lighting=Aydınlatma
 label_garage=Garaj
 label_sensor=Sensör
 label_camera=Kamera
+
+power_no_measurement=No measurement
+power_readings_only=Readings only
+power_stale=Stale

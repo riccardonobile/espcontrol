@@ -18,16 +18,27 @@ namespace espcontrol::power {
 constexpr double IDLE_THRESHOLD_W = 1.0;
 constexpr double MIN_BALANCE_TOLERANCE_W = 10.0;
 constexpr double RELATIVE_BALANCE_TOLERANCE = 0.02;
-// Leave room for clock_bar.h's int-based fixed-decimal formatter at precision 3.
+// Preserve the existing accepted input range; presentation does not reduce precision.
 constexpr double MAX_POWER_W = std::numeric_limits<int>::max() / 1000 - 1;
 
-enum class ReadingValidity : uint8_t { MISSING, INVALID, VALID };
+enum class ReadingValidity : uint8_t {
+  MISSING, INVALID, VALID, UNAVAILABLE, UNKNOWN, STALE, EXCLUDED, UNMEASURED,
+};
 enum class Node : uint8_t { SOLAR, HOME, GRID, BATTERY };
+constexpr uint8_t ALL_COMPONENTS = 0x0F;
+constexpr uint8_t component_bit(Node node) { return 1u << static_cast<uint8_t>(node); }
+struct Capabilities {
+  uint8_t installed = ALL_COMPONENTS;
+  uint8_t configured = ALL_COMPONENTS;
+  bool includes(Node node) const { return installed & component_bit(node); }
+  bool measures(Node node) const { return configured & component_bit(node); }
+};
 enum class Edge : uint8_t {
   SOLAR_HOME, SOLAR_BATTERY, SOLAR_GRID, BATTERY_HOME,
   BATTERY_GRID, GRID_HOME, GRID_BATTERY,
 };
-enum class CalculationValidity : uint8_t { UNAVAILABLE, INCONSISTENT, VALID };
+enum class CalculationValidity : uint8_t { UNAVAILABLE, INCONSISTENT, VALID, READINGS_ONLY };
+enum class InferenceKind : uint8_t { NONE, UNIQUE, SOLAR_FIRST };
 enum class Status : uint8_t { UNAVAILABLE, IDLE, CHARGING, DISCHARGING, IMPORTING, EXPORTING };
 
 struct Reading {
@@ -46,7 +57,10 @@ inline std::string_view trim(std::string_view value) {
 // partial numbers and non-finite spellings, none of which are power readings.
 inline Reading parse_number(std::string_view state) {
   state = trim(state);
-  if (state.empty() || state == "unknown" || state == "unavailable") return {};
+  if (state.empty()) return {};
+  if (state == "unknown") return {0, ReadingValidity::UNKNOWN};
+  if (state == "unavailable") return {0, ReadingValidity::UNAVAILABLE};
+  if (state == "stale") return {0, ReadingValidity::STALE};
   size_t pos = 0;
   if (state[pos] == '+' || state[pos] == '-') ++pos;
   bool digits = false;
@@ -104,6 +118,14 @@ struct Polarity {
   bool invert_battery = false;
 };
 
+// Presentation only: nearest whole watt, exact halves away from zero. Integer
+// zero has no sign. Calculations and threshold decisions retain the raw double.
+inline std::string integer_watts(Reading reading) {
+  if (!reading.valid() || !std::isfinite(reading.value) || std::abs(reading.value) > MAX_POWER_W)
+    return "--";
+  return std::to_string(std::lround(reading.value));
+}
+
 inline Status power_status(Reading reading, bool battery) {
   if (!reading.valid()) return Status::UNAVAILABLE;
   if (std::abs(reading.value) <= IDLE_THRESHOLD_W) return Status::IDLE;
@@ -128,6 +150,10 @@ struct Calculation {
   CalculationValidity validity = CalculationValidity::UNAVAILABLE;
   Status battery_status = Status::UNAVAILABLE;
   Status grid_status = Status::UNAVAILABLE;
+  Capabilities capabilities{};
+  bool balance_checkable = false;
+  bool pending = false; // The existing card-owned 200 ms publication window.
+  InferenceKind inference = InferenceKind::NONE;
   double residual_w = 0;
   double tolerance_w = MIN_BALANCE_TOLERANCE_W;
   // Inferred visual allocations, NOT measured physical routes. Hidden <=1 W
@@ -138,6 +164,12 @@ struct Calculation {
     return validity == CalculationValidity::VALID &&
            inferred_w[static_cast<size_t>(edge)] > IDLE_THRESHOLD_W;
   }
+  bool idle() const {
+    if (validity != CalculationValidity::VALID) return false;
+    for (size_t i = 0; i < nodes.size(); ++i)
+      if (capabilities.includes(static_cast<Node>(i)) && std::abs(nodes[i].value) > IDLE_THRESHOLD_W) return false;
+    return true;
+  }
   std::string secondary_label() const {
     std::string text;
     if (battery_status == Status::CHARGING || battery_status == Status::DISCHARGING)
@@ -147,22 +179,45 @@ struct Calculation {
       text += status_text(grid_status);
     }
     if (!text.empty()) return text;
-    return status_text(battery_status == Status::IDLE && grid_status == Status::IDLE
-                       ? Status::IDLE : Status::UNAVAILABLE);
+    const bool battery = capabilities.includes(Node::BATTERY), grid = capabilities.includes(Node::GRID);
+    if (!battery && !grid) return {}; // No Battery/Grid activity to summarize.
+    return status_text((!battery || battery_status == Status::IDLE) &&
+                       (!grid || grid_status == Status::IDLE) ? Status::IDLE : Status::UNAVAILABLE);
   }
 };
 
-inline Calculation calculate(std::array<Reading, 4> nodes, Polarity polarity = {}) {
+inline Calculation calculate(std::array<Reading, 4> nodes, Polarity polarity = {},
+                              Capabilities capabilities = {}) {
   Calculation out;
+  capabilities.installed &= ALL_COMPONENTS;
+  capabilities.configured &= capabilities.installed;
+  out.capabilities = capabilities;
+  bool unavailable = false, unmeasured = false;
   // Validate even direct numeric inputs; parsing is not the only model entry.
-  for (size_t i = 0; i < nodes.size(); ++i)
-    nodes[i] = normalize_power(nodes[i], "W", static_cast<Node>(i));
+  for (size_t i = 0; i < nodes.size(); ++i) {
+    const auto node = static_cast<Node>(i);
+    if (!capabilities.includes(node)) nodes[i] = {0, ReadingValidity::EXCLUDED};
+    else if (!capabilities.measures(node)) {
+      nodes[i] = {0, ReadingValidity::UNMEASURED};
+      unmeasured = true;
+    } else {
+      nodes[i] = normalize_power(nodes[i], "W", node);
+      unavailable |= !nodes[i].valid();
+    }
+  }
   if (polarity.invert_grid) nodes[2].value = -nodes[2].value;
   if (polarity.invert_battery) nodes[3].value = -nodes[3].value;
   out.nodes = nodes;
   out.battery_status = power_status(nodes[3], true);
   out.grid_status = power_status(nodes[2], false);
-  for (const auto &node : nodes) if (!node.valid()) return out;
+  if (!capabilities.installed || unavailable) return out;
+  if (unmeasured) {
+    // An installed, unmeasured contribution is NOT zero. Even a route that
+    // appears plausible is withheld until this system boundary can be checked.
+    out.validity = CalculationValidity::READINGS_ONLY;
+    return out;
+  }
+  out.balance_checkable = true;
 
   const double s = nodes[0].value, h = nodes[1].value;
   const double g = nodes[2].value, b = nodes[3].value;
@@ -180,6 +235,12 @@ inline Calculation calculate(std::array<Reading, 4> nodes, Polarity polarity = {
   double solar = capacity(s), home = capacity(h);
   double grid_source = capacity(g), grid_sink = capacity(-g);
   double battery_source = capacity(b), battery_sink = capacity(-b);
+  const int source_count = (solar > 0) + (grid_source > 0) + (battery_source > 0);
+  const int sink_count = (home > 0) + (grid_sink > 0) + (battery_sink > 0);
+  // Two sources and two sinks form an ambiguous 2x2 allocation. Solar-first
+  // selects one convention; it is never claimed to be a measured route.
+  out.inference = !source_count || !sink_count ? InferenceKind::NONE
+    : source_count > 1 && sink_count > 1 ? InferenceKind::SOLAR_FIRST : InferenceKind::UNIQUE;
   auto allocate = [&](Edge edge, double &source, double &sink) {
     const double amount = std::min(source, sink);
     out.inferred_w[static_cast<size_t>(edge)] = amount;
@@ -200,24 +261,35 @@ struct Model {
   std::array<Reading, 4> readings{};
   Reading battery_soc{};
   Polarity polarity{};
+  Capabilities capabilities{};
   Calculation calculation{};
 
   void set_power(Node node, std::string_view state, std::string_view unit) {
     readings[static_cast<size_t>(node)] = parse_power(state, unit, node);
-    calculation = calculate(readings, polarity);
+    calculation = calculate(readings, polarity, capabilities);
   }
   void set_soc(std::string_view state, std::string_view unit) {
     battery_soc = parse_soc(state, unit);
   }
   void set_polarity(Polarity value) {
     polarity = value;
-    calculation = calculate(readings, polarity);
+    calculation = calculate(readings, polarity, capabilities);
+  }
+  void set_capabilities(Capabilities value) {
+    value.installed &= ALL_COMPONENTS;
+    value.configured &= value.installed;
+    const uint8_t changed = (capabilities.installed ^ value.installed) |
+                            (capabilities.configured ^ value.configured);
+    for (size_t i = 0; i < readings.size(); ++i) if (changed & (1u << i)) readings[i] = {};
+    if (changed & component_bit(Node::BATTERY)) battery_soc = {};
+    capabilities = value;
+    calculation = calculate(readings, polarity, capabilities);
   }
   // The future card owner calls this on disconnect/replacement before rebinding.
   void invalidate() {
     readings = {};
     battery_soc = {};
-    calculation = {};
+    calculation = calculate(readings, polarity, capabilities);
   }
 };
 

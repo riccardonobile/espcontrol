@@ -4205,6 +4205,30 @@ export const CARD_CONTRACT_CARDS: Readonly<Record<string, CardTypeSpec>> = {
         "label": "Invert Battery power sign",
         "kind": "flag",
         "omitDefault": true
+      },
+      {
+        "name": "exclude_solar",
+        "label": "Exclude Solar component",
+        "kind": "flag",
+        "omitDefault": true
+      },
+      {
+        "name": "exclude_home",
+        "label": "Exclude Home component",
+        "kind": "flag",
+        "omitDefault": true
+      },
+      {
+        "name": "exclude_grid",
+        "label": "Exclude Grid component",
+        "kind": "flag",
+        "omitDefault": true
+      },
+      {
+        "name": "exclude_battery",
+        "label": "Exclude Battery component",
+        "kind": "flag",
+        "omitDefault": true
       }
     ],
     "normalization": {
@@ -4256,7 +4280,11 @@ export const CARD_CONTRACT_CARDS: Readonly<Record<string, CardTypeSpec>> = {
         "battery_entity",
         "battery_soc_entity",
         "invert_grid",
-        "invert_battery"
+        "invert_battery",
+        "exclude_solar",
+        "exclude_home",
+        "exclude_grid",
+        "exclude_battery"
       ],
       "optionHook": "normalize_power_options"
     },
@@ -4997,6 +5025,10 @@ export const CARD_CONTRACT_OPTION_NAMES: Readonly<Record<string, string>> = {
   "cover_position": "cover_position",
   "cover_tabs": "cover_tabs",
   "date_time_mode": "date_time_mode",
+  "exclude_battery": "exclude_battery",
+  "exclude_grid": "exclude_grid",
+  "exclude_home": "exclude_home",
+  "exclude_solar": "exclude_solar",
   "fan_light_entity": "fan_light_entity",
   "fan_tabs": "fan_tabs",
   "garage_mode": "garage_mode",

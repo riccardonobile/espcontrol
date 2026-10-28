@@ -2665,6 +2665,30 @@
           "label": "Invert Battery power sign",
           "kind": "flag",
           "omitDefault": true
+        },
+        {
+          "name": "exclude_solar",
+          "label": "Exclude Solar component",
+          "kind": "flag",
+          "omitDefault": true
+        },
+        {
+          "name": "exclude_home",
+          "label": "Exclude Home component",
+          "kind": "flag",
+          "omitDefault": true
+        },
+        {
+          "name": "exclude_grid",
+          "label": "Exclude Grid component",
+          "kind": "flag",
+          "omitDefault": true
+        },
+        {
+          "name": "exclude_battery",
+          "label": "Exclude Battery component",
+          "kind": "flag",
+          "omitDefault": true
         }
       ],
       "normalization": {
@@ -2716,7 +2740,11 @@
           "battery_entity",
           "battery_soc_entity",
           "invert_grid",
-          "invert_battery"
+          "invert_battery",
+          "exclude_solar",
+          "exclude_home",
+          "exclude_grid",
+          "exclude_battery"
         ],
         "optionHook": "normalize_power_options"
       },

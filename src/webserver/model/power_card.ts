@@ -13,6 +13,7 @@ export interface PowerCardConfigV1 {
   batterySocEntity: string;
   invertGrid: boolean;
   invertBattery: boolean;
+  installedComponents: number;
 }
 
 export function validPowerEntity(value: string): boolean {
@@ -28,6 +29,8 @@ export function decodePowerCardConfigV1(saved: CardConfig): PowerCardConfigV1 {
     batterySocEntity: configOptionValue(saved.options, "battery_soc_entity").trim(),
     invertGrid: configOptionEnabled(saved.options, "invert_grid"),
     invertBattery: configOptionEnabled(saved.options, "invert_battery"),
+    installedComponents: ["solar", "home", "grid", "battery"].reduce((mask, name, i) =>
+      configOptionEnabled(saved.options, "exclude_" + name) ? mask & ~(1 << i) : mask, 15),
   };
 }
 
@@ -37,27 +40,28 @@ export function normalizePowerOptions(options: string): string {
     const value = configOptionValue(options, name).trim();
     if (value) out.push(name + "=" + encodeConfigField(value));
   }
-  for (const name of ["invert_grid", "invert_battery"]) {
+  for (const name of ["invert_grid", "invert_battery", "exclude_solar", "exclude_home", "exclude_grid", "exclude_battery"]) {
     if (configOptionEnabled(options, name)) out.push(name);
   }
   return out.join(",");
 }
 
 /** Restore preserves missing readings in old Power cards, but never invalid IDs. */
-export function powerCardConfigError(card: CardConfig, requireComplete = true): string | null {
+export function powerCardConfigError(card: CardConfig): string | null {
   if (card.type !== "power") return null;
   const config = decodePowerCardConfigV1(card);
-  for (const [label, value, required] of [
-    ["Home power", config.homeEntity, requireComplete],
-    ["Solar power", config.solarEntity, requireComplete],
-    ["Grid power", config.gridEntity, requireComplete],
-    ["Battery power", config.batteryEntity, requireComplete],
-    ["Battery SOC", config.batterySocEntity, false],
+  if (!config.installedComponents) return "Include at least one Power component.";
+  for (const [label, value, component] of [
+    ["Home power", config.homeEntity, 2],
+    ["Solar power", config.solarEntity, 1],
+    ["Grid power", config.gridEntity, 4],
+    ["Battery power", config.batteryEntity, 8],
+    ["Battery SOC", config.batterySocEntity, 8],
   ] as const) {
-    if ((required || value) && !validPowerEntity(value)) return "Choose a sensor entity (sensor.*) for " + label + ".";
+    if ((config.installedComponents & component) && value && !validPowerEntity(value)) return "Choose a sensor entity (sensor.*) for " + label + ".";
   }
-  if (String(card.options || "").split(",").some(option => /^invert_(grid|battery)=/.test(option)))
-    return "Power polarity options must be flags, not values.";
+  if (String(card.options || "").split(",").some(option => /^(invert_(grid|battery)|exclude_(solar|home|grid|battery))=/.test(option)))
+    return "Power polarity and component options must be flags, not values.";
   return null;
 }
 
@@ -66,7 +70,7 @@ export function powerStoredConfigError(value: string, isSubpage = false, byteLim
   if (card.type !== "power") return null;
   if (!isSubpage && utf8ByteLength(value) > byteLimit)
     return "Power settings exceed this panel's " + byteLimit + "-byte card limit. Shorten entity IDs or the label, omit optional SOC, or use a subpage.";
-  return powerCardConfigError(card, false);
+  return powerCardConfigError(card);
 }
 
 /** Power's numeric + two-label navigation layout needs two columns. */

@@ -402,7 +402,7 @@ export function createAppBackupFeature(controllers: AppBackupControllers): AppBa
                 }
                 for (const value of Object.values(nativeDocument.subpages)) {
                     for (const card of parseSubpageConfig(value).buttons) {
-                        const error = powerCardConfigError(card, false);
+                        const error = powerCardConfigError(card);
                         if (error) throw new Error(error);
                     }
                 }

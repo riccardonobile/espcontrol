@@ -134,5 +134,230 @@
       "precision": "",
       "options": "solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,card_off_color=FFFFFF,card_active_color=custom,card_on_color=112233"
     }
+  },
+  {
+    "name": "partial installed mask 1, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_home,exclude_grid,exclude_battery",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_home,exclude_grid,exclude_battery"
+    }
+  },
+  {
+    "name": "partial installed mask 2, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_grid,exclude_battery",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_grid,exclude_battery"
+    }
+  },
+  {
+    "name": "partial installed mask 3, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_grid,exclude_battery",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_grid,exclude_battery"
+    }
+  },
+  {
+    "name": "partial installed mask 4, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_home,exclude_battery",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_home,exclude_battery"
+    }
+  },
+  {
+    "name": "partial installed mask 5, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_home,exclude_battery",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_home,exclude_battery"
+    }
+  },
+  {
+    "name": "partial installed mask 6, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_battery",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_battery"
+    }
+  },
+  {
+    "name": "partial installed mask 7, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_battery",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_battery"
+    }
+  },
+  {
+    "name": "partial installed mask 8, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_home,exclude_grid",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_home,exclude_grid"
+    }
+  },
+  {
+    "name": "partial installed mask 9, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_home,exclude_grid",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_home,exclude_grid"
+    }
+  },
+  {
+    "name": "partial installed mask 10, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_grid",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_grid"
+    }
+  },
+  {
+    "name": "partial installed mask 11, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_grid",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_grid"
+    }
+  },
+  {
+    "name": "partial installed mask 12, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_home",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_home"
+    }
+  },
+  {
+    "name": "partial installed mask 13, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_home",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_home"
+    }
+  },
+  {
+    "name": "partial installed mask 14, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid,exclude_solar",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar"
+    }
+  },
+  {
+    "name": "partial installed mask 15, legacy precision and unmeasured home",
+    "input": ";;;;;;power;2;grid_entity=sensor.grid_power,invert_grid",
+    "expected": {
+      "entity": "",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "grid_entity=sensor.grid_power,invert_grid"
+    }
   }
 ]

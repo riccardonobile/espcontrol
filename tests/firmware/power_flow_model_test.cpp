@@ -125,7 +125,7 @@ void table_tests() {
 }
 
 void parsing_tests() {
-  for (const char *state : {"", "unknown", "unavailable", " \t "})
+  for (const char *state : {"", " \t "})
     assert(parse_power(state,"W",Node::HOME).validity == ReadingValidity::MISSING);
   for (const char *state : {"NaN", "nan", "inf", "-inf", "1e309", "1e-400", "100 W", "12bad",
                            "1 2", "1,2", "0x10", "0x1p2", "+", ".", "1e", "1e+", "--1"})
@@ -146,7 +146,10 @@ void parsing_tests() {
   for (const char *state : {"0", "78", "100"}) assert(parse_soc(state,"%").valid());
   for (const char *state : {"-1", "100.01", "101", "NaN", "inf", "78%"}) assert(!parse_soc(state,"%").valid());
   assert(!parse_soc("78","W").valid());
-  assert(parse_soc("unavailable","%").validity == ReadingValidity::MISSING);
+  assert(parse_soc("unavailable","%").validity == ReadingValidity::UNAVAILABLE);
+  assert(parse_power("unknown","W",Node::GRID).validity == ReadingValidity::UNKNOWN);
+  assert(parse_power("unavailable","W",Node::GRID).validity == ReadingValidity::UNAVAILABLE);
+  assert(parse_power("stale","W",Node::GRID).validity == ReadingValidity::STALE);
 }
 
 void status_tests() {
@@ -213,7 +216,89 @@ void transition_tests() {
   assert(model.polarity.invert_grid); // reconnect preserves configuration
 }
 
+void partial_system_tests() {
+  const std::array<std::array<size_t,2>,7> endpoints={{{0,1},{0,3},{0,2},{3,1},{3,2},{2,1},{2,3}}};
+  // Exhaust every installed/configured mask: no silent zero for unmeasured
+  // installed equipment, even when its old raw Reading still contains a value.
+  for(uint8_t installed=0;installed<16;++installed)for(uint8_t configured=0;configured<16;++configured){
+    std::array<Reading,4> input{};
+    for(auto &n:input)n={0,ReadingValidity::VALID};
+    const auto c=calculate(input,{}, {installed,configured});
+    assert(c.balance_checkable==(installed!=0&&(installed&configured)==installed));
+    assert(c.validity==(installed==0?V::UNAVAILABLE:(installed&configured)==installed?V::VALID:V::READINGS_ONLY));
+    for(size_t n=0;n<4;++n){
+      const auto expected=!(installed&(1u<<n))?ReadingValidity::EXCLUDED:
+        !(configured&(1u<<n))?ReadingValidity::UNMEASURED:ReadingValidity::VALID;
+      assert(c.nodes[n].validity==expected);
+    }
+    for(double flow:c.inferred_w)assert(flow==0);
+  }
+  // Every physical topology, both polarities, balanced/unbalanced fractional
+  // snapshots; check signs, capacities, exclusion and exact conservation.
+  for(uint8_t mask=1;mask<16;++mask)for(double solar:{0.,.3,1.,100.,1000.})
+    for(double home:{0.,.3,1.,100.,1000.})for(double grid:{-500.,-.3,0.,.3,500.})
+      for(double battery:{-500.,-.3,0.,.3,500.})for(bool inverted:{false,true}){
+        std::array<Reading,4> input={{{solar,ReadingValidity::VALID},{home,ReadingValidity::VALID},
+          {inverted?-grid:grid,ReadingValidity::VALID},{inverted?-battery:battery,ReadingValidity::VALID}}};
+        for(size_t n=0;n<4;++n)if(!(mask&(1u<<n)))input[n]={MISSING,ReadingValidity::INVALID};
+        const auto c=calculate(input,{inverted,inverted},{mask,mask});assert(c.balance_checkable);
+        const double s=mask&1?solar:0,h=mask&2?home:0,g=mask&4?grid:0,b=mask&8?battery:0;
+        near(c.residual_w,s+g+b-h);
+        const double sources=s+std::max(g,0.)+std::max(b,0.);
+        const double sinks=h+std::max(-g,0.)+std::max(-b,0.);
+        near(c.tolerance_w,std::max(10.,.02*std::max(sources,sinks)));
+        assert(c.validity==(std::abs(c.residual_w)<=c.tolerance_w?V::VALID:V::INCONSISTENT));
+        assert_capacity(c);
+        double total=0;
+        for(size_t edge=0;edge<7;++edge){
+          total+=c.inferred_w[edge];
+          if(c.inferred_w[edge]>0)for(auto n:endpoints[edge])assert(mask&(1u<<n));
+          if(c.validity!=V::VALID)assert(c.inferred_w[edge]==0);
+        }
+        if(c.validity==V::VALID&&c.residual_w==0&&
+          (s==0||s>1)&&(h==0||h>1)&&(g==0||std::abs(g)>1)&&(b==0||std::abs(b)>1))near(total,sources);
+      }
+  // All seven directions can be uniquely allocated with only their two
+  // physical endpoints installed and measured; there is no synthetic zero node.
+  for(size_t edge=0;edge<7;++edge){
+    std::array<Reading,4> n{};const auto source=endpoints[edge][0],sink=endpoints[edge][1];
+    n[source]={500,ReadingValidity::VALID};n[sink]={sink==1?500.:-500.,ReadingValidity::VALID};
+    const uint8_t mask=(1u<<source)|(1u<<sink);
+    const auto c=calculate(n,{}, {mask,mask});assert(c.validity==V::VALID&&c.inference==InferenceKind::UNIQUE);
+    for(size_t e=0;e<7;++e)near(c.inferred_w[e],edge==e?500.:0.);
+  }
+  std::array<Reading,4> full={{{300,ReadingValidity::VALID},{1000,ReadingValidity::VALID},{1000,ReadingValidity::VALID},{-300,ReadingValidity::VALID}}};
+  assert(calculate(full).inference==InferenceKind::SOLAR_FIRST);
+  for(auto validity:{ReadingValidity::MISSING,ReadingValidity::INVALID,ReadingValidity::UNKNOWN,ReadingValidity::UNAVAILABLE,ReadingValidity::STALE}){
+    auto partial=full;partial[0].validity=validity;const auto c=calculate(partial);
+    assert(!c.balance_checkable&&c.validity==V::UNAVAILABLE&&c.nodes[0].validity==validity);
+    assert(c.secondary_label()=="Charging · Importing");for(double f:c.inferred_w)assert(f==0);
+  }
+  auto isolated=calculate({{{8,ReadingValidity::VALID},{},{},{}}},{},{1,1});
+  assert(isolated.validity==V::VALID&&!isolated.idle()&&isolated.inference==InferenceKind::NONE);
+  assert(calculate({{{0,ReadingValidity::VALID},{},{},{}}},{},{1,1}).idle());
+  auto c=calculate(full,{}, {15,14});assert(c.validity==V::READINGS_ONLY);
+  assert(c.nodes[0].validity==ReadingValidity::UNMEASURED&&c.secondary_label()=="Charging · Importing");
+  Model m;m.set_power(Node::SOLAR,"0","W");m.set_power(Node::HOME,"1000","W");m.set_power(Node::GRID,"1000","W");m.set_power(Node::BATTERY,"0","W");
+  m.set_capabilities({6,6});assert(m.calculation.edge_active(Edge::GRID_HOME));
+  m.set_capabilities({7,7});assert(m.calculation.validity==V::UNAVAILABLE); // reenabling cannot revive old Solar
+  m.set_power(Node::SOLAR,"0","W");assert(m.calculation.validity==V::VALID);
+  m.set_capabilities({7,3});assert(m.calculation.validity==V::READINGS_ONLY);
+  m.invalidate();assert(m.capabilities.installed==7&&m.capabilities.configured==3);
+}
+void integer_tests() {
+  for(auto test:{std::pair<double,const char*>{1234.6,"1235"},{-328.7,"-329"},{.3,"0"},{-.3,"0"},
+    {.5,"1"},{-.5,"-1"},{1.5,"2"},{-1.5,"-2"},{-.0,"0"}})
+    assert(integer_watts({test.first,ReadingValidity::VALID})==test.second);
+  assert(integer_watts({MISSING,ReadingValidity::VALID})=="--");
+  const auto c=calculate({{{1234.6,ReadingValidity::VALID},{1234.2,ReadingValidity::VALID},{0,ReadingValidity::VALID},{0,ReadingValidity::VALID}}});
+  near(c.residual_w,.4);near(c.inferred_w[0],1234.2);assert(integer_watts(c.nodes[0])=="1235");
+  near(c.nodes[0].value,1234.6); // formatting never feeds rounded watts back into the model
+}
+
 int main() {
+  partial_system_tests();
+  integer_tests();
   table_tests();
   parsing_tests();
   status_tests();

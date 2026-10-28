@@ -276,10 +276,10 @@ void ha_release_callbacks_for_owner(void *owner);
 #include "button_grid_power.h"
 
 namespace esphome {struct StringRef {std::string value;const char *c_str()const{return value.c_str();}size_t size()const{return value.size();}};}
-struct ParsedCfg {std::string label="Power Dashboard",precision,home="sensor.h",solar="sensor.s",grid="sensor.g",battery="sensor.b",soc="sensor.soc";};
+struct ParsedCfg {std::string label="Power Dashboard",precision,home="sensor.h",solar="sensor.s",grid="sensor.g",battery="sensor.b",soc="sensor.soc";uint8_t installed=15;};
 namespace espcontrol::power {
-struct TestConfig {std::string home_entity,solar_entity,grid_entity,battery_entity,battery_soc_entity;bool invert_grid=false,invert_battery=false;};
-TestConfig decode_config_v1(const ParsedCfg &c){return {c.home,c.solar,c.grid,c.battery,c.soc};}
+struct TestConfig {std::string home_entity,solar_entity,grid_entity,battery_entity,battery_soc_entity;bool invert_grid=false,invert_battery=false;uint8_t installed_components=15;};
+TestConfig decode_config_v1(const ParsedCfg &c){return {c.home,c.solar,c.grid,c.battery,c.soc,false,false,c.installed};}
 }
 void *callback_owner=nullptr;
 struct Binding {void *owner;std::string entity,attribute;std::function<void(esphome::StringRef)> callback;};
@@ -327,7 +327,7 @@ int main(){
   using espcontrol::power::Reading;
   using espcontrol::power::ReadingValidity;
   assert(power_reading_text({-.4,ReadingValidity::VALID},0)=="0 W");
-  assert(power_reading_text({-.004,ReadingValidity::VALID},2)=="0.00 W");
+  assert(power_reading_text({-.004,ReadingValidity::VALID},2)=="0 W");
   assert(power_reading_text({-500,ReadingValidity::VALID},0)=="-500 W");
   assert(power_reading_text({35000,ReadingValidity::VALID},0)=="35000 W");
   auto slot=make_slot(true);ParsedCfg cfg;Context context;DisplayProfile profile;profile.fonts.small_text=&small_font;
@@ -406,7 +406,7 @@ int main(){
   publish("sensor.s","1500");publish("sensor.h","1000");publish("sensor.g","0");publish("sensor.b","-500");
   assert(batch_ui.status->flags&LV_OBJ_FLAG_HIDDEN);power_flow_hide();
   assert(power_reading_text({3500,espcontrol::power::ReadingValidity::VALID},0)=="3500 W");
-  assert(power_reading_text({1042.25,espcontrol::power::ReadingValidity::VALID},2)=="1042.25 W");
+  assert(power_reading_text({1042.25,espcontrol::power::ReadingValidity::VALID},2)=="1042 W");
   assert(power_driver_handle_main_click(context,cfg,slot.btn));
   assert(!(slot.btn->state&LV_STATE_CHECKED)&&title=="Power Dashboard");
   control_modal_force_close_active();
@@ -738,5 +738,47 @@ int main(){
   power_flow_open(power_card_for_button(no_soc.btn));
   assert(power_flow_ui().soc->text.empty());
   lv_obj_del(no_soc.btn);assert(subscriptions==0&&objects==0&&!power_flow_ui().card);
+  // A physically grid-only home binds no excluded sensors/SOC. Repeated opens
+  // retain the exact fixed paths and object lifetime of the complete layout.
+  cfg.installed=6;cfg.soc="sensor.soc";cfg.home="sensor.h";
+  for(int pass=0;pass<3;++pass){
+    auto partial=make_slot(false);
+    power_driver_setup_visual(partial,cfg,context,{},GridConfig{},2);
+    power_driver_bind_data(partial,cfg,context,profile,GridConfig{});
+    auto *owner=power_card_for_button(partial.btn);
+    assert(subscriptions==4&&owner->data.model.capabilities.installed==6);
+    power_flow_open(owner);auto &ui=power_flow_ui();
+    assert(ui.nodes[0]->flags&LV_OBJ_FLAG_HIDDEN);assert(ui.nodes[3]->flags&LV_OBJ_FLAG_HIDDEN);
+    assert(!(ui.nodes[1]->flags&LV_OBJ_FLAG_HIDDEN)&&!(ui.nodes[2]->flags&LV_OBJ_FLAG_HIDDEN));
+    publish("sensor.h","1000.6","",false);publish("sensor.g","1000.6","",false);
+    publish("sensor.h","W","unit_of_measurement",false);publish("sensor.g","W","unit_of_measurement",false);
+    assert(owner->publish_timer&&owner->data.model.calculation.pending);
+    advance(200);assert(!owner->data.model.calculation.pending);
+    assert(ui.values[1]->text=="1001 W"&&ui.values[2]->text=="1001 W");
+    assert(owner->data.model.calculation.balance_checkable);
+    assert(owner->data.model.calculation.inferred_w[5]==1000.6);
+    for(size_t i=0;i<7;++i)assert(bool(ui.lines[i]->flags&LV_OBJ_FLAG_HIDDEN)==(i!=5));
+    power_cards_disconnected();assert(!owner->publish_timer&&!owner->data.model.calculation.pending);
+    assert(ui.values[1]->text=="--"&&ui.values[2]->text=="--");
+    for(auto *line:ui.lines)assert(line->flags&LV_OBJ_FLAG_HIDDEN);
+    assert(owner->data.model.capabilities.installed==6);
+    publish("sensor.h","0");publish("sensor.g","0");
+    publish("sensor.h","W","unit_of_measurement");publish("sensor.g","W","unit_of_measurement");
+    assert(owner->data.model.calculation.secondary_label()=="Idle");
+    lv_obj_del(partial.btn);assert(subscriptions==0&&objects==0&&timers.empty()&&!power_flow_ui().card);
+  }
+  // Installed Home without a sensor is visible and unknown, not absent/zero.
+  cfg.home.clear();auto unmeasured=make_slot(false);
+  power_driver_setup_visual(unmeasured,cfg,context,{},GridConfig{},2);
+  power_driver_bind_data(unmeasured,cfg,context,profile,GridConfig{});
+  auto *owner=power_card_for_button(unmeasured.btn);assert(subscriptions==2);
+  publish("sensor.g","500");publish("sensor.g","W","unit_of_measurement");
+  power_flow_open(owner);auto &ui=power_flow_ui();
+  assert(owner->data.model.calculation.validity==espcontrol::power::CalculationValidity::READINGS_ONLY);
+  assert(ui.values[1]->text=="--"&&ui.details[1]->text==espcontrol_i18n("No measurement"));
+  assert(ui.details[2]->text=="Importing"&&ui.status->text==espcontrol_i18n("Readings only"));
+  for(auto *line:ui.lines)assert(line->flags&LV_OBJ_FLAG_HIDDEN);
+  lv_obj_del(unmeasured.btn);assert(subscriptions==0&&objects==0&&timers.empty());
+
 
 }

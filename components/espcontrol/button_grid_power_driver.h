@@ -45,7 +45,10 @@ inline bool power_driver_refresh_layout(BtnSlot &slot, const Context &context,
     lv_obj_add_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
   } else {
     lv_obj_clear_flag(slot.sensor_container, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+    const auto *ctx = power_card_for_button(slot.btn);
+    if (ctx && ctx->data.model.calculation.secondary_label().empty())
+      lv_obj_add_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_clear_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
   }
   set_subpage_chevron_visible(slot, true, grid.subpage_chevron_x,
     grid.subpage_chevron_y, grid.subpage_chevron_text_width_percent);
@@ -86,9 +89,13 @@ inline bool power_driver_bind_data(BtnSlot &slot, const ParsedCfg &config,
   // Model order is Solar, Home, Grid, Battery; SOC is a fifth independent input.
   const std::string entities[5] = {bindings.solar_entity, bindings.home_entity,
     bindings.grid_entity, bindings.battery_entity, bindings.battery_soc_entity};
+  uint8_t configured = 0;
+  for (size_t i = 0; i < 4; ++i) if (!entities[i].empty()) configured |= 1u << i;
+  ctx->data.model.set_capabilities({bindings.installed_components, configured});
   HaCallbackOwnerScope owner(ctx);
   for (size_t i = 0; i < 5; ++i) {
     if (entities[i].empty()) continue;
+    if (!ctx->data.model.capabilities.includes(static_cast<espcontrol::power::Node>(i < 4 ? i : 3))) continue;
     const bool state = ha_subscribe_state(entities[i], [ctx, i](esphome::StringRef value) {
       ctx->data.state(i, std::string_view(value.c_str(), value.size()));
       power_card_input_changed(ctx, i);

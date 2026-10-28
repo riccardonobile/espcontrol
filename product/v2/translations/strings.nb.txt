@@ -301,3 +301,7 @@ label_lighting=Belysning
 label_garage=Garasje
 label_sensor=Sensor
 label_camera=Kamera
+
+power_no_measurement=No measurement
+power_readings_only=Readings only
+power_stale=Stale

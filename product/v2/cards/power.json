@@ -9,7 +9,11 @@
     {"name": "battery_entity", "label": "Battery power", "kind": "text", "defaultValue": "", "omitDefault": true},
     {"name": "battery_soc_entity", "label": "Battery SOC", "kind": "text", "defaultValue": "", "omitDefault": true},
     {"name": "invert_grid", "label": "Invert Grid power sign", "kind": "flag", "omitDefault": true},
-    {"name": "invert_battery", "label": "Invert Battery power sign", "kind": "flag", "omitDefault": true}
+    {"name": "invert_battery", "label": "Invert Battery power sign", "kind": "flag", "omitDefault": true},
+    {"name": "exclude_solar", "label": "Exclude Solar component", "kind": "flag", "omitDefault": true},
+    {"name": "exclude_home", "label": "Exclude Home component", "kind": "flag", "omitDefault": true},
+    {"name": "exclude_grid", "label": "Exclude Grid component", "kind": "flag", "omitDefault": true},
+    {"name": "exclude_battery", "label": "Exclude Battery component", "kind": "flag", "omitDefault": true}
   ],
   "normalization": {
     "fields": {
@@ -24,7 +28,7 @@
       "options": {"policy": "hook", "hook": "normalize_power_options"}
     },
     "unknownOptions": "drop",
-    "canonicalOptionOrder": ["solar_entity", "grid_entity", "battery_entity", "battery_soc_entity", "invert_grid", "invert_battery"],
+    "canonicalOptionOrder": ["solar_entity", "grid_entity", "battery_entity", "battery_soc_entity", "invert_grid", "invert_battery", "exclude_solar", "exclude_home", "exclude_grid", "exclude_battery"],
     "optionHook": "normalize_power_options"
   },
   "default": {

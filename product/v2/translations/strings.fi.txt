@@ -301,3 +301,7 @@ label_lighting=Valaistus
 label_garage=Autotalli
 label_sensor=Anturi
 label_camera=Kamera
+
+power_no_measurement=Ei mittausta
+power_readings_only=Vain lukemat
+power_stale=Vanhentunut

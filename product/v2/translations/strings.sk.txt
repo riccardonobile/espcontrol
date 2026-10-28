@@ -301,3 +301,7 @@ label_lighting=Osvetlenie
 label_garage=Garáž
 label_sensor=Senzor
 label_camera=Kamera
+
+power_no_measurement=No measurement
+power_readings_only=Readings only
+power_stale=Stale

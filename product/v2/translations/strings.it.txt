@@ -301,3 +301,7 @@ label_lighting=Illuminazione
 label_garage=Garage
 label_sensor=Sensore
 label_camera=Telecamera
+
+power_no_measurement=Non misurato
+power_readings_only=Solo letture
+power_stale=Obsoleto

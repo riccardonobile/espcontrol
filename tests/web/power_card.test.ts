@@ -24,7 +24,7 @@ export function runPowerCardTests(): void {
   equal(defaults.label, "Power Dashboard");
   equal(decodePowerCardConfigV1(defaults), {
     homeEntity: "", solarEntity: "", gridEntity: "", batteryEntity: "", batterySocEntity: "",
-    invertGrid: false, invertBattery: false,
+    invertGrid: false, invertBattery: false, installedComponents: 15,
   });
   equal(cardRuntimeSpec("power")?.driver, "power");
   equal(cardRuntimeSpec("power")?.capabilities.actions, true); // native modal navigation only
@@ -43,9 +43,9 @@ export function runPowerCardTests(): void {
   }
   equal(validPowerEntity("sensor.home"), true);
   for (const id of ["switch.home", "sensor.", "sensor.bad;injection", "sensor.home,grid", "sensor.UPPER", ""]) equal(validPowerEntity(id), false);
-  equal(powerCardConfigError(defaults) !== null, true);
+  equal(powerCardConfigError(defaults), null); // unmeasured is explicit readings-only, never zero
   // Old saved partial configurations retain unavailable readings on restore.
-  equal(powerCardConfigError(defaults, false), null);
+  equal(powerCardConfigError(defaults), null);
   const preview = registry.definitions.power!.renderPreview!(defaults, { escHtml: (s: string) => s.replace(/</g, "&lt;"), cardSize: 3 }) as { iconHtml: string; buttonClass: string; labelHtml: string };
   equal(preview.iconHtml, "sensor-preview");
   equal(preview.buttonClass, "sp-power-card");
@@ -83,16 +83,34 @@ export function runPowerCardTests(): void {
   equal(normalizeSavedConfigPower(card, normalizePowerOptions), true);
   equal(decodePowerCardConfigV1(card), {
     homeEntity: "sensor.home", solarEntity: "sensor.solar", gridEntity: "sensor.grid",
-    batteryEntity: "sensor.battery", batterySocEntity: "sensor.soc", invertGrid: true, invertBattery: true,
+    batteryEntity: "sensor.battery", batterySocEntity: "sensor.soc", invertGrid: true, invertBattery: true, installedComponents: 15,
   });
   equal(powerCardConfigError(card), null);
   for (const field of ["solar_entity", "grid_entity", "battery_entity"]) {
-    equal(powerCardConfigError({ ...card, options: card.options.split(",").filter(value => !value.startsWith(field + "=")).join(",") }) !== null, true);
+    equal(powerCardConfigError({ ...card, options: card.options.split(",").filter(value => !value.startsWith(field + "=")).join(",") }), null);
   }
   equal(powerCardConfigError({ ...card, options: normalizePowerOptions(card.options.replace("battery_soc_entity=sensor.soc,", "")) }), null);
   equal(powerCardConfigError({ ...card, options: card.options + ",invert_grid=true" }) !== null, true);
   equal(powerCardConfigError({ ...card, options: card.options.replace("sensor.soc", "number.soc") }) !== null, true);
   equal(powerStoredConfigError(encoded), null);
+  for (let mask=1;mask<16;mask++) {
+    const names=["solar","home","grid","battery"];
+    const excluded=names.filter((_,i)=>!(mask&(1<<i))).map(name=>"exclude_"+name);
+    const partial={...card,precision:"2",options:normalizePowerOptions(card.options+","+excluded.join(","))};
+    equal(decodePowerCardConfigV1(partial).installedComponents,mask);
+    equal(powerCardConfigError(partial),null);
+    const before={...partial};normalizeSavedConfigPower(partial,normalizePowerOptions);equal(partial,before);
+    equal(partial.precision,"2"); // obsolete precision is accepted and round-trips
+    const raw=[partial.entity,partial.label,partial.icon,partial.icon_on,partial.sensor,partial.unit,partial.type,partial.precision,partial.options].join(";");
+    equal(decodePowerCardConfigV1(parseRawButtonConfig(raw)).installedComponents,mask);
+    equal(powerStoredConfigError(raw,false,4096),null);
+    const native=encodePanelConfig({deviceProfile:"esp32-p4-86",buttons:{1:raw},subpages:{},settings:{button_order:"1"}});
+    const restored=decodePanelConfigBackupPayload(createPanelConfigBackupPayload(native));
+    equal(decodePowerCardConfigV1(parseRawButtonConfig(decodePanelConfig(restored).buttons[1]!)).installedComponents,mask);
+  }
+  equal(powerCardConfigError({...card,options:card.options+",exclude_solar,exclude_home,exclude_grid,exclude_battery"})!==null,true);
+  equal(powerCardConfigError({...card,options:card.options+",exclude_solar=true"})!==null,true);
+  equal(powerCardConfigError({...card,entity:""}),null);
   const canonical = { ...card };
   normalizeSavedConfigPower(card, normalizePowerOptions);
   equal(card, canonical); // normalization is idempotent

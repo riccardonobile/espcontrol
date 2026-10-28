@@ -515,6 +515,9 @@ inline const char *espcontrol_i18n_da(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "tor.";
   if (std::strcmp(text, "Fri") == 0) return "fre.";
   if (std::strcmp(text, "Sat") == 0) return "lør.";
+  if (std::strcmp(text, "No measurement") == 0) return "Ingen måling";
+  if (std::strcmp(text, "Readings only") == 0) return "Kun målinger";
+  if (std::strcmp(text, "Stale") == 0) return "Forældet";
   return text;
 }
 
@@ -776,6 +779,9 @@ inline const char *espcontrol_i18n_de(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "Do.";
   if (std::strcmp(text, "Fri") == 0) return "Fr.";
   if (std::strcmp(text, "Sat") == 0) return "Sa.";
+  if (std::strcmp(text, "No measurement") == 0) return "Nicht gemessen";
+  if (std::strcmp(text, "Readings only") == 0) return "Nur Messwerte";
+  if (std::strcmp(text, "Stale") == 0) return "Veraltet";
   return text;
 }
 
@@ -1046,6 +1052,9 @@ inline const char *espcontrol_i18n_es(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "jue.";
   if (std::strcmp(text, "Fri") == 0) return "vie.";
   if (std::strcmp(text, "Sat") == 0) return "sáb.";
+  if (std::strcmp(text, "No measurement") == 0) return "Sin medición";
+  if (std::strcmp(text, "Readings only") == 0) return "Solo lecturas";
+  if (std::strcmp(text, "Stale") == 0) return "Obsoleto";
   return text;
 }
 
@@ -1310,6 +1319,9 @@ inline const char *espcontrol_i18n_fi(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "to";
   if (std::strcmp(text, "Fri") == 0) return "pe";
   if (std::strcmp(text, "Sat") == 0) return "la";
+  if (std::strcmp(text, "No measurement") == 0) return "Ei mittausta";
+  if (std::strcmp(text, "Readings only") == 0) return "Vain lukemat";
+  if (std::strcmp(text, "Stale") == 0) return "Vanhentunut";
   return text;
 }
 
@@ -1574,6 +1586,9 @@ inline const char *espcontrol_i18n_fr(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "jeu.";
   if (std::strcmp(text, "Fri") == 0) return "ven.";
   if (std::strcmp(text, "Sat") == 0) return "sam.";
+  if (std::strcmp(text, "No measurement") == 0) return "Sans mesure";
+  if (std::strcmp(text, "Readings only") == 0) return "Mesures seules";
+  if (std::strcmp(text, "Stale") == 0) return "Périmé";
   return text;
 }
 
@@ -2382,6 +2397,9 @@ inline const char *espcontrol_i18n_it(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "gio.";
   if (std::strcmp(text, "Fri") == 0) return "ven.";
   if (std::strcmp(text, "Sat") == 0) return "sab.";
+  if (std::strcmp(text, "No measurement") == 0) return "Non misurato";
+  if (std::strcmp(text, "Readings only") == 0) return "Solo letture";
+  if (std::strcmp(text, "Stale") == 0) return "Obsoleto";
   return text;
 }
 
@@ -2897,6 +2915,9 @@ inline const char *espcontrol_i18n_nl(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "do.";
   if (std::strcmp(text, "Fri") == 0) return "vr.";
   if (std::strcmp(text, "Sat") == 0) return "za.";
+  if (std::strcmp(text, "No measurement") == 0) return "Niet gemeten";
+  if (std::strcmp(text, "Readings only") == 0) return "Alleen waarden";
+  if (std::strcmp(text, "Stale") == 0) return "Verouderd";
   return text;
 }
 
@@ -3149,6 +3170,9 @@ inline const char *espcontrol_i18n_pl(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "czw.";
   if (std::strcmp(text, "Fri") == 0) return "pt.";
   if (std::strcmp(text, "Sat") == 0) return "sob.";
+  if (std::strcmp(text, "No measurement") == 0) return "Brak pomiaru";
+  if (std::strcmp(text, "Readings only") == 0) return "Tylko odczyty";
+  if (std::strcmp(text, "Stale") == 0) return "Nieaktualne";
   return text;
 }
 
@@ -3676,6 +3700,9 @@ inline const char *espcontrol_i18n_pt(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "qui.";
   if (std::strcmp(text, "Fri") == 0) return "sex.";
   if (std::strcmp(text, "Sat") == 0) return "sáb.";
+  if (std::strcmp(text, "No measurement") == 0) return "Sem medição";
+  if (std::strcmp(text, "Readings only") == 0) return "Apenas leituras";
+  if (std::strcmp(text, "Stale") == 0) return "Desatualizado";
   return text;
 }
 
@@ -4978,6 +5005,9 @@ inline const char *espcontrol_i18n_sv(const char *text) {
   if (std::strcmp(text, "Thurs") == 0) return "tor";
   if (std::strcmp(text, "Fri") == 0) return "fre";
   if (std::strcmp(text, "Sat") == 0) return "lör";
+  if (std::strcmp(text, "No measurement") == 0) return "Ingen mätning";
+  if (std::strcmp(text, "Readings only") == 0) return "Endast värden";
+  if (std::strcmp(text, "Stale") == 0) return "Inaktuellt";
   return text;
 }
 
@@ -5807,6 +5837,9 @@ inline const char *espcontrol_i18n_key_en(const char *key) {
   if (std::strcmp(key, "label_garage") == 0) return "Garage";
   if (std::strcmp(key, "label_sensor") == 0) return "Sensor";
   if (std::strcmp(key, "label_camera") == 0) return "Camera";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "No measurement";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Readings only";
+  if (std::strcmp(key, "power_stale") == 0) return "Stale";
   return key;
 }
 
@@ -6324,6 +6357,9 @@ inline const char *espcontrol_i18n_key_da(const char *key) {
   if (std::strcmp(key, "label_switch") == 0) return "Kontakt";
   if (std::strcmp(key, "label_lighting") == 0) return "Belysning";
   if (std::strcmp(key, "label_camera") == 0) return "Kamera";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Ingen måling";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Kun målinger";
+  if (std::strcmp(key, "power_stale") == 0) return "Forældet";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -6591,6 +6627,9 @@ inline const char *espcontrol_i18n_key_de(const char *key) {
   if (std::strcmp(key, "label_switch") == 0) return "Schalter";
   if (std::strcmp(key, "label_lighting") == 0) return "Beleuchtung";
   if (std::strcmp(key, "label_camera") == 0) return "Kamera";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Nicht gemessen";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Nur Messwerte";
+  if (std::strcmp(key, "power_stale") == 0) return "Veraltet";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -6868,6 +6907,9 @@ inline const char *espcontrol_i18n_key_es(const char *key) {
   if (std::strcmp(key, "label_lighting") == 0) return "Iluminación";
   if (std::strcmp(key, "label_garage") == 0) return "Garaje";
   if (std::strcmp(key, "label_camera") == 0) return "Cámara";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Sin medición";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Solo lecturas";
+  if (std::strcmp(key, "power_stale") == 0) return "Obsoleto";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -7140,6 +7182,9 @@ inline const char *espcontrol_i18n_key_fi(const char *key) {
   if (std::strcmp(key, "label_garage") == 0) return "Autotalli";
   if (std::strcmp(key, "label_sensor") == 0) return "Anturi";
   if (std::strcmp(key, "label_camera") == 0) return "Kamera";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Ei mittausta";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Vain lukemat";
+  if (std::strcmp(key, "power_stale") == 0) return "Vanhentunut";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -7411,6 +7456,9 @@ inline const char *espcontrol_i18n_key_fr(const char *key) {
   if (std::strcmp(key, "label_lighting") == 0) return "Éclairage";
   if (std::strcmp(key, "label_sensor") == 0) return "Capteur";
   if (std::strcmp(key, "label_camera") == 0) return "Caméra";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Sans mesure";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Mesures seules";
+  if (std::strcmp(key, "power_stale") == 0) return "Périmé";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -8242,6 +8290,9 @@ inline const char *espcontrol_i18n_key_it(const char *key) {
   if (std::strcmp(key, "label_lighting") == 0) return "Illuminazione";
   if (std::strcmp(key, "label_sensor") == 0) return "Sensore";
   if (std::strcmp(key, "label_camera") == 0) return "Telecamera";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Non misurato";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Solo letture";
+  if (std::strcmp(key, "power_stale") == 0) return "Obsoleto";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -8768,6 +8819,9 @@ inline const char *espcontrol_i18n_key_nl(const char *key) {
   if (std::strcmp(key, "label_local_action") == 0) return "Lokale actie";
   if (std::strcmp(key, "label_switch") == 0) return "Schakelaar";
   if (std::strcmp(key, "label_lighting") == 0) return "Verlichting";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Niet gemeten";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Alleen waarden";
+  if (std::strcmp(key, "power_stale") == 0) return "Verouderd";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -9028,6 +9082,9 @@ inline const char *espcontrol_i18n_key_pl(const char *key) {
   if (std::strcmp(key, "label_garage") == 0) return "Garaż";
   if (std::strcmp(key, "label_sensor") == 0) return "Czujnik";
   if (std::strcmp(key, "label_camera") == 0) return "Kamera";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Brak pomiaru";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Tylko odczyty";
+  if (std::strcmp(key, "power_stale") == 0) return "Nieaktualne";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -9569,6 +9626,9 @@ inline const char *espcontrol_i18n_key_pt(const char *key) {
   if (std::strcmp(key, "label_lighting") == 0) return "Iluminação";
   if (std::strcmp(key, "label_garage") == 0) return "Garagem";
   if (std::strcmp(key, "label_camera") == 0) return "Câmara";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Sem medição";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Apenas leituras";
+  if (std::strcmp(key, "power_stale") == 0) return "Desatualizado";
   return espcontrol_i18n_key_en(key);
 }
 
@@ -10909,6 +10969,9 @@ inline const char *espcontrol_i18n_key_sv(const char *key) {
   if (std::strcmp(key, "label_switch") == 0) return "Strömbrytare";
   if (std::strcmp(key, "label_lighting") == 0) return "Belysning";
   if (std::strcmp(key, "label_camera") == 0) return "Kamera";
+  if (std::strcmp(key, "power_no_measurement") == 0) return "Ingen mätning";
+  if (std::strcmp(key, "power_readings_only") == 0) return "Endast värden";
+  if (std::strcmp(key, "power_stale") == 0) return "Inaktuellt";
   return espcontrol_i18n_key_en(key);
 }
 

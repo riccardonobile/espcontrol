@@ -6675,8 +6675,9 @@ async function assertPowerDashboard(browser, testCase) {
     assert.equal(await page.locator("#sp-inp-label").inputValue(), "Power Dashboard");
     assert.equal(await page.locator("#sp-inp-power-invert_grid").isChecked(), false);
     assert.equal(await page.locator("#sp-inp-power-invert_battery").isChecked(), false);
-    await save.click();
-    await page.getByText("Choose a sensor entity (sensor.*) for Home power.", { exact: true }).waitFor();
+    assert.equal(await page.locator("#sp-inp-power-precision").count(), 0);
+    for (const name of ["home", "solar", "grid", "battery"])
+      assert(await page.locator("#sp-inp-power-include-" + name).isChecked());
     const home = page.locator("#sp-inp-power-entity");
     await home.fill("switch.home");
     await save.click();
@@ -6796,13 +6797,41 @@ async function assertPowerDashboard(browser, testCase) {
     assert.equal(await page.locator("#sp-inp-power-entity").inputValue(), "sensor.home");
     assert(await page.locator("#sp-inp-power-invert_grid").isChecked());
     assert(await page.locator("#sp-inp-power-invert_battery").isChecked());
-    await page.locator(".sp-settings-close").click();
+    const cardSettings = page.locator(".sp-settings-modal .sp-disclosure").filter({ hasText: "Card Settings" }).first();
+    if (!(await cardSettings.evaluate(el => el.classList.contains("sp-open")))) await cardSettings.locator(".sp-disclosure-button").click();
+    for (const name of ["solar", "battery"])
+      await page.locator("#sp-inp-power-include-" + name + " + .sp-toggle-track").click();
+    assert(await page.locator("#sp-inp-power-solar_entity").isDisabled());
+    assert(await page.locator("#sp-inp-power-battery_soc_entity").isDisabled());
+    await home.fill(""); // Installed but unmeasured Home remains explicit, not zero.
+    await save.click();
+    await page.waitForFunction(() => !document.querySelector(".sp-settings-overlay.sp-visible"));
+    await power.click();await page.getByRole("button", { name: "Edit", exact: true }).click();
+    assert.equal(await home.inputValue(), "");
+    assert(!(await page.locator("#sp-inp-power-include-solar").isChecked()));
+    assert(!(await page.locator("#sp-inp-power-include-battery").isChecked()));
+    if (!(await cardSettings.evaluate(el => el.classList.contains("sp-open")))) await cardSettings.locator(".sp-disclosure-button").click();
+    for (const name of ["home", "grid"])
+      await page.locator("#sp-inp-power-include-" + name + " + .sp-toggle-track").click();
+    await save.click();
+    await page.getByText("Include at least one Power component.", { exact: true }).waitFor();
+    for (const name of ["solar", "home", "grid", "battery"])
+      await page.locator("#sp-inp-power-include-" + name + " + .sp-toggle-track").click();
+    await home.fill("sensor.home");
+    assert.equal(await page.locator("#sp-inp-power-solar_entity").inputValue(), "sensor.solar");
+    await save.click();
+    await page.waitForFunction(() => !document.querySelector(".sp-settings-overlay.sp-visible"));
     if (testCase.slug === "esp32-p4-86") {
-      // A legacy 1-column Power next to an occupied card must never expand over it.
-      await page.evaluate(() => window.__seedEspState([
+      // Isolate the legacy device snapshot from the preceding local saves;
+      // those still await acknowledgements in this synthetic transport.
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.waitForFunction(() => window.__eventSources?.length > 0);
+      await page.evaluate(events => window.__seedEspState(events.concat([
+        { id: "text-button_1_config", state: "sensor.home;Reloaded Power;Auto;Auto;;;power;;solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,invert_grid,invert_battery" },
         { id: "text-button_2_config", state: "light.neighbor;Protected neighbor;Auto;Auto;;;;;" },
         { id: "text-button_order", state: "1,2" },
-      ]));
+      ])), seededEvents());
+      await power.waitFor();
       assert(await power.locator(".sp-sensor-preview").count()===0);
       await power.click();await page.getByRole("button",{name:"Edit",exact:true}).click();
       const labelSection = page.locator(".sp-disclosure").filter({has: page.locator("#sp-inp-label")});
