@@ -285,7 +285,7 @@ struct Model {
     capabilities = value;
     calculation = calculate(readings, polarity, capabilities);
   }
-  // The future card owner calls this on disconnect/replacement before rebinding.
+  // The card owner clears retained readings on disconnect before replay/rebind.
   void invalidate() {
     readings = {};
     battery_soc = {};

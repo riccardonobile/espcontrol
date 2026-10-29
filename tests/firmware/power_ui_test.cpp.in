@@ -12,6 +12,9 @@
 #include "display_color.h"
 #include "button_grid_modal_layout.h"
 
+#ifndef ESPCONTROL_POWER_DIAGNOSTICS
+#define ESPCONTROL_POWER_DIAGNOSTICS 1
+#endif
 std::vector<std::string> diagnostic_logs;
 template<class... Args> void test_log(const char *tag,const char *format,Args... args){
   if(std::string(tag)!="power_diag"&&std::string(tag)!="power_balance")return;
@@ -382,8 +385,8 @@ int main(){
   advance(99);assert(batch_ui.values[1]->text=="1000 W");
   advance(1);assert(batch_ui.values[1]->text=="1200 W"&&batch_ui.status->flags&LV_OBJ_FLAG_HIDDEN);
   assert(timers.empty());
-  assert(std::any_of(diagnostic_logs.begin(),diagnostic_logs.end(),[](const auto &s){return s.find("source=callback state=1 watts=[1500.00,1200.00,0.00,-500.00]")==0;}));
-  assert(std::any_of(diagnostic_logs.begin(),diagnostic_logs.end(),[](const auto &s){return s.find("source=publish state=2 watts=[1500.00,1200.00,0.00,-300.00]")==0;}));
+  if (POWER_DIAGNOSTICS) assert(std::any_of(diagnostic_logs.begin(),diagnostic_logs.end(),[](const auto &s){return s.find("source=callback state=1 watts=[1500.00,1200.00,0.00,-500.00]")==0;}));
+  if (POWER_DIAGNOSTICS) assert(std::any_of(diagnostic_logs.begin(),diagnostic_logs.end(),[](const auto &s){return s.find("source=publish state=2 watts=[1500.00,1200.00,0.00,-300.00]")==0;}));
   // Persistent discrepancy is visible at the original deadline despite more callbacks.
   publish("sensor.h","2000","",false);advance(100);
   publish("sensor.h","2100","",false);advance(100);
@@ -472,24 +475,25 @@ int main(){
 
     auto count_stage=[](const char *prefix){return std::count_if(diagnostic_logs.begin(),diagnostic_logs.end(),[&](const auto &s){return s.find(prefix)==0;});};
     assert(ui.diagnostic_updates==1);
+    const int emitted = POWER_DIAGNOSTICS ? 1 : 0;
     const int update_logs=count_stage("stage=model.update.begin");
     const int live_objects=objects;
     for(int update=0;update<8;++update)power_flow_update(card);
-    assert(ui.diagnostic_updates==3&&count_stage("stage=model.update.begin")==update_logs+2);
+    assert(ui.diagnostic_updates==3&&count_stage("stage=model.update.begin")==update_logs+2*emitted);
     assert(objects==live_objects&&subscriptions==10);
     const int geometry_logs=count_stage("bounds=battery.soc");
     const int overlay_begin=count_stage("stage=overlay.first_draw.begin");
     const int overlay_end=count_stage("stage=overlay.first_draw.post");
     send(ui.shell.overlay,LV_EVENT_DRAW_MAIN_BEGIN);send(ui.shell.overlay,LV_EVENT_DRAW_POST_END);
     send(ui.shell.overlay,LV_EVENT_DRAW_MAIN_BEGIN);send(ui.shell.overlay,LV_EVENT_DRAW_POST_END);
-    assert(count_stage("stage=overlay.first_draw.begin")==overlay_begin+1);
-    assert(count_stage("stage=overlay.first_draw.post")==overlay_end+1);
-    assert(count_stage("bounds=battery.soc")==geometry_logs+1);
-    assert(std::find(diagnostic_logs.begin(),diagnostic_logs.end(),"stage=open.ready item=-1")!=diagnostic_logs.end());
+    assert(count_stage("stage=overlay.first_draw.begin")==overlay_begin+emitted);
+    assert(count_stage("stage=overlay.first_draw.post")==overlay_end+emitted);
+    assert(count_stage("bounds=battery.soc")==geometry_logs+emitted);
+    if (POWER_DIAGNOSTICS) assert(std::find(diagnostic_logs.begin(),diagnostic_logs.end(),"stage=open.ready item=-1")!=diagnostic_logs.end());
     const int path_begin=count_stage("stage=path.draw.begin item=0");
     send(ui.lines[0],LV_EVENT_DRAW_MAIN);
-    assert(count_stage("stage=path.draw.begin item=0")==path_begin+1);
-    send(ui.lines[0],LV_EVENT_DRAW_MAIN);assert(count_stage("stage=path.draw.begin item=0")==path_begin+1);
+    assert(count_stage("stage=path.draw.begin item=0")==path_begin+emitted);
+    send(ui.lines[0],LV_EVENT_DRAW_MAIN);assert(count_stage("stage=path.draw.begin item=0")==path_begin+emitted);
     drawn_lines.clear();drawn_arcs.clear();send(ui.lines[0],LV_EVENT_DRAW_MAIN);
     assert(drawn_lines.size()==2&&drawn_arcs.size()==1);
     assert(drawn_arcs[0].end_angle-drawn_arcs[0].start_angle==90);
@@ -779,6 +783,7 @@ int main(){
   assert(ui.details[2]->text=="Importing"&&ui.status->text==espcontrol_i18n("Readings only"));
   for(auto *line:ui.lines)assert(line->flags&LV_OBJ_FLAG_HIDDEN);
   lv_obj_del(unmeasured.btn);assert(subscriptions==0&&objects==0&&timers.empty());
+  if (!POWER_DIAGNOSTICS) assert(diagnostic_logs.empty());
 
 
 }

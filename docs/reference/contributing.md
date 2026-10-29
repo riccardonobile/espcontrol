@@ -31,10 +31,18 @@ Set up the Python dependencies in a virtual environment to match CI:
 python3 -m venv .venv
 . .venv/bin/activate
 . .github/esphome.env
-python -m pip install "esphome==${ESPHOME_VERSION}" "tzdata==2026.3"
-export PYTHONTZPATH="$(python -c 'import pathlib, tzdata; print(pathlib.Path(tzdata.__file__).parent / "zoneinfo")')"
+python -m pip install "esphome==${ESPHOME_VERSION}"
+python3 -m venv .venv-tzdata
+.venv-tzdata/bin/python -m pip install "tzdata==2026.3"
+TZDATA_SITE="$(.venv-tzdata/bin/python -c 'import site; print(site.getsitepackages()[0])')"
+export PYTHONPATH="${TZDATA_SITE}${PYTHONPATH:+:${PYTHONPATH}}"
+export PYTHONTZPATH="${TZDATA_SITE}/tzdata/zoneinfo"
 npm run prepare:ci
 ```
+
+CI isolates its pinned timezone test data from ESPHome's Python dependencies.
+Keep these environments separate: ESPHome 2026.10 requires newer `tzdata` than
+the timezone-check fixtures, so installing both pins in one environment conflicts.
 
 The preparation command performs a clean install from the lockfile, checks that
 the authored product definitions agree, and regenerates the device manifest,

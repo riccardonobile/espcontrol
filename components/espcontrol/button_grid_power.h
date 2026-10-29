@@ -11,9 +11,14 @@
 #include "freertos/task.h"
 #endif
 
-// Bounded diagnostics retained for the hardware retest of the draw-stack fix.
-// No per-frame polling; remove after the physical open/close test passes.
+// Optional bounded hardware diagnostics; keep the normal draw path quiet.
+// Define ESPCONTROL_POWER_DIAGNOSTICS=1 when capturing stack/heap/layout evidence.
+#ifndef ESPCONTROL_POWER_DIAGNOSTICS
+#define ESPCONTROL_POWER_DIAGNOSTICS 0
+#endif
+constexpr bool POWER_DIAGNOSTICS = ESPCONTROL_POWER_DIAGNOSTICS != 0;
 inline void power_flow_diagnostic_stage(const char *stage, int item = -1) {
+  if (!POWER_DIAGNOSTICS) return;
 #ifdef ESP_PLATFORM
   ESP_LOGW("power_diag", "stage=%s item=%d task=%s core=%u stack_min_bytes=%u internal_free=%u internal_largest=%u psram_free=%u",
     stage, item, pcTaskGetName(nullptr), static_cast<unsigned>(xPortGetCoreID()),
@@ -26,6 +31,7 @@ inline void power_flow_diagnostic_stage(const char *stage, int item = -1) {
 #endif
 }
 inline void power_flow_diagnostic_bounds(const char *role, lv_obj_t *object, int item = -1) {
+  if (!POWER_DIAGNOSTICS) return;
   if (!object) return;
   lv_area_t bounds;
   lv_obj_get_coords(object, &bounds);
@@ -533,6 +539,7 @@ inline void power_flow_update_nodes(PowerFlowNodes &ui, PowerCardCtx *ctx) {
 // Bounded hardware evidence: callback ages are local arrival ages, not HA's
 // measurement timestamps. Record raw transitions as well as published snapshots.
 inline void power_flow_log_balance(PowerCardCtx *ctx, const char *source, bool published) {
+  if (!POWER_DIAGNOSTICS) return;
   auto &ui = power_flow_ui();
   if (!ctx || ui.card != ctx) return;
   const auto &calc = ctx->data.model.calculation;
