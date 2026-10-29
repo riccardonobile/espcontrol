@@ -81,6 +81,7 @@ lightning=Ukkonen
 lightning_and_rain=Ukkosta ja sadetta
 light=Valo
 loading=Ladataan
+loading_forecast=Loading forecast
 locate=Paikanna
 lock=Lukko
 lawn_mower=Ruohonleikkuri
@@ -152,6 +153,7 @@ relay=Rele
 returning=Palaa
 run_this_script=Suoritetaanko tämä skripti?
 screen_dimmed=Näyttö himmennetty
+screen_lock=Näytön lukitus
 screen_locked=Näyttö lukittu
 screen_unlocked=Näyttö avattu
 skip_next=Seuraava kappale
@@ -258,3 +260,48 @@ timer=Ajastin
 timer_confirm=Vahvista
 guest_wifi=Vieras-Wi-Fi
 wifi_did_not_change=Wi-Fi ei muuttunut
+power_dashboard=Power Dashboard
+charging=Charging
+discharging=Discharging
+importing=Importing
+exporting=Exporting
+
+solar=Solar
+grid=Grid
+battery=Battery
+inferred_flows=Inferred flows
+inconsistent_readings=Inconsistent readings
+connect_to_the_wifi_hotspot=Yhdistä WiFi-tukiasemaan
+to_configure_your_network=määrittääksesi verkkosi.
+then_visit_192_168_4_1_in_your_browser=Avaa sitten selaimessa 192.168.4.1
+
+screensaver=Näytönsäästäjä
+incorrect_pin=Väärä PIN
+
+forecast_unavailable=Forecast unavailable
+rain=Sade
+rain_chance=Rain chance
+rainfall=Rainfall
+wind=Wind
+humidity=Humidity
+last_forecast=Last forecast
+weekday_sun=su
+weekday_mon=ma
+weekday_tues=ti
+weekday_weds=ke
+weekday_thurs=to
+weekday_fri=pe
+weekday_sat=la
+
+# Default card labels (label_ keys use key-based lookup only)
+label_connect=Yhdistä
+label_local_action=Paikallinen toiminto
+label_switch=Kytkin
+label_lighting=Valaistus
+label_garage=Autotalli
+label_sensor=Anturi
+label_camera=Kamera
+
+power_no_measurement=Ei mittausta
+power_readings_only=Vain lukemat
+power_stale=Vanhentunut

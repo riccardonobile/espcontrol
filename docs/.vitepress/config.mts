@@ -1,34 +1,48 @@
 import { defineConfig } from 'vitepress'
-import { fileURLToPath } from 'node:url'
 import { faqSchema, hostname, jsonLd, writeRedirects } from './discovery'
-
-const materialWeb = (path: string) =>
-  fileURLToPath(new URL(`../../node_modules/esp-web-tools/node_modules/@material/web/${path}`, import.meta.url))
 
 const defaultImage = {
   url: `${hostname}images/home_screen_hero.jpg`,
-  width: '1024',
-  height: '798',
+  width: '1600',
+  height: '1288',
   type: 'image/jpeg',
 }
 
 const pageImages: Record<string, typeof defaultImage> = {
+  'screens/index.md': {
+    url: `${hostname}images/screens-hero.jpg`,
+    width: '1600',
+    height: '1131',
+    type: 'image/jpeg',
+  },
+  'screens/p4-86.md': {
+    url: `${hostname}images/p4-86-hero.jpg`,
+    width: '1600',
+    height: '1316',
+    type: 'image/jpeg',
+  },
+  'screens/jc8012p4a1.md': {
+    url: `${hostname}images/jc8012p4a1-hero.jpg`,
+    width: '1600',
+    height: '1177',
+    type: 'image/jpeg',
+  },
   'screens/4848s040.md': {
     url: `${hostname}images/4848s040-hero.jpg`,
-    width: '1024',
-    height: '999',
+    width: '1600',
+    height: '1167',
     type: 'image/jpeg',
   },
   'screens/jc1060p470.md': {
     url: `${hostname}images/jc1060p470-hero.jpg`,
-    width: '1024',
-    height: '798',
+    width: '1600',
+    height: '1137',
     type: 'image/jpeg',
   },
   'screens/jc4880p443.md': {
     url: `${hostname}images/jc4880p443-hero.jpg`,
-    width: '800',
-    height: '1024',
+    width: '1600',
+    height: '1228',
     type: 'image/jpeg',
   },
   'features/setup.md': {
@@ -38,10 +52,10 @@ const pageImages: Record<string, typeof defaultImage> = {
     type: 'image/png',
   },
   'features/subpages.md': {
-    url: `${hostname}images/screen-subpage.png`,
-    width: '1024',
-    height: '606',
-    type: 'image/png',
+    url: `${hostname}images/4848s040-subpage.jpg`,
+    width: '1600',
+    height: '1238',
+    type: 'image/jpeg',
   },
   'features/relays.md': {
     url: `${hostname}images/relay-controls.svg`,
@@ -163,22 +177,6 @@ export default defineConfig({
   srcExclude: ['generated/**'],
   markdown: { config: faqSchema },
   buildEnd: ({ outDir }) => writeRedirects(outDir),
-
-  // ESP Web Tools 10.4.0 still imports the generated .js stylesheet names from
-  // Material Web 2.4.1. Material Web 2.5.0 publishes those modules as .cssresult.js.
-  vite: {
-    plugins: [
-      {
-        name: 'material-web-25-installer-styles',
-        enforce: 'pre',
-        resolveId(source) {
-          const match = source.match(/^@material\/web\/(.+\/internal\/.+styles)\.js$/)
-          if (!match) return
-          return materialWeb(`${match[1]}.cssresult.js`)
-        },
-      },
-    ],
-  },
 
   sitemap: {
     hostname,
@@ -323,6 +321,7 @@ export default defineConfig({
     nav: [
       { text: 'Choose a Screen', link: '/screens/' },
       { text: 'Install', link: '/getting-started/install' },
+      { text: 'Configure', link: '/features/setup' },
       { text: 'Guides', link: '/guides/' },
       { text: 'FAQ', link: '/reference/faq' },
       { text: 'GitHub', link: 'https://github.com/jtenniswood/espcontrol' },
@@ -333,16 +332,12 @@ export default defineConfig({
         text: 'Getting Started',
         items: [
           { text: 'Overview', link: '/' },
-          { text: 'Choose a Screen', link: '/screens/' },
           { text: 'Install', link: '/getting-started/install' },
           { text: 'Enable Actions', link: '/getting-started/home-assistant-actions' },
-          { text: 'Configure', link: '/features/setup' },
-          { text: 'Guides', link: '/guides/' },
-          { text: 'Troubleshooting', link: '/getting-started/troubleshooting' },
         ],
       },
       {
-        text: 'Supported Screens',
+        text: 'Choose a Screen', link: '/screens/',
         items: [
           {
             text: '10.1-inch JC8012P4A1',
@@ -365,6 +360,7 @@ export default defineConfig({
           },
           {
             text: '4.3-inch JC4880P443',
+            collapsed: true,
             items: [
               { text: 'Original', link: '/screens/jc4880p443' },
               { text: 'V3', link: '/screens/jc4880p443-v3' },
@@ -376,11 +372,16 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Configuring',
+        text: 'Configure',
         items: [
-          { text: 'Setup', link: '/features/setup' },
-          { text: 'Subpages', link: '/features/subpages' },
-          { text: 'Speaker Groups', link: '/features/speaker-groups' },
+          { text: 'Configure Your Device', link: '/features/setup' },
+          { text: 'Appearance', link: '/features/appearance' },
+          { text: 'Display', link: '/settings/display' },
+          { text: 'Sleep & Schedule', link: '/settings/sleep' },
+          { text: 'System settings', link: '/settings/system' },
+          { text: 'Built-in Relays', link: '/features/relays' },
+          { text: 'Immich Photos', link: '/immich/' },
+          { text: 'Practical Guides', link: '/guides/' },
         ],
       },
       {
@@ -393,7 +394,6 @@ export default defineConfig({
           { text: 'Climate', link: '/card-types/climate' },
           { text: 'Cover', link: '/card-types/covers' },
           { text: 'Date & Time', link: '/card-types/calendar' },
-          { text: "Timer", link: "/card-types/timers" },
           { text: 'Doors & Windows', link: '/card-types/doors-windows' },
           { text: 'Fans', link: '/card-types/fans' },
           { text: 'Garage Door', link: '/card-types/garage-doors' },
@@ -402,16 +402,17 @@ export default defineConfig({
           { text: 'Lawn Mower', link: '/card-types/lawn-mower' },
           { text: 'Lights', link: '/card-types/lights' },
           { text: 'Local Action', link: '/card-types/local-actions' },
+          { text: 'Local Sensor', link: '/card-types/local-sensors' },
           { text: 'Lock', link: '/card-types/locks' },
           { text: 'Media', link: '/card-types/media' },
           { text: 'Option Select', link: '/card-types/option-select' },
           { text: 'Presence', link: '/card-types/presence' },
           { text: 'Screen Lock', link: '/card-types/screen-lock' },
           { text: 'Sensor', link: '/card-types/sensors' },
-          { text: 'Local Sensor', link: '/card-types/local-sensors' },
           { text: 'Slider', link: '/card-types/sliders' },
           { text: 'Subpage', link: '/features/subpages' },
           { text: 'Switch', link: '/card-types/switches' },
+          { text: 'Timer', link: '/card-types/timers' },
           { text: 'Trigger', link: '/card-types/buttons' },
           { text: 'Weather', link: '/card-types/weather' },
           { text: 'Webhook', link: '/card-types/webhooks' },
@@ -420,70 +421,13 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Settings',
-        items: [
-          { text: '<span class="sidebar-static-header">Display</span>' },
-          { text: 'Appearance', link: '/features/appearance' },
-          { text: 'Backlight', link: '/features/backlight' },
-          { text: 'Clock Bar', link: '/features/clock-bar' },
-          { text: 'Battery', link: '/features/battery' },
-          { text: 'Rotation', link: '/features/rotation' },
-          { text: '<span class="sidebar-static-header">Sleep & Schedule</span>' },
-          { text: 'Idle', link: '/features/idle' },
-          { text: 'Screensaver', link: '/features/screensaver' },
-          { text: 'Media Cover Art', link: '/features/media-cover-art' },
-          { text: 'Night Schedule', link: '/features/screen-schedule' },
-          { text: '<span class="sidebar-static-header">System</span>' },
-          { text: 'Language', link: '/features/language' },
-          { text: 'Time Settings', link: '/features/clock' },
-          { text: 'Temperature Settings', link: '/features/temperature' },
-          { text: 'Device Name', link: '/features/setup#naming-your-panel' },
-          { text: 'Backup', link: '/features/backup' },
-          { text: 'Factory Reset', link: '/features/backup#reset-the-display' },
-          { text: 'Firmware', link: '/features/firmware-updates' },
-          { text: 'Built-in Relays', link: '/features/relays' },
-        ],
-      },
-      {
-        text: 'Immich Photos',
-        items: [
-          { text: 'Overview', link: '/immich/' },
-          { text: 'Installation', link: '/immich/installation' },
-          { text: 'Connect to EspControl', link: '/immich/display-setup' },
-          { text: 'Using Your Frame', link: '/immich/using-your-frame' },
-          { text: 'Settings Reference', link: '/immich/settings-reference' },
-          { text: 'Home Assistant Entities', link: '/immich/entities' },
-          { text: 'Browser & API Add-on', link: '/immich/add-on' },
-          { text: 'Compatibility', link: '/immich/compatibility' },
-        ],
-      },
-      {
-        text: 'Advanced',
-        items: [
-          { text: 'Manual Setup', link: '/getting-started/manual-esphome-setup' },
-          { text: 'Wifi Issues', link: '/getting-started/c6-recovery' },
-        ],
-      },
-      {
         text: 'Reference',
         items: [
           { text: 'FAQ', link: '/reference/faq' },
-          { text: 'Card Capabilities', link: '/reference/card-capabilities' },
-          { text: 'Icon Reference', link: '/reference/icons' },
-          { text: 'Language Support', link: '/reference/language-support' },
-        ],
-      },
-      {
-        text: 'Community',
-        items: [
-          {
-            text: 'Contributing',
-            link: '/reference/contributing',
-            collapsed: true,
-            items: [
-              { text: 'Collect USB Logs', link: '/reference/collect-usb-logs' },
-            ],
-          },
+          { text: 'Troubleshooting', link: '/getting-started/troubleshooting' },
+          { text: 'Collect USB Logs', link: '/reference/collect-usb-logs' },
+          { text: 'Manual Setup', link: '/getting-started/manual-esphome-setup' },
+          { text: 'Contributing', link: '/reference/contributing' },
         ],
       },
       {

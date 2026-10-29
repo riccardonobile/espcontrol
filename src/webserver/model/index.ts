@@ -52,9 +52,14 @@ export {
   decodeConfigField,
   encodeConfigField,
   legacyButtonConfigSafe,
+  activeCardColor,
+  lighterCardColor,
+  normalizedCardColorOptions,
+  setCardColor,
   setConfigOption,
   setConfigOptionValue,
   trimConfigFields,
+  withoutCardColorOptions,
 } from "./config_primitives";
 
 export {
@@ -103,6 +108,7 @@ export {
   serializeLegacySubpageConfig,
   serializeSubpageGrid,
   splitSubpageConfigChunks,
+  utf8ByteLength,
   structuredSubpageFromParsed,
   subpageOrderForSerialize,
 } from "./subpage";
@@ -136,6 +142,7 @@ export {
   normalizeScheduleWakeTimeout,
   normalizeScreensaverAction,
   normalizeScreensaverCameraImageMode,
+  normalizeScreensaverCameraDimming,
   normalizeScreensaverDimmedBrightness,
   normalizeTemperatureUnit,
   normalizeTimeOfDay,

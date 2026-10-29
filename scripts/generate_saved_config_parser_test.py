@@ -43,8 +43,7 @@ def generate() -> str:
         "",
         "struct lv_obj_t {};",
         "inline void lv_label_set_text(lv_obj_t *, const char *) {}",
-        "inline const char *espcontrol_i18n(const char *text) { return text ? text : \"\"; }",
-        "inline std::string espcontrol_i18n(const std::string &text) { return text; }",
+        '#include "i18n_generated.h"',
         '#include "button_grid_config_parser.h"',
         "#define ESPCONTROL_SUBPAGE_PARSER_ONLY",
         '#include "button_grid_subpages.h"',
@@ -118,6 +117,14 @@ def generate() -> str:
             '  assert(media_config.playlist_content_type == "playlist");',
             '  assert(media_config.playlist_player_source == "Kitchen, Main");',
             "  assert(media_config.large_numbers);",
+            "  // Power's nine-field contract survives actual subpage normalization.",
+            '  const auto subpage_power = normalize_subpage_btn({"sensor.home", "My Power", "Auto", "Wrong", "unused", "kWh", "power", "2", "grid_entity=sensor.grid,solar_entity=sensor.solar,battery_entity=sensor.battery,battery_soc_entity=sensor.soc,invert_grid,invert_battery,unknown=1,card_off_color=FFFFFF,card_active_color=custom,card_on_color=112233"});',
+            '  assert(subpage_power.entity == "sensor.home" && subpage_power.label == "My Power");',
+            '  assert(subpage_power.type == "power" && subpage_power.precision == "2");',
+            '  assert(subpage_power.sensor.empty() && subpage_power.unit.empty());',
+            '  assert(subpage_power.icon_on == "Auto");',
+            '  assert(subpage_power.options == "solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,battery_soc_entity=sensor.soc,invert_grid,invert_battery,card_off_color=FFFFFF,card_active_color=custom,card_on_color=112233");',
+            '  assert(compact_subpage_type("PW") == "power");',
             '  ParsedCfg legacy_media{"", "", "", "", "controls", "", "media", "state", "volume_max=0"};',
             "  const auto legacy_media_config = espcontrol::media::decode_config_v1(legacy_media);",
             "  assert(legacy_media_config.mode == espcontrol::media::Mode::PLAY_PAUSE);",
@@ -139,6 +146,47 @@ def generate() -> str:
             "  assert(subpage_image_hidden.options.empty());",
         )
     )
+    # Custom colours must survive subpage normalization before becoming ParsedCfg.
+    colour_cases = (
+        ("card_off_color=#ff8c00,card_on_color=3F51B5", "FF8C00", "", ""),
+        ("card_on_color=#6633b9", "6633B9", "", ""),
+        ("card_off_color=000000", "000000", "", ""),
+        ("card_off_color=invalid,card_on_color=00BBD5", "00BBD5", "", ""),
+        ("card_off_color=invalid,card_on_color=bad", "", "", ""),
+        ("card_off_color=6633B9,card_active_color=theme", "6633B9", "theme", ""),
+        ("card_off_color=6633B9,card_active_color=custom,card_on_color=#00bcd4", "6633B9", "custom", "00BCD4"),
+        ("card_active_color=custom,card_on_color=000000", "", "custom", "000000"),
+        ("card_active_color=custom,card_on_color=bad", "", "custom", ""),
+        ("card_active_color=theme", "", "theme", ""),
+    )
+    for card_type in ("", "light_switch", "light_control", "fan_switch", "fan_control",
+                      "sensor", "media", "climate", "cover", "alarm", "weather",
+                      "calendar", "action", "presence"):
+        for colour_options, expected_colour, expected_mode, expected_on in colour_cases:
+            options = ("large_numbers=off," if card_type == "sensor" else "") + colour_options
+            encodings = (
+                "1,B|light.kitchen:Kitchen:Auto:Auto:::" + card_type + "::" + options,
+                "~1,B|" + card_type + ",light.kitchen,Kitchen,,,,,," + quote(options, safe=""),
+            )
+            for encoded in encodings:
+                lines.extend((
+                    "  { // Subpage custom colours: " + (card_type or "toggle"),
+                    f"    const auto buttons = parse_subpage_config({cpp_string(encoded)});",
+                    "    assert(buttons.size() == 1);",
+                    f'    assert(cfg_option_value(buttons[0].options, "card_off_color") == {cpp_string(expected_colour)});',
+                    f'    assert(cfg_option_value(buttons[0].options, "card_on_color") == {cpp_string(expected_on)});',
+                    f'    assert(cfg_option_value(buttons[0].options, "card_active_color") == {cpp_string(expected_mode)});',
+                    "    const auto config = parsed_cfg_from_subpage_btn(buttons[0]);",
+                    f'    assert(cfg_option_value(config.options, "card_off_color") == {cpp_string(expected_colour)});',
+                    f'    assert(cfg_option_value(config.options, "card_on_color") == {cpp_string(expected_on)});',
+                    f'    assert(cfg_option_value(config.options, "card_active_color") == {cpp_string(expected_mode)});',
+                ))
+                if card_type == "sensor":
+                    lines.extend((
+                        '    assert(cfg_option_value(buttons[0].options, "large_numbers") == "off");',
+                        '    assert(cfg_option_value(config.options, "large_numbers") == "off");',
+                    ))
+                lines.append("  }")
     # Issue 1946: both Wi-Fi card styles must retain options on subpages.
     for card_type in ("wifi_qr", "wifi_qr_card"):
         for security in ("wpa", "open"):
@@ -225,6 +273,70 @@ def generate() -> str:
             '  assert(issue_248_buttons.back().sensor == "binary_sensor.kitchen_window_sensor_opening");',
         )
     )
+    # Exercise the real catalogue and parser under a non-English language.
+    # Recognize serialized editor defaults; preserve distinct custom labels.
+    lines.extend((
+        '  set_espcontrol_language("de");',
+        '  assert(parse_cfg(";;;;;;wifi_qr").label == "Verbinden");',
+        '  assert(parse_cfg(";;;;;;wifi_qr_card").label == "Verbinden");',
+        '  assert(parse_cfg(";Connect;;;;;wifi_qr").label == "Verbinden");',
+        '  assert(parse_cfg(";Guest Wi-Fi;;;;;wifi_qr").label == "Guest Wi-Fi");',
+        '  assert(parse_cfg(";;;;;;subpage;;subpage_kind=lights").label == "Beleuchtung");',
+        '  assert(parse_cfg(";Lighting;;;;;subpage;;subpage_kind=lights").label == "Beleuchtung");',
+        '  assert(parse_cfg(";;;;volume;;media").label == "Lautstärke");',
+        '  assert(parse_cfg(";Media;;;volume;;media").label == "Lautstärke");',
+        '  assert(parse_cfg(";Kitchen;;;volume;;media").label == "Kitchen");',
+        '  assert(parse_cfg(";Skip Next;;;next;;media").label == "Weiter");',
+        '  assert(parse_cfg(";Track;;;position;;media").label == "Position");',
+        '  auto translated_media = parse_subpage_config("1|media_player.room::::volume::media");',
+        '  assert(translated_media.size() == 1 && translated_media[0].label == "Lautstärke");',
+        '  auto translated_alarm = parse_subpage_config("1|alarm_control_panel.home::::disarm::alarm_action");',
+        '  assert(translated_alarm.size() == 1 && translated_alarm[0].label == "Entschärfen");',
+        '  assert(std::string(espcontrol_i18n_key("label_local_action")) == "Lokale Aktion");',
+    ))
+    # Both compact and legacy encodings must handle the editor's saved labels.
+    for card_type in ("wifi_qr", "wifi_qr_card"):
+        for label, expected in (("Connect", "Verbinden"), ("Visitor network", "Visitor network")):
+            for config in (f"1|:{label}:Wifi:Auto:::{card_type}",
+                           f"~1|{card_type},,{quote(label, safe='')},Wifi,Auto"):
+                lines.extend((
+                    "  {",
+                    f"    const auto buttons = parse_subpage_config({cpp_string(config)});",
+                    "    assert(buttons.size() == 1);",
+                    f"    assert(parsed_cfg_from_subpage_btn(buttons[0]).label == {cpp_string(expected)});",
+                    "  }",
+                ))
+    for kind, label, expected in (
+        ("switch", "Switch", "Schalter"), ("lights", "Lighting", "Beleuchtung"),
+        ("garage", "Garage", "Garage"), ("sensor", "Sensor", "Sensor"),
+        ("image", "Camera", "Kamera"),
+    ):
+        for name, translated in ((label, expected), ("My " + label, "My " + label)):
+            lines.append(f'  assert(parse_cfg({cpp_string(";" + name + ";;;;;subpage;;subpage_kind=" + kind)}).label == {cpp_string(translated)});')
+            for config in (f"1|:{name}:Auto:Auto:::subpage::subpage_kind={kind}",
+                           f"~1|subpage,,{quote(name, safe='')},Auto,Auto,,,,subpage_kind%3D{kind}"):
+                lines.extend((
+                    "  {",
+                    f"    const auto buttons = parse_subpage_config({cpp_string(config)});",
+                    "    assert(buttons.size() == 1);",
+                    f"    assert(parsed_cfg_from_subpage_btn(buttons[0]).label == {cpp_string(translated)});",
+                    "  }",
+                ))
+    for mode, label, expected in (("home", "Arm Home", "Zuhause scharfschalten"),
+                                  ("away", "Arm Away", "Abwesend scharfschalten"),
+                                  ("disarm", "Disarm", "Entschärfen")):
+        for name, translated in ((label, expected), ("Custom action", "Custom action")):
+            for config in (f"1|alarm_control_panel.home:{name}:Security:Auto:{mode}::alarm_action",
+                           f"~1|alarm_action,alarm_control_panel.home,{quote(name, safe='')},Security,Auto,{mode}"):
+                lines.extend((
+                    "  {",
+                    f"    const auto buttons = parse_subpage_config({cpp_string(config)});",
+                    "    assert(buttons.size() == 1);",
+                    f"    assert(buttons[0].label == {cpp_string(translated)});",
+                    f"    assert(parsed_cfg_from_subpage_btn(buttons[0]).label == {cpp_string(translated)});",
+                    "  }",
+                ))
+    lines.append('  set_espcontrol_language("en");')
     lines.extend(("  return 0;", "}", ""))
     return "\n".join(lines)
 

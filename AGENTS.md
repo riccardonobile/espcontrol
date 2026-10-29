@@ -34,3 +34,26 @@
 - If firmware needs flashing, name the affected display or device in the PR body.
 - Distinguish automated checks from physical device testing. A compile/build pass is not the same as user-confirmed device testing.
 - Use the automated PR testing guidance as the starting point for the PR body whenever it is available.
+
+## Native EspControl UI Consistency
+
+- Before adding UI, inspect the equivalent native EspControl cards, labels,
+  measurements, modal surfaces and navigation. Reuse their helpers rather than
+  approximating them with feature-specific styling.
+- Match styling to semantics: passive information cards use non-interactive
+  surfaces; action/navigation cards use native touch feedback; Back follows the
+  existing pattern for its context. Do not add interactive states to passive UI.
+- Support Dark, Light and Auto through existing semantic roles and theme helpers,
+  including refresh while a view is open. New colors or palette roles need a
+  clear reason; do not change the global theme to solve a feature-local issue.
+- Use native font roles, measurement/unit alignment, label hierarchy and overflow
+  behavior. Do not add fonts or arbitrary per-value size fallbacks to fit text.
+- Reuse grid/profile margins, gaps and responsive layouts so views align with
+  Home/subpages. Preserve unaffected profiles; avoid device-specific magic
+  offsets and decorative parent containers.
+- Account for LVGL draw-stack depth, internal heap/PSRAM, bounded allocations,
+  object ownership, event/HA callback cleanup and theme refresh across repeated
+  opening/closing. Prefer minimal changes that preserve approved behavior.
+- Test affected profiles and representative native components when shared UI
+  helpers change. Check resolved LVGL styles/bounds where relevant; passing host
+  tests alone does not establish visual equivalence or physical acceptance.
