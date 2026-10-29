@@ -288,6 +288,18 @@ inline int power_flow_text_width(const char *text, const lv_font_t *font) {
   lv_text_get_size(&size, text, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
   return size.x;
 }
+// Legacy portrait nodes retain their approved narrow envelopes. Only the new
+// installed-but-unmeasured caption needs an explicit native overflow bound.
+inline void power_flow_limit_unmeasured(PowerFlowNodes &ui, PowerCardCtx *ctx, size_t i) {
+  if (!ui.legacy_rows || ctx->data.model.calculation.nodes[i].validity !=
+      espcontrol::power::ReadingValidity::UNMEASURED) return;
+  const int width = lv_obj_get_width(ui.nodes[i]);
+  if (width <= 0) return;
+  const int soc_width = i == 3 && ctx->has_soc && ctx->data.model.battery_soc.valid()
+    ? power_flow_text_width("100% · ", lv_obj_get_style_text_font(ui.details[i], LV_PART_MAIN)) : 0;
+  lv_obj_set_style_max_width(ui.detail_rows[i], width, LV_PART_MAIN);
+  lv_obj_set_style_max_width(ui.details[i], std::max(1, width - soc_width), LV_PART_MAIN);
+}
 inline void power_flow_apply_surfaces(const ThemePalette &theme) {
   auto &ui = power_flow_ui();
   if (!ui.card) return;
@@ -490,6 +502,7 @@ inline void power_flow_layout() {
       ? std::max(1, this_width - soc_width) : LV_COORD_MAX, LV_PART_MAIN);
     lv_obj_set_pos(ui.nodes[i], node_x + std::lround(geometry.nodes[i].x - this_width / 2.0),
                     node_y + std::lround(geometry.nodes[i].y - this_height / 2.0));
+    power_flow_limit_unmeasured(ui, ui.card, i);
   }
   if (text_font) lv_obj_set_style_text_font(ui.soc, text_font, LV_PART_MAIN);
   lv_obj_set_height(ui.soc, text_h);
@@ -534,6 +547,7 @@ inline void power_flow_update_nodes(PowerFlowNodes &ui, PowerCardCtx *ctx) {
       power_flow_set_visible(ui.soc, available_soc);
     }
     power_set_text(ui.details[i], detail);
+    power_flow_limit_unmeasured(ui, ctx, i);
   }
 }
 // Bounded hardware evidence: callback ages are local arrival ages, not HA's

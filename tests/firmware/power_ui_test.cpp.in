@@ -780,6 +780,9 @@ int main(){
   power_flow_open(owner);auto &ui=power_flow_ui();
   assert(owner->data.model.calculation.validity==espcontrol::power::CalculationValidity::READINGS_ONLY);
   assert(ui.values[1]->text=="--"&&ui.details[1]->text==espcontrol_i18n("No measurement"));
+  assert(ui.detail_rows[1]->max_w==ui.nodes[1]->w);
+  assert(ui.details[1]->max_w<=ui.nodes[1]->w);
+  assert(ui.details[1]->mode==LV_LABEL_LONG_CLIP);
   assert(ui.details[2]->text=="Importing"&&ui.status->text==espcontrol_i18n("Readings only"));
   for(auto *line:ui.lines)assert(line->flags&LV_OBJ_FLAG_HIDDEN);
   lv_obj_del(unmeasured.btn);assert(subscriptions==0&&objects==0&&timers.empty());
