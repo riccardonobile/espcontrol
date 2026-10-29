@@ -1,4 +1,4 @@
-"""Compile production Power UI/driver and shared layout with bounded LVGL doubles."""
+"""Generate production Power UI checks for host doubles or native LVGL surfaces."""
 import argparse
 import re
 from pathlib import Path
@@ -6,6 +6,7 @@ from pathlib import Path
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--root', type=Path, required=True)
 parser.add_argument('--output', type=Path, required=True)
+parser.add_argument('--native-surface', action='store_true')
 args = parser.parse_args()
 headers = args.root / 'components/espcontrol'
 layout_source = (headers / 'button_grid_layout.h').read_text(encoding='utf-8')
@@ -44,5 +45,18 @@ sensor += '\nnamespace espcontrol::cards {\n' + function('sensor_driver_apply_ba
     (headers / 'button_grid_sensor_driver.h').read_text(encoding='utf-8')) + '\n}'
 modal_source = (headers / 'button_grid_modal.h').read_text(encoding='utf-8')
 modal_shell = re.search(r'struct ControlModalShell \{[\s\S]*?^\};', modal_source, re.M)[0]
+if args.native_surface:
+    power = (headers / 'button_grid_power.h').read_text(encoding='utf-8')
+    helpers = '\n'.join((
+        function('display_correct_color', display_source),
+        function('create_grid_card_button', (headers / 'button_grid_subpages.h').read_text(encoding='utf-8')),
+        'namespace espcontrol::cards {\n' + function('sensor_driver_apply_background',
+            (headers / 'button_grid_sensor_driver.h').read_text(encoding='utf-8')) + '\n}',
+        function('power_flow_apply_surfaces', power),
+    ))
+    template = Path(__file__).parent.parent / 'native_power_surface/power_surface_render_test.cpp.in'
+    args.output.write_text(template.read_text(encoding='utf-8').replace('// @surface_helpers', helpers), encoding='utf-8')
+    raise SystemExit(0)
+
 template = Path(__file__).with_name('power_ui_test.cpp.in').read_text(encoding='utf-8')
 args.output.write_text(template.replace('// @control_modal_shell', modal_shell).replace('// @display_font_roles', font_roles).replace('// @grid_config', grid_config).replace('// @small_text_helper', small_font).replace('// @production_helpers', 'inline void bind_card_text_contrast_events(lv_obj_t *);\n' + formatter + contrast + layout + sensor + theme_helpers).replace('// @navigation_helpers', 'namespace espcontrol::cards {\n' + nav_helpers + '\n}'), encoding='utf-8')

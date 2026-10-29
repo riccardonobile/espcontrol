@@ -426,7 +426,8 @@ int main(){
   assert(power_flow_ui().names[3]->font==&small_font);
   assert(slot.secondary_lbl->font==&label_font);
   control_modal_force_close_active();label_font.line_height=16;small_font.line_height=12;
-  // Continuous Home cards must not force a bitmap layer onto Power Flow.
+  // The native mask belongs only to the childless background; foregrounds
+  // remain shallow and the opaque shell prevents Home ghosting.
   card->continuous_corners=true;
   for(auto size: {std::array<int,2>{320,480},{480,480},{720,720},{1280,800},{800,480},{720,1280}}){
     card->display.modal.layout_family=size[0]==720&&size[1]==720
@@ -436,10 +437,12 @@ int main(){
     power_flow_open(card);assert(subscriptions==10&&title=="Power Dashboard");
     auto &ui=power_flow_ui();assert(ui.lines[0]->events[0].data==&ui.paths[0]);
     assert(refreshes.size()==1&&refreshes.count(ui.diagram));
-    assert(ui.shell.panel->bg==theme.surface_sensor&&ui.shell.panel->bg_opacity==LV_OPA_COVER);
+    assert(ui.shell.panel->bg==theme.background&&ui.shell.panel->bg_opacity==LV_OPA_COVER);
     assert(ui.shell.panel->radius==control_modal_card_radius(card->slot.btn)&&!ui.shell.panel->continuous);
     assert(!(ui.shell.panel->flags&LV_OBJ_FLAG_CLICKABLE));
-    assert(ui.diagram->bg_opacity==LV_OPA_TRANSP&&!(ui.diagram->flags&LV_OBJ_FLAG_CLICKABLE));
+    assert(ui.diagram->bg_opacity==LV_OPA_COVER&&!(ui.diagram->flags&LV_OBJ_FLAG_CLICKABLE));
+    assert(ui.diagram->continuous&&ui.diagram->children.empty());
+    assert(ui.area->parent==ui.shell.panel&&ui.status->parent==ui.shell.panel);
     // Compare the Flow fill against the production read-only Sensor driver,
     // not another hardcoded approximation of that role.
     const auto initial_theme=theme;
@@ -449,9 +452,9 @@ int main(){
       BtnSlot entity_slot{};entity_slot.btn=&native_entity;
       CardPalette palette;palette.has_sensor_color=true;palette.surface_sensor_val=surface;
       espcontrol::cards::sensor_driver_apply_background(entity_slot,palette);
-      assert(ui.shell.panel->bg==native_entity.bg);
-      assert(ui.shell.panel->state==LV_STATE_DEFAULT);
-      assert(!(ui.shell.panel->flags&(LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_CHECKABLE)));
+      assert(ui.diagram->bg==native_entity.bg);
+      assert(ui.diagram->state==LV_STATE_DEFAULT);
+      assert(!(ui.diagram->flags&(LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_CHECKABLE)));
     }
     theme=initial_theme;apply_current_theme();
     if(card->display.modal.layout_family==DisplayModalLayoutFamily::LARGE_SQUARE){
@@ -596,7 +599,11 @@ int main(){
       assert(ui.dashboard->children.size()==6); // Back + four readings + Flow: no mega-card wrapper
       assert(ui.shell.panel->bg==theme.background&&ui.shell.panel->radius==0);
       assert(ui.diagram->bg==theme.surface_sensor&&ui.diagram->bg_opacity==LV_OPA_COVER);
-      assert(!ui.diagram->continuous&&ui.diagram->padding==card->slot.btn->padding);
+      assert(ui.diagram->continuous&&ui.diagram->children.empty()&&ui.diagram->padding==card->slot.btn->padding);
+      assert(ui.area->parent==ui.shell.panel);
+      for(auto *path:ui.lines){int levels=0;for(auto *p=path;p&&p!=ui.shell.overlay;p=p->parent)++levels;
+        assert(levels==3); // path, unmasked area, opaque panel: two fewer draw ancestors
+      }
       assert(ui.dashboard->layout==LV_LAYOUT_GRID&&ui.diagram->gcols==3&&ui.diagram->grows==rows);
       assert(ui.dashboard->padding==0&&ui.dashboard->pad_column==card->grid_gap&&ui.dashboard->pad_row==card->grid_gap);
       // Home already reserves HUD/outer margins in the modal frame: first/last
@@ -619,13 +626,14 @@ int main(){
       lv_obj_get_coords(ui.nodes[2],&grid);
       assert(std::abs((solar.y1+solar.y2+battery.y1+battery.y2)/4.0-(paths.y1+paths.y2)/2.0)<=.5);
       assert(std::abs((home.x1+home.x2+grid.x1+grid.x2)/4.0-(paths.x1+paths.x2)/2.0)<=.5);
-      assert(ui.area->x+ui.area->w/2.0==ui.diagram->w/2.0);
-      assert(ui.area->y+ui.area->h/2.0==ui.diagram->h/2.0);
+      lv_area_t diagram_content;lv_obj_get_content_coords(ui.diagram,&diagram_content);
+      assert(paths.x1+paths.x2==diagram_content.x1+diagram_content.x2);
+      assert(paths.y1+paths.y2==diagram_content.y1+diagram_content.y2);
       lv_area_t back_bounds,diagram_bounds;
       lv_obj_get_coords(ui.back_area,&back_bounds);lv_obj_get_coords(ui.diagram,&diagram_bounds);
       assert(back_bounds.x2<diagram_bounds.x1);
       assert(ui.shell.close_btn->flags&LV_OBJ_FLAG_HIDDEN);
-      assert(ui.status->parent==ui.diagram&&ui.back_area->gcols==(rows==3?1:2));
+      assert(ui.status->parent==ui.shell.panel&&ui.back_area->gcols==(rows==3?1:2));
       assert(ui.back_slot.icon_lbl->text=="\U000F0141");
       assert(ui.back_slot.text_lbl->text==espcontrol_i18n("Back"));
       publish("sensor.b","-35000");publish("sensor.g","-1042");publish("sensor.soc","78");publish("sensor.soc","%","unit_of_measurement");

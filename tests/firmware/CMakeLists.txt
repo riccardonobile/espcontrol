@@ -26,6 +26,7 @@ add_custom_command(OUTPUT ${POWER_UI_TEST_SOURCE}
     ../../components/espcontrol/button_grid_subpages.h ../../components/espcontrol/theme_runtime_ui.h
     ../../components/espcontrol/button_grid_display.h ../../components/espcontrol/button_grid_grid.h
     ../../components/espcontrol/button_grid_modal.h
+    ../../components/espcontrol/button_grid_sensor_driver.h
   VERBATIM)
 add_executable(power_ui_test ${POWER_UI_TEST_SOURCE})
 target_compile_features(power_ui_test PRIVATE cxx_std_17)

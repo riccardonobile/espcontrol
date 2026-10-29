@@ -1,0 +1,125 @@
+#include "lvgl.h"
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cstdio>
+#include <vector>
+#include "button_grid_style.h"
+#include "src/misc/cache/instance/lv_image_cache.h"
+#include "src/misc/cache/instance/lv_image_header_cache.h"
+#include "button_grid_continuous_corners.h"
+
+struct BtnSlot { lv_obj_t *btn = nullptr; };
+struct DisplayProfile { struct { int red_percent=100, green_percent=100, blue_percent=100; } color; };
+struct PowerCardCtx { BtnSlot slot; DisplayProfile display; bool continuous_corners = true; };
+struct SurfaceUi {
+  PowerCardCtx *card = nullptr;
+  struct { bool large = false; } grid;
+  struct { lv_obj_t *panel = nullptr; } shell;
+  lv_obj_t *diagram = nullptr, *back_area = nullptr;
+};
+SurfaceUi ui;
+SurfaceUi &power_flow_ui() { return ui; }
+int control_modal_card_radius(lv_obj_t *source) { return lv_obj_get_style_radius(source, LV_PART_MAIN); }
+// @surface_helpers
+
+std::vector<uint16_t> pixels;
+int screen_width = 0;
+void flush(lv_display_t *display, const lv_area_t *area, uint8_t *data) {
+  const auto *source = reinterpret_cast<const uint16_t *>(data);
+  for (int y=area->y1; y<=area->y2; ++y)
+    for (int x=area->x1; x<=area->x2; ++x) pixels[y*screen_width+x] = *source++;
+  lv_display_flush_ready(display);
+}
+uint16_t sample(lv_obj_t *object, int numerator=1, int denominator=2) {
+  lv_area_t bounds; lv_obj_get_coords(object, &bounds);
+  const int x = bounds.x1 + lv_obj_get_width(object)*numerator/denominator;
+  const int y = bounds.y1 + lv_obj_get_height(object)*numerator/denominator;
+  return pixels[y*screen_width+x];
+}
+lv_obj_t *plain(lv_obj_t *parent, int x, int y, int w, int h) {
+  auto *object = lv_obj_create(parent);
+  lv_obj_remove_style_all(object);
+  lv_obj_clear_flag(object, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(object, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_pos(object,x,y); lv_obj_set_size(object,w,h);
+  return object;
+}
+int main() {
+  lv_init();
+  // Surface-sized fixtures complement the production layout/lifecycle tests.
+  for (const auto dimensions : {std::array<int,3>{1280,800,22}, {1024,600,32}, {720,720,35}, {480,800,26}}) {
+    screen_width=dimensions[0];const int height=dimensions[1], radius=dimensions[2];
+    pixels.assign(screen_width*height,0);
+    std::vector<uint16_t> buffer(screen_width*32);
+    auto *display=lv_display_create(screen_width,height);
+    lv_display_set_color_format(display,LV_COLOR_FORMAT_RGB565);
+    lv_display_set_buffers(display,buffer.data(),nullptr,buffer.size()*sizeof(uint16_t),LV_DISPLAY_RENDER_MODE_PARTIAL);
+    lv_display_set_flush_cb(display,flush);
+    for (bool continuous : {false,true}) for (bool calibrated : {false,true}) for(int cycle=0;cycle<3;++cycle) {
+      PowerCardCtx card;
+      card.continuous_corners=continuous;
+      if(calibrated)card.display.color={80,110,95};
+      auto *home=plain(lv_screen_active(),0,0,screen_width,height);
+      lv_obj_set_style_bg_opa(home,LV_OPA_COVER,LV_PART_MAIN);
+      card.slot.btn=create_grid_card_button(lv_screen_active(),radius,18,LV_FONT_DEFAULT,lv_color_hex(0),false);
+      lv_obj_add_flag(card.slot.btn,LV_OBJ_FLAG_HIDDEN);
+      auto *overlay=plain(lv_layer_top(),0,0,screen_width,height);
+      ui={};ui.card=&card;ui.grid.large=screen_width>height;
+      ui.shell.panel=plain(overlay,5,40,screen_width-10,height-45);
+      lv_obj_set_style_bg_opa(ui.shell.panel,LV_OPA_COVER,LV_PART_MAIN);
+      lv_obj_set_style_radius(ui.shell.panel,radius,LV_PART_MAIN);
+      auto *dashboard=plain(ui.shell.panel,0,0,screen_width-10,height-45);
+      const int left=ui.grid.large?(screen_width-10)*2/5:0;
+      ui.diagram=plain(dashboard,left,0,screen_width-10-left,height-45);
+      ui.back_area=ui.grid.large?card.slot.btn:nullptr;
+      // A foreground sibling must never enter the native background mask.
+      auto *foreground=plain(ui.shell.panel,left+80,80,8,8);
+      lv_obj_set_style_bg_color(foreground,lv_color_hex(0xFF8C00),LV_PART_MAIN);
+      lv_obj_set_style_bg_opa(foreground,LV_OPA_COVER,LV_PART_MAIN);
+      for (const auto *theme : {&DARK_THEME,&LIGHT_THEME,&DARK_THEME}) {
+        set_active_theme_palette(*theme);
+        power_flow_apply_surfaces(*theme);
+        lv_obj_set_style_bg_color(home,lv_color_hex(0xFF00FF),LV_PART_MAIN);
+        lv_obj_update_layout(overlay);lv_refr_now(display);
+        const auto flow=sample(ui.diagram,1,3);
+        assert(sample(foreground)==lv_color_to_u16(lv_color_hex(0xFF8C00)));
+        for (uint32_t accent : {0xFFFFFFu,0x001122u,0xFF8C00u}) {
+          lv_obj_set_style_bg_color(foreground,lv_color_hex(accent),LV_PART_MAIN);
+          lv_refr_now(display);
+          assert(sample(foreground)==lv_color_to_u16(lv_color_hex(accent)));
+        }
+        lv_obj_set_style_bg_color(home,lv_color_hex(0x00FF00),LV_PART_MAIN);
+        lv_refr_now(display);
+        assert(sample(ui.diagram,1,3)==flow); // no Home ghosting
+        assert(sample(foreground)==lv_color_to_u16(lv_color_hex(0xFF8C00)));
+        assert(lv_obj_get_child_count(ui.diagram)==0);
+        assert(!lv_obj_has_flag(ui.diagram,LV_OBJ_FLAG_CLICKABLE));
+        assert(lv_obj_get_state(ui.diagram)==LV_STATE_DEFAULT);
+        assert(!card_uses_continuous_corners(ui.shell.panel));
+        // Render the actual native card over the ordinary grid's page fill.
+        lv_obj_add_flag(overlay,LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_bg_color(home,lv_color_hex(theme->background),LV_PART_MAIN);
+        auto *sensor=create_grid_card_button(lv_screen_active(),radius,18,LV_FONT_DEFAULT,lv_color_hex(theme->text_primary),continuous);
+        lv_obj_set_pos(sensor,40,60);lv_obj_set_size(sensor,std::max(180,4*radius+4),std::max(150,4*radius+4));
+        lv_obj_clear_flag(sensor,LV_OBJ_FLAG_CLICKABLE);
+        BtnSlot slot{sensor};CardPalette palette;
+        palette.has_sensor_color=true;
+        palette.surface_sensor_val=display_correct_color(theme->surface_sensor,card.display);
+        espcontrol::cards::sensor_driver_apply_background(slot,palette);
+        lv_obj_update_layout(sensor);lv_refr_now(display);
+        const auto native=sample(sensor);
+        std::printf("%dx%d mask=%d calibrated=%d theme=%s Flow=%04x Sensor=%04x\n",
+          screen_width,height,continuous,calibrated,theme==&LIGHT_THEME?"Light":"Dark",flow,native);
+        std::fflush(stdout);
+        assert(flow==native);
+        lv_obj_delete(sensor);lv_obj_clear_flag(overlay,LV_OBJ_FLAG_HIDDEN);
+      }
+      lv_obj_delete(overlay);lv_obj_delete(card.slot.btn);lv_obj_delete(home);ui={};
+      assert(espcontrol::corners::mask_cache()==nullptr);
+    }
+    lv_display_delete(display);
+  }
+  set_active_theme_palette(DARK_THEME);
+  lv_deinit();
+}

@@ -304,10 +304,10 @@ inline void power_flow_apply_surfaces(const ThemePalette &theme) {
   auto &ui = power_flow_ui();
   if (!ui.card) return;
   const bool large = ui.grid.large && ui.back_area;
-  // Use the native read-only Sensor/Entity driver, not modal chrome colors.
-  // Compact keeps the existing panel as its single card; large views style
-  // the existing diagram, never a wrapper or an interactive button.
-  auto *surface = large ? ui.diagram : ui.shell.panel;
+  // The existing diagram is a background-only native Sensor surface. Keep
+  // foregrounds outside its corner-mask layer: LVGL 9.5's RGB565 compositing
+  // changes masked pixels even when the mask is nominally fully opaque.
+  auto *surface = ui.diagram;
   BtnSlot surface_slot{};
   surface_slot.btn = surface;
   CardPalette palette;
@@ -316,20 +316,19 @@ inline void power_flow_apply_surfaces(const ThemePalette &theme) {
   espcontrol::cards::sensor_driver_apply_background(surface_slot, palette);
   lv_obj_set_style_bg_opa(surface, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_clear_flag(surface, LV_OBJ_FLAG_CLICKABLE);
-  // Power Flow uses the native circular radius by user choice. LVGL 9.5's
-  // bitmap-mask blend reduces full alpha (255*255 >> 8) to 254, revealing
-  // Home through a compact masked panel. Avoid that layer for Flow only;
-  // native sidebar/Back cards retain their existing continuous corners.
-  apply_grid_card_corners(surface, control_modal_card_radius(ui.card->slot.btn), false);
+  apply_grid_card_corners(surface, control_modal_card_radius(ui.card->slot.btn),
+                          ui.card->continuous_corners);
+  // An opaque page backing prevents the native mask's 254-alpha interior
+  // from picking up Home. Reuse the shell, without adding a container.
+  lv_obj_set_style_bg_color(ui.shell.panel,
+    lv_color_hex(display_correct_color(theme.background, ui.card->display)), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(ui.shell.panel, LV_OPA_COVER, LV_PART_MAIN);
+  apply_grid_card_corners(ui.shell.panel,
+    large ? 0 : control_modal_card_radius(ui.card->slot.btn), false);
   if (large) {
-    lv_obj_set_style_bg_color(ui.shell.panel,
-      lv_color_hex(display_correct_color(theme.background, ui.card->display)), LV_PART_MAIN);
-    apply_grid_card_corners(ui.shell.panel, 0, card_uses_continuous_corners(ui.shell.panel));
     lv_obj_set_style_pad_all(ui.diagram, lv_obj_get_style_pad_top(ui.card->slot.btn, LV_PART_MAIN), LV_PART_MAIN);
   } else {
-    lv_obj_set_style_bg_opa(ui.diagram, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_pad_all(ui.diagram, 0, LV_PART_MAIN);
-    apply_grid_card_corners(ui.diagram, 0, card_uses_continuous_corners(ui.diagram));
   }
 }
 inline void power_flow_layout() {
@@ -434,17 +433,21 @@ inline void power_flow_layout() {
   const auto geometry = espcontrol::power::flow_geometry(width, height, family,
     node_w, node_h, side_node_w, shared_envelopes, shared_envelopes,
     espcontrol::power::flow_render_scale(reference_viewport.width, reference_viewport.height, family));
+  lv_area_t diagram_content, panel_content;
+  lv_obj_get_content_coords(ui.diagram, &diagram_content);
+  lv_obj_get_content_coords(ui.shell.panel, &panel_content);
+  const int node_x = diagram_content.x1 + viewport.x - panel_content.x1;
+  const int node_y = diagram_content.y1 + viewport.y - panel_content.y1;
   lv_obj_set_size(ui.area, width, height);
-  lv_obj_set_pos(ui.area, viewport.x, viewport.y);
+  lv_obj_set_pos(ui.area, node_x, node_y);
   // Large views use the native Back card; compact views retain the shell arrow.
   power_flow_set_visible(ui.shell.close_btn, !large);
-  auto *status_parent = large ? ui.diagram : ui.shell.panel;
-  if (lv_obj_get_parent(ui.status) != status_parent) lv_obj_set_parent(ui.status, status_parent);
   lv_label_set_long_mode(ui.status, LV_LABEL_LONG_CLIP);
   lv_obj_set_size(ui.status, large ? lv_obj_get_content_width(ui.diagram)
     : std::max<int>(1, panel_w - layout.inset * 2 - layout.back_size - layout.title_gap), text_h);
-  lv_obj_set_pos(ui.status, large ? 0 : layout.inset + layout.back_size + layout.title_gap,
-                          large ? 0 : layout.back_inset_y);
+  lv_obj_set_pos(ui.status, large ? diagram_content.x1 - panel_content.x1
+    : layout.inset + layout.back_size + layout.title_gap,
+    large ? diagram_content.y1 - panel_content.y1 : layout.back_inset_y);
   if (text_font) lv_obj_set_style_text_font(ui.status, text_font, LV_PART_MAIN);
   lv_obj_set_style_text_color(ui.status, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
   for (size_t i = 0; i < 7; ++i) {
@@ -463,14 +466,9 @@ inline void power_flow_layout() {
     lv_obj_set_style_line_width(ui.arrows[i], stroke, LV_PART_MAIN);
   }
   // LVGL 9.5 retains its recursive draw frames for every ancestor. Keep the
-  // text groups shallow (panel children), not below the three geometry-only
-  // containers. Their screen coordinates still come from the measured diagram.
+  // foregrounds shallow (panel children), outside the background-only native
+  // mask. Their screen coordinates still come from the measured diagram.
   // The grid is already resolved above; avoid another synchronous layout pass.
-  lv_area_t diagram_content, panel_content;
-  lv_obj_get_content_coords(ui.diagram, &diagram_content);
-  lv_obj_get_content_coords(ui.shell.panel, &panel_content);
-  const int node_x = diagram_content.x1 + viewport.x - panel_content.x1;
-  const int node_y = diagram_content.y1 + viewport.y - panel_content.y1;
   for (size_t i = 0; i < 4; ++i) {
     for (auto *label : {ui.names[i], ui.details[i]})
       if (text_font) lv_obj_set_style_text_font(label, text_font, LV_PART_MAIN);
@@ -724,7 +722,7 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   lv_obj_remove_style_all(ui.diagram);
   lv_obj_clear_flag(ui.diagram, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(ui.diagram, LV_OBJ_FLAG_CLICKABLE);
-  ui.area = lv_obj_create(ui.diagram);
+  ui.area = lv_obj_create(ui.shell.panel);
   if (!ui.area) { power_flow_hide(); return; }
   lv_obj_remove_style_all(ui.area);
   lv_obj_clear_flag(ui.area, LV_OBJ_FLAG_SCROLLABLE);
