@@ -6695,7 +6695,16 @@ async function assertPowerDashboard(browser, testCase) {
     const longId = "sensor." + "very_long_house_power_".repeat(4);
     await home.fill(longId);
     await page.locator("#sp-inp-power-solar_entity").fill(longId);
-    assert((await page.locator("#sp-inp-power-config-size").textContent()).includes("Configuration size:"));
+    assert.equal(await page.locator("#sp-inp-power-config-size").count(), 0);
+    assert.equal(await page.getByText("Requires at least two grid columns.", { exact: false }).count(), 0);
+    assert.equal(await page.getByText("Configuration size:", { exact: false }).count(), 0);
+    assert.deepEqual(await page.locator(".sp-settings-modal").evaluate(modal => {
+      const ids = ["grid_entity", "invert_grid", "battery_entity", "invert_battery", "battery_soc_entity"];
+      return Array.from(modal.querySelectorAll("input"))
+        .map(input => input.id.replace("sp-inp-power-", "")).filter(id => ids.includes(id));
+    }), ["grid_entity", "invert_grid", "battery_entity", "invert_battery", "battery_soc_entity"]);
+    for (const name of ["invert_grid", "invert_battery"])
+      assert.equal(await page.locator("#sp-inp-power-" + name).count(), 1);
     await save.click();
     await page.getByText("Power settings exceed this panel's configuration limit. Shorten entity IDs or the label, omit optional SOC, or use a subpage. No settings were saved.", { exact: true }).waitFor();
     assert(await page.locator(".sp-settings-overlay.sp-visible").count());
@@ -6807,6 +6816,8 @@ async function assertPowerDashboard(browser, testCase) {
       await page.locator("#sp-inp-power-include-" + name + " + .sp-toggle-track").click();
     assert(await page.locator("#sp-inp-power-solar_entity").isDisabled());
     assert(await page.locator("#sp-inp-power-battery_soc_entity").isDisabled());
+    assert(await page.locator("#sp-inp-power-invert_battery").isDisabled());
+    assert(!(await page.locator("#sp-inp-power-invert_battery + .sp-toggle-track").isVisible()));
     await home.fill(""); // Installed but unmeasured Home remains explicit, not zero.
     await save.click();
     await page.waitForFunction(() => !document.querySelector(".sp-settings-overlay.sp-visible"));
@@ -6827,6 +6838,14 @@ async function assertPowerDashboard(browser, testCase) {
       await page.locator("#sp-inp-power-include-" + name + " + .sp-toggle-track").click();
     await home.fill("sensor.h");
     assert.equal(await page.locator("#sp-inp-power-solar_entity").inputValue(), "sensor.s");
+    for (const name of ["invert_grid", "invert_battery"]) {
+      const inversion = page.locator("#sp-inp-power-" + name);
+      assert(await inversion.isChecked(), "Excluded/unmeasured components retain " + name);
+      assert(await inversion.isEnabled());
+      // Native toggles intentionally keep their checkbox zero-sized; the
+      // adjacent track is the visible/tappable control.
+      assert(await page.locator("#sp-inp-power-" + name + " + .sp-toggle-track").isVisible());
+    }
     await save.click();
     await page.waitForFunction(() => !document.querySelector(".sp-settings-overlay.sp-visible"));
     if (testCase.slug === "esp32-p4-86") {

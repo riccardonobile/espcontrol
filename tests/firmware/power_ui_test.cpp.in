@@ -307,7 +307,6 @@ namespace espcontrol::cards {
 namespace card_runtime {enum class CardDriverId {POWER,SUBPAGE,OTHER};}
 enum class Surface {MAIN_GRID,SUBPAGE};
 struct Context {struct {card_runtime::CardDriverId driver=card_runtime::CardDriverId::POWER;}runtime;Surface surface=Surface::MAIN_GRID;};
-void sensor_driver_apply_background(BtnSlot &s,const CardPalette&p){s.btn->bg=p.surface_sensor_val;}
 }
 // @navigation_helpers
 #include "button_grid_power_driver.h"
@@ -441,11 +440,18 @@ int main(){
     assert(ui.shell.panel->radius==control_modal_card_radius(card->slot.btn)&&!ui.shell.panel->continuous);
     assert(!(ui.shell.panel->flags&LV_OBJ_FLAG_CLICKABLE));
     assert(ui.diagram->bg_opacity==LV_OPA_TRANSP&&!(ui.diagram->flags&LV_OBJ_FLAG_CLICKABLE));
-    // Passive surfaces use the same driver role, independent from action cards.
+    // Compare the Flow fill against the production read-only Sensor driver,
+    // not another hardcoded approximation of that role.
     const auto initial_theme=theme;
     for(auto surface:{0xf5f5f5u,0x212121u}){
       theme.surface_sensor=surface;apply_current_theme();
-      assert(ui.shell.panel->bg==surface);
+      lv_obj_t native_entity;
+      BtnSlot entity_slot{};entity_slot.btn=&native_entity;
+      CardPalette palette;palette.has_sensor_color=true;palette.surface_sensor_val=surface;
+      espcontrol::cards::sensor_driver_apply_background(entity_slot,palette);
+      assert(ui.shell.panel->bg==native_entity.bg);
+      assert(ui.shell.panel->state==LV_STATE_DEFAULT);
+      assert(!(ui.shell.panel->flags&(LV_OBJ_FLAG_CLICKABLE|LV_OBJ_FLAG_CHECKABLE)));
     }
     theme=initial_theme;apply_current_theme();
     if(card->display.modal.layout_family==DisplayModalLayoutFamily::LARGE_SQUARE){

@@ -40,6 +40,8 @@ font_roles = re.search(r'struct DisplayFontRoles \{[\s\S]*?^\};', display_source
 grid_config = re.search(r'struct GridConfig \{[\s\S]*?^\};', grid_source, re.M)[0]
 small_font = function('display_small_text_font', display_source)
 sensor += '\n' + function('apply_standard_sensor_number_style', grid_source)
+sensor += '\nnamespace espcontrol::cards {\n' + function('sensor_driver_apply_background',
+    (headers / 'button_grid_sensor_driver.h').read_text(encoding='utf-8')) + '\n}'
 modal_source = (headers / 'button_grid_modal.h').read_text(encoding='utf-8')
 modal_shell = re.search(r'struct ControlModalShell \{[\s\S]*?^\};', modal_source, re.M)[0]
 template = Path(__file__).with_name('power_ui_test.cpp.in').read_text(encoding='utf-8')

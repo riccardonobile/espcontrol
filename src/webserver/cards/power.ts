@@ -4,7 +4,6 @@ import { sizeColSpan } from "../model/grid";
 import { normalizeSavedConfigPower } from "../generated/saved_config_power";
 import { decodePowerCardConfigV1, normalizePowerOptions, validPowerEntity } from "../model/power_card";
 import { setConfigOption, setConfigOptionValue, preserveCardColorOptions } from "../model/config_primitives";
-import { utf8ByteLength } from "../model/subpage";
 import type { ControlsFieldsFeature } from "../application/controls_fields";
 
 export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<ControlsFieldsFeature, "cardSensorPreviewHtml">): void {
@@ -77,37 +76,21 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
         note.className = "sp-apply-note";
         note.textContent = sensor.note;
         field.field.appendChild(note);
+        if (sensor.component === "grid" || sensor.component === "battery") {
+          const name = sensor.component === "grid" ? "invert_grid" : "invert_battery";
+          const toggle = helpers.toggleRow(optionLabel(name), helpers.idPrefix + "power-" + name,
+            name === "invert_grid" ? config.invertGrid : config.invertBattery);
+          panel.appendChild(toggle.row);
+          toggle.row.hidden = !included;
+          toggle.input.disabled = !included;
+          sensorFields.push({ bit: sensor.bit, field: toggle.row, input: toggle.input });
+          toggle.input.addEventListener("change", () => {
+            card.options = preserveCardColorOptions(card.options,
+              normalizePowerOptions(setConfigOption(card.options, name, toggle.input.checked)));
+            helpers.saveField("options", card.options);
+          });
+        }
       }
-      for (const name of ["invert_grid", "invert_battery"] as const) {
-        const toggle = helpers.toggleRow(optionLabel(name), helpers.idPrefix + "power-" + name,
-          name === "invert_grid" ? config.invertGrid : config.invertBattery);
-        panel.appendChild(toggle.row);
-        const bit = name === "invert_grid" ? 4 : 8;
-        toggle.row.hidden = !(config.installedComponents & bit);
-        toggle.input.disabled = !(config.installedComponents & bit);
-        sensorFields.push({ bit, field: toggle.row, input: toggle.input });
-        toggle.input.addEventListener("change", () => {
-          card.options = preserveCardColorOptions(card.options,
-            normalizePowerOptions(setConfigOption(card.options, name, toggle.input.checked)));
-          helpers.saveField("options", card.options);
-        });
-      }
-      const note = document.createElement("div");
-      note.className = "sp-apply-note";
-      note.textContent = "Requires at least two grid columns. Power is shown in whole watts, rounded to nearest (halves away from zero); calculations keep full precision. Uncheck a component only when physically absent: it then contributes zero. An included component without a sensor stays unknown. Arrows require valid measurements for every included component; otherwise only readings/status are shown. Solar-first arrows are inferred allocations, not measured individual routes. Preview uses placeholders, not live Home Assistant measurements. The device shows live Home power and Battery/Grid status. The card uses your shared accent when pressed; it does not display an icon.";
-      panel.appendChild(note);
-      const sizeNote = document.createElement("div");
-      sizeNote.className = "sp-apply-note";
-      sizeNote.id = helpers.idPrefix + "power-config-size";
-      sizeNote.setAttribute("role", "status");
-      panel.appendChild(sizeNote);
-      const updateSize = () => {
-        const bytes = utf8ByteLength(helpers.serializeCardConfig(card));
-        sizeNote.textContent = "Configuration size: " + bytes + " bytes. Save validates this panel's advertised card/subpage capacity. Older firmware may support less.";
-      };
-      panel.addEventListener("input", updateSize);
-      panel.addEventListener("change", updateSize);
-      updateSize();
     },
     renderPreview: (card, helpers) => {
       const narrow = sizeColSpan(helpers.cardSize) < 2;

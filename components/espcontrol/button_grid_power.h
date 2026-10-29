@@ -304,11 +304,16 @@ inline void power_flow_apply_surfaces(const ThemePalette &theme) {
   auto &ui = power_flow_ui();
   if (!ui.card) return;
   const bool large = ui.grid.large && ui.back_area;
-  // Passive Sensor role on every profile. Compact keeps the existing panel as
-  // its single card; large views style the existing diagram, never a wrapper.
+  // Use the native read-only Sensor/Entity driver, not modal chrome colors.
+  // Compact keeps the existing panel as its single card; large views style
+  // the existing diagram, never a wrapper or an interactive button.
   auto *surface = large ? ui.diagram : ui.shell.panel;
-  lv_obj_set_style_bg_color(surface,
-    lv_color_hex(display_correct_color(theme.surface_sensor, ui.card->display)), LV_PART_MAIN);
+  BtnSlot surface_slot{};
+  surface_slot.btn = surface;
+  CardPalette palette;
+  palette.has_sensor_color = true;
+  palette.surface_sensor_val = display_correct_color(theme.surface_sensor, ui.card->display);
+  espcontrol::cards::sensor_driver_apply_background(surface_slot, palette);
   lv_obj_set_style_bg_opa(surface, LV_OPA_COVER, LV_PART_MAIN);
   lv_obj_clear_flag(surface, LV_OBJ_FLAG_CLICKABLE);
   // Power Flow uses the native circular radius by user choice. LVGL 9.5's
