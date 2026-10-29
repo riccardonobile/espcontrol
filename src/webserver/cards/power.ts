@@ -3,7 +3,7 @@ import { cardContractAllowInSubpage, cardContractCardLabel, cardContractDefaultC
 import { sizeColSpan } from "../model/grid";
 import { normalizeSavedConfigPower } from "../generated/saved_config_power";
 import { decodePowerCardConfigV1, normalizePowerOptions, validPowerEntity } from "../model/power_card";
-import { setConfigOption, setConfigOptionValue } from "../model/config_primitives";
+import { setConfigOption, setConfigOptionValue, preserveCardColorOptions } from "../model/config_primitives";
 import { utf8ByteLength } from "../model/subpage";
 import type { ControlsFieldsFeature } from "../application/controls_fields";
 
@@ -51,8 +51,8 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
         if (present) present.input.addEventListener("change", () => {
           field.field.hidden = !present.input.checked;
           field.input.disabled = !present.input.checked;
-          card.options = normalizePowerOptions(setConfigOption(card.options,
-            "exclude_" + sensor.component, !present.input.checked));
+          card.options = preserveCardColorOptions(card.options, normalizePowerOptions(setConfigOption(card.options,
+            "exclude_" + sensor.component, !present.input.checked)));
           const mask = decodePowerCardConfigV1(card).installedComponents;
           for (const control of sensorFields) {
             control.field.hidden = !(mask & control.bit);
@@ -67,7 +67,8 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
         const sync = () => {
           const value = field.input.value.trim();
           if (sensor.key === "entity") card.entity = value;
-          else card.options = normalizePowerOptions(setConfigOptionValue(card.options, sensor.key, value));
+          else card.options = preserveCardColorOptions(card.options,
+            normalizePowerOptions(setConfigOptionValue(card.options, sensor.key, value)));
           helpers.saveField(sensor.key === "entity" ? "entity" : "options", sensor.key === "entity" ? card.entity : card.options);
         };
         field.input.addEventListener("input", sync);
@@ -86,7 +87,8 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
         toggle.input.disabled = !(config.installedComponents & bit);
         sensorFields.push({ bit, field: toggle.row, input: toggle.input });
         toggle.input.addEventListener("change", () => {
-          card.options = normalizePowerOptions(setConfigOption(card.options, name, toggle.input.checked));
+          card.options = preserveCardColorOptions(card.options,
+            normalizePowerOptions(setConfigOption(card.options, name, toggle.input.checked)));
           helpers.saveField("options", card.options);
         });
       }

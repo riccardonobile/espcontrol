@@ -6788,17 +6788,21 @@ async function assertPowerDashboard(browser, testCase) {
     }
     // Device event reload uses the same normalized nine-field config and flags.
     await page.evaluate(() => window.__seedEspState([
-      { id: "text-button_1_config", state: "sensor.home;Reloaded Power;Auto;Auto;;;power;;solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,invert_grid,invert_battery" },
+      { id: "text-button_1_config", state: "sensor.h;Reloaded Power;Auto;Auto;;;power;;solar_entity=sensor.s,grid_entity=sensor.g,battery_entity=sensor.b,invert_grid,invert_battery,card_off_color=112233,card_active_color=custom,card_on_color=ABCDEF" },
       { id: "text-button_order", state: "1" },
     ]));
     await power.getByText("Reloaded Power", { exact: true }).waitFor();
     await power.click();
     await page.getByRole("button", { name: "Edit", exact: true }).click();
-    assert.equal(await page.locator("#sp-inp-power-entity").inputValue(), "sensor.home");
+    assert.equal(await page.locator("#sp-inp-power-entity").inputValue(), "sensor.h");
     assert(await page.locator("#sp-inp-power-invert_grid").isChecked());
     assert(await page.locator("#sp-inp-power-invert_battery").isChecked());
     const cardSettings = page.locator(".sp-settings-modal .sp-disclosure").filter({ hasText: "Card Settings" }).first();
     if (!(await cardSettings.evaluate(el => el.classList.contains("sp-open")))) await cardSettings.locator(".sp-disclosure-button").click();
+    await page.locator("#sp-inp-power-solar_entity").fill("sensor.s2");
+    await page.locator("#sp-inp-power-solar_entity").fill("sensor.s");
+    await page.locator("#sp-inp-power-invert_grid + .sp-toggle-track").click();
+    await page.locator("#sp-inp-power-invert_grid + .sp-toggle-track").click();
     for (const name of ["solar", "battery"])
       await page.locator("#sp-inp-power-include-" + name + " + .sp-toggle-track").click();
     assert(await page.locator("#sp-inp-power-solar_entity").isDisabled());
@@ -6806,6 +6810,10 @@ async function assertPowerDashboard(browser, testCase) {
     await home.fill(""); // Installed but unmeasured Home remains explicit, not zero.
     await save.click();
     await page.waitForFunction(() => !document.querySelector(".sp-settings-overlay.sp-visible"));
+    const partialSaved = posts.findLast(post => post.value?.includes("exclude_solar") && post.value?.includes("exclude_battery"));
+    assert(partialSaved, "Partial Power settings were saved");
+    for (const option of ["card_off_color=112233", "card_active_color=custom", "card_on_color=ABCDEF"])
+      assert(partialSaved.value.includes(option), "Power entity/polarity/component edits preserve " + option);
     await power.click();await page.getByRole("button", { name: "Edit", exact: true }).click();
     assert.equal(await home.inputValue(), "");
     assert(!(await page.locator("#sp-inp-power-include-solar").isChecked()));
@@ -6817,8 +6825,8 @@ async function assertPowerDashboard(browser, testCase) {
     await page.getByText("Include at least one Power component.", { exact: true }).waitFor();
     for (const name of ["solar", "home", "grid", "battery"])
       await page.locator("#sp-inp-power-include-" + name + " + .sp-toggle-track").click();
-    await home.fill("sensor.home");
-    assert.equal(await page.locator("#sp-inp-power-solar_entity").inputValue(), "sensor.solar");
+    await home.fill("sensor.h");
+    assert.equal(await page.locator("#sp-inp-power-solar_entity").inputValue(), "sensor.s");
     await save.click();
     await page.waitForFunction(() => !document.querySelector(".sp-settings-overlay.sp-visible"));
     if (testCase.slug === "esp32-p4-86") {
