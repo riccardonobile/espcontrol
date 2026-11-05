@@ -224,10 +224,12 @@ void partial_system_tests() {
     std::array<Reading,4> input{};
     for(auto &n:input)n={0,ReadingValidity::VALID};
     const auto c=calculate(input,{}, {installed,configured});
-    assert(c.balance_checkable==(installed!=0&&(installed&configured)==installed));
-    assert(c.validity==(installed==0?V::UNAVAILABLE:(installed&configured)==installed?V::VALID:V::READINGS_ONLY));
+    const uint8_t normalized=installed|component_bit(Node::HOME);
+    assert(c.capabilities.installed==normalized&&c.capabilities.includes(Node::HOME));
+    assert(c.balance_checkable==((normalized&configured)==normalized));
+    assert(c.validity==((normalized&configured)==normalized?V::VALID:V::READINGS_ONLY));
     for(size_t n=0;n<4;++n){
-      const auto expected=!(installed&(1u<<n))?ReadingValidity::EXCLUDED:
+      const auto expected=!(normalized&(1u<<n))?ReadingValidity::EXCLUDED:
         !(configured&(1u<<n))?ReadingValidity::UNMEASURED:ReadingValidity::VALID;
       assert(c.nodes[n].validity==expected);
     }
@@ -235,7 +237,7 @@ void partial_system_tests() {
   }
   // Every physical topology, both polarities, balanced/unbalanced fractional
   // snapshots; check signs, capacities, exclusion and exact conservation.
-  for(uint8_t mask=1;mask<16;++mask)for(double solar:{0.,.3,1.,100.,1000.})
+  for(uint8_t mask=2;mask<16;++mask)if(mask&2)for(double solar:{0.,.3,1.,100.,1000.})
     for(double home:{0.,.3,1.,100.,1000.})for(double grid:{-500.,-.3,0.,.3,500.})
       for(double battery:{-500.,-.3,0.,.3,500.})for(bool inverted:{false,true}){
         std::array<Reading,4> input={{{solar,ReadingValidity::VALID},{home,ReadingValidity::VALID},
@@ -258,12 +260,12 @@ void partial_system_tests() {
         if(c.validity==V::VALID&&c.residual_w==0&&
           (s==0||s>1)&&(h==0||h>1)&&(g==0||std::abs(g)>1)&&(b==0||std::abs(b)>1))near(total,sources);
       }
-  // All seven directions can be uniquely allocated with only their two
-  // physical endpoints installed and measured; there is no synthetic zero node.
+  // All seven directions with their endpoints and mandatory measured Home.
+  // Non-Home routes require an actual zero Home reading, never a synthetic one.
   for(size_t edge=0;edge<7;++edge){
-    std::array<Reading,4> n{};const auto source=endpoints[edge][0],sink=endpoints[edge][1];
+    std::array<Reading,4> n{};n[1]={0,ReadingValidity::VALID};const auto source=endpoints[edge][0],sink=endpoints[edge][1];
     n[source]={500,ReadingValidity::VALID};n[sink]={sink==1?500.:-500.,ReadingValidity::VALID};
-    const uint8_t mask=(1u<<source)|(1u<<sink);
+    const uint8_t mask=(1u<<source)|(1u<<sink)|component_bit(Node::HOME);
     const auto c=calculate(n,{}, {mask,mask});assert(c.validity==V::VALID&&c.inference==InferenceKind::UNIQUE);
     for(size_t e=0;e<7;++e)near(c.inferred_w[e],edge==e?500.:0.);
   }
@@ -275,8 +277,29 @@ void partial_system_tests() {
     assert(c.secondary_label()=="Charging · Importing");for(double f:c.inferred_w)assert(f==0);
   }
   auto isolated=calculate({{{8,ReadingValidity::VALID},{},{},{}}},{},{1,1});
-  assert(isolated.validity==V::VALID&&!isolated.idle()&&isolated.inference==InferenceKind::NONE);
-  assert(calculate({{{0,ReadingValidity::VALID},{},{},{}}},{},{1,1}).idle());
+  assert(isolated.validity==V::READINGS_ONLY&&!isolated.idle()&&isolated.inference==InferenceKind::NONE);
+  assert(isolated.nodes[1].validity==ReadingValidity::UNMEASURED);
+  assert(!calculate({{{0,ReadingValidity::VALID},{},{},{}}},{},{1,1}).idle());
+  // Every optional-component topology keeps Home visible. Its sensor can be
+  // absent or unavailable; even an old excluded-Home mask cannot synthesize zero.
+  for(uint8_t mask=0;mask<16;++mask)if(!(mask&2)){
+    std::array<Reading,4> zeros{};for(auto &n:zeros)n={0,ReadingValidity::VALID};
+    const auto unmeasured=calculate(zeros,{}, {mask,mask});
+    assert(unmeasured.capabilities.includes(Node::HOME));
+    assert(unmeasured.nodes[1].validity==ReadingValidity::UNMEASURED);
+    assert(unmeasured.validity==V::READINGS_ONLY&&!unmeasured.balance_checkable);
+    for(double f:unmeasured.inferred_w)assert(f==0);
+    for(auto state:{ReadingValidity::MISSING,ReadingValidity::UNAVAILABLE,ReadingValidity::UNKNOWN,ReadingValidity::INVALID,ReadingValidity::STALE}){
+      zeros[1]={0,state};const auto unavailable=calculate(zeros,{}, {mask,uint8_t(mask|2)});
+      assert(unavailable.nodes[1].validity==state&&unavailable.validity==V::UNAVAILABLE);
+      for(double f:unavailable.inferred_w)assert(f==0);
+    }
+    zeros[1]={0,ReadingValidity::VALID};const auto measured=calculate(zeros,{}, {mask,uint8_t(mask|2)});
+    assert(measured.nodes[1].valid()&&measured.nodes[1].value==0&&measured.idle());
+    Model legacy;legacy.set_capabilities({mask,mask});
+    assert(legacy.capabilities.installed==uint8_t(mask|2));
+    assert(legacy.calculation.nodes[1].validity==ReadingValidity::UNMEASURED);
+  }
   auto c=calculate(full,{}, {15,14});assert(c.validity==V::READINGS_ONLY);
   assert(c.nodes[0].validity==ReadingValidity::UNMEASURED&&c.secondary_label()=="Charging · Importing");
   Model m;m.set_power(Node::SOLAR,"0","W");m.set_power(Node::HOME,"1000","W");m.set_power(Node::GRID,"1000","W");m.set_power(Node::BATTERY,"0","W");

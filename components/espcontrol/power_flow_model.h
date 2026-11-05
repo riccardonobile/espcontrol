@@ -30,7 +30,7 @@ constexpr uint8_t component_bit(Node node) { return 1u << static_cast<uint8_t>(n
 struct Capabilities {
   uint8_t installed = ALL_COMPONENTS;
   uint8_t configured = ALL_COMPONENTS;
-  bool includes(Node node) const { return installed & component_bit(node); }
+  bool includes(Node node) const { return node == Node::HOME || (installed & component_bit(node)); }
   bool measures(Node node) const { return configured & component_bit(node); }
 };
 enum class Edge : uint8_t {
@@ -189,7 +189,7 @@ struct Calculation {
 inline Calculation calculate(std::array<Reading, 4> nodes, Polarity polarity = {},
                               Capabilities capabilities = {}) {
   Calculation out;
-  capabilities.installed &= ALL_COMPONENTS;
+  capabilities.installed = (capabilities.installed & ALL_COMPONENTS) | component_bit(Node::HOME);
   capabilities.configured &= capabilities.installed;
   out.capabilities = capabilities;
   bool unavailable = false, unmeasured = false;
@@ -210,7 +210,7 @@ inline Calculation calculate(std::array<Reading, 4> nodes, Polarity polarity = {
   out.nodes = nodes;
   out.battery_status = power_status(nodes[3], true);
   out.grid_status = power_status(nodes[2], false);
-  if (!capabilities.installed || unavailable) return out;
+  if (unavailable) return out;
   if (unmeasured) {
     // An installed, unmeasured contribution is NOT zero. Even a route that
     // appears plausible is withheld until this system boundary can be checked.
@@ -276,7 +276,7 @@ struct Model {
     calculation = calculate(readings, polarity, capabilities);
   }
   void set_capabilities(Capabilities value) {
-    value.installed &= ALL_COMPONENTS;
+    value.installed = (value.installed & ALL_COMPONENTS) | component_bit(Node::HOME);
     value.configured &= value.installed;
     const uint8_t changed = (capabilities.installed ^ value.installed) |
                             (capabilities.configured ^ value.configured);

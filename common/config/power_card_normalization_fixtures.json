@@ -147,7 +147,7 @@
       "unit": "",
       "type": "power",
       "precision": "2",
-      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_home,exclude_grid,exclude_battery"
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_grid,exclude_battery"
     }
   },
   {
@@ -192,7 +192,7 @@
       "unit": "",
       "type": "power",
       "precision": "2",
-      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_home,exclude_battery"
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_battery"
     }
   },
   {
@@ -207,7 +207,7 @@
       "unit": "",
       "type": "power",
       "precision": "2",
-      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_home,exclude_battery"
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_battery"
     }
   },
   {
@@ -252,7 +252,7 @@
       "unit": "",
       "type": "power",
       "precision": "2",
-      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_home,exclude_grid"
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_grid"
     }
   },
   {
@@ -267,7 +267,7 @@
       "unit": "",
       "type": "power",
       "precision": "2",
-      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_home,exclude_grid"
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_grid"
     }
   },
   {
@@ -312,7 +312,7 @@
       "unit": "",
       "type": "power",
       "precision": "2",
-      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar,exclude_home"
+      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_solar"
     }
   },
   {
@@ -327,7 +327,7 @@
       "unit": "",
       "type": "power",
       "precision": "2",
-      "options": "grid_entity=sensor.grid_power,invert_grid,exclude_home"
+      "options": "grid_entity=sensor.grid_power,invert_grid"
     }
   },
   {
@@ -358,6 +358,21 @@
       "type": "power",
       "precision": "2",
       "options": "grid_entity=sensor.grid_power,invert_grid"
+    }
+  },
+  {
+    "name": "legacy excluded Home keeps sensor, polarity, SOC, precision and colors",
+    "input": "sensor.home;House;Auto;Auto;;;power;2;solar_entity=sensor.solar,battery_soc_entity=sensor.soc,invert_grid,invert_battery,exclude_home,exclude_battery,card_off_color=112233",
+    "expected": {
+      "entity": "sensor.home",
+      "label": "House",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "2",
+      "options": "solar_entity=sensor.solar,battery_soc_entity=sensor.soc,invert_grid,invert_battery,exclude_battery,card_off_color=112233"
     }
   }
 ]

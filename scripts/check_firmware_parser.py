@@ -274,13 +274,15 @@ int main() {
   assert(!power_defaults.invert_grid && !power_defaults.invert_battery);
   assert(power_defaults.installed_components == 15);
   const char *excluded[] = {"exclude_solar", "exclude_home", "exclude_grid", "exclude_battery"};
-  for (unsigned mask=1;mask<16;++mask) {
+  for (unsigned mask=0;mask<16;++mask) {
     std::string options="grid_entity=sensor.grid";
     for(unsigned i=0;i<4;++i)if(!(mask&(1u<<i)))options+=std::string(",")+excluded[i];
     const auto saved=parse_cfg(";;;;;;power;2;"+options);
     const auto partial=espcontrol::power::decode_config_v1(saved);
-    assert(partial.installed_components==mask&&partial.home_entity.empty());
-    assert(saved.precision=="2"&&saved.options==options);
+    assert(partial.installed_components==(mask|2)&&partial.home_entity.empty());
+    assert(saved.precision=="2");
+    assert(saved.options==espcontrol::power::normalize_options(options));
+    assert(saved.options.find("exclude_home")==std::string::npos);
   }
 
   int row_span = 0;

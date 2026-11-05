@@ -83,8 +83,9 @@ Configure any installed components with Home Assistant `sensor.*` entities repor
 prevents Battery power flows. Enable Grid/Battery sign inversion only for sensors
 using the opposite convention.
 
-Each component has an **included in system** switch, enabled by default for
-existing configurations. Uncheck it only when the component is physically absent
+Home is always included and displayed; its power sensor is optional. Solar,
+Grid and Battery each have an **included in system** switch, enabled by default
+for existing configurations. Uncheck it only when the component is physically absent
 from the configured electrical system: that contribution is then zero for balance
 checking. Its node/landscape reading card is hidden without moving other nodes or
 cards. An included component with an empty sensor field remains installed but
@@ -92,7 +93,9 @@ cards. An included component with an empty sensor field remains installed but
 reporting unknown, unavailable, invalid or explicitly stale data also retain their
 node with no current numeric value. Valid other readings and Battery/Grid activity
 remain visible. When neither Battery nor Grid is included, the activity subtitle
-is omitted rather than claiming Idle.
+is omitted rather than claiming Idle. Older saves that excluded Home are accepted:
+Home becomes included, its sensor remains unchanged, and other settings are preserved.
+An empty or unavailable Home sensor never becomes `0 W`; only a valid zero reading does.
 
 Arrows require a valid measurement for **every included component**. Otherwise
 Power shows readings/status only: it does not solve for missing measurements or
@@ -106,7 +109,7 @@ assume that an unmeasured installed component is idle. For example:
 | All four | All four | Full-system Solar-first allocation |
 | Solar + Home, Grid installed but unmeasured | Grid also required | Readings only; no unsupported attribution |
 | Solar + Grid, Home installed but unmeasured | Home also required | Readings only |
-| Any other nonempty component combination | Every included component | Same balance/capacity rules; isolated nonzero sources/sinks are inconsistent above tolerance |
+| Home with any combination of Solar, Grid and Battery (eight topologies) | Every included component, including Home | Same balance/capacity rules; isolated nonzero sources/sinks are inconsistent above tolerance |
 
 The signed balance is **Solar + Grid + Battery − Home**. Allowed mismatch is
 **max(10 W, 2% of the larger source/sink total)**; the idle threshold remains

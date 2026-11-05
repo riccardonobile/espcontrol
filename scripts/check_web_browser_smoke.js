@@ -6676,7 +6676,8 @@ async function assertPowerDashboard(browser, testCase) {
     assert.equal(await page.locator("#sp-inp-power-invert_grid").isChecked(), false);
     assert.equal(await page.locator("#sp-inp-power-invert_battery").isChecked(), false);
     assert.equal(await page.locator("#sp-inp-power-precision").count(), 0);
-    for (const name of ["home", "solar", "grid", "battery"])
+    assert.equal(await page.locator("#sp-inp-power-include-home").count(), 0);
+    for (const name of ["solar", "grid", "battery"])
       assert(await page.locator("#sp-inp-power-include-" + name).isChecked());
     const home = page.locator("#sp-inp-power-entity");
     await home.fill("switch.home");
@@ -6830,11 +6831,15 @@ async function assertPowerDashboard(browser, testCase) {
     assert(!(await page.locator("#sp-inp-power-include-solar").isChecked()));
     assert(!(await page.locator("#sp-inp-power-include-battery").isChecked()));
     if (!(await cardSettings.evaluate(el => el.classList.contains("sp-open")))) await cardSettings.locator(".sp-disclosure-button").click();
-    for (const name of ["home", "grid"])
-      await page.locator("#sp-inp-power-include-" + name + " + .sp-toggle-track").click();
+    await page.locator("#sp-inp-power-include-grid + .sp-toggle-track").click();
+    assert(await home.isEnabled()); // Home-only is supported, even unmeasured.
     await save.click();
-    await page.getByText("Include at least one Power component.", { exact: true }).waitFor();
-    for (const name of ["solar", "home", "grid", "battery"])
+    await page.waitForFunction(() => !document.querySelector(".sp-settings-overlay.sp-visible"));
+    const homeOnly=posts.findLast(post=>post.value?.includes("exclude_grid")&&post.value?.includes("exclude_solar")&&post.value?.includes("exclude_battery"));
+    assert(homeOnly&&!homeOnly.value.includes("exclude_home"));
+    await power.click();await page.getByRole("button", { name: "Edit", exact: true }).click();
+    if (!(await cardSettings.evaluate(el => el.classList.contains("sp-open")))) await cardSettings.locator(".sp-disclosure-button").click();
+    for (const name of ["solar", "grid", "battery"])
       await page.locator("#sp-inp-power-include-" + name + " + .sp-toggle-track").click();
     await home.fill("sensor.h");
     assert.equal(await page.locator("#sp-inp-power-solar_entity").inputValue(), "sensor.s");

@@ -786,6 +786,7 @@ int main(){
     lv_obj_del(partial.btn);assert(subscriptions==0&&objects==0&&timers.empty()&&!power_flow_ui().card);
   }
   // Installed Home without a sensor is visible and unknown, not absent/zero.
+  cfg.installed=4; // Legacy save excluded Home; the model must still include it.
   cfg.home.clear();auto unmeasured=make_slot(false);
   power_driver_setup_visual(unmeasured,cfg,context,{},GridConfig{},2);
   power_driver_bind_data(unmeasured,cfg,context,profile,GridConfig{});
@@ -793,6 +794,8 @@ int main(){
   publish("sensor.g","500");publish("sensor.g","W","unit_of_measurement");
   power_flow_open(owner);auto &ui=power_flow_ui();
   assert(owner->data.model.calculation.validity==espcontrol::power::CalculationValidity::READINGS_ONLY);
+  assert(owner->data.model.capabilities.installed==6);
+  assert(!(ui.nodes[1]->flags&LV_OBJ_FLAG_HIDDEN));
   assert(ui.values[1]->text=="--"&&ui.details[1]->text==espcontrol_i18n("No measurement"));
   assert(ui.detail_rows[1]->max_w==ui.nodes[1]->w);
   assert(ui.details[1]->max_w<=ui.nodes[1]->w);
@@ -800,6 +803,24 @@ int main(){
   assert(ui.details[2]->text=="Importing"&&ui.status->text==espcontrol_i18n("Readings only"));
   for(auto *line:ui.lines)assert(line->flags&LV_OBJ_FLAG_HIDDEN);
   lv_obj_del(unmeasured.btn);assert(subscriptions==0&&objects==0&&timers.empty());
+  // Measured Home zero is numeric, unlike missing/unavailable Home. Exercise
+  // every supported physical topology without moving the fixed node geometry.
+  for(uint8_t mask=2;mask<16;++mask)if(mask&2){
+    cfg.installed=mask;cfg.home="sensor.h";
+    auto measured=make_slot(false);
+    power_driver_setup_visual(measured,cfg,context,{},GridConfig{},2);
+    power_driver_bind_data(measured,cfg,context,profile,GridConfig{});
+    owner=power_card_for_button(measured.btn);power_flow_open(owner);
+    auto &view=power_flow_ui();assert(!(view.nodes[1]->flags&LV_OBJ_FLAG_HIDDEN));
+    publish("sensor.h","0");publish("sensor.h","W","unit_of_measurement");advance(200);
+    assert(view.values[1]->text=="0 W");
+    publish("sensor.h","unavailable");
+    assert(view.values[1]->text=="--");
+    assert(view.details[1]->text==espcontrol_i18n("Unavailable"));
+    assert(!(view.nodes[1]->flags&LV_OBJ_FLAG_HIDDEN));
+    for(auto *line:view.lines)assert(line->flags&LV_OBJ_FLAG_HIDDEN);
+    lv_obj_del(measured.btn);assert(subscriptions==0&&objects==0&&timers.empty());
+  }
   if (!POWER_DIAGNOSTICS) assert(diagnostic_logs.empty());
 
 

@@ -30,7 +30,7 @@ export function decodePowerCardConfigV1(saved: CardConfig): PowerCardConfigV1 {
     invertGrid: configOptionEnabled(saved.options, "invert_grid"),
     invertBattery: configOptionEnabled(saved.options, "invert_battery"),
     installedComponents: ["solar", "home", "grid", "battery"].reduce((mask, name, i) =>
-      configOptionEnabled(saved.options, "exclude_" + name) ? mask & ~(1 << i) : mask, 15),
+      name !== "home" && configOptionEnabled(saved.options, "exclude_" + name) ? mask & ~(1 << i) : mask, 15),
   };
 }
 
@@ -40,7 +40,7 @@ export function normalizePowerOptions(options: string): string {
     const value = configOptionValue(options, name).trim();
     if (value) out.push(name + "=" + encodeConfigField(value));
   }
-  for (const name of ["invert_grid", "invert_battery", "exclude_solar", "exclude_home", "exclude_grid", "exclude_battery"]) {
+  for (const name of ["invert_grid", "invert_battery", "exclude_solar", "exclude_grid", "exclude_battery"]) {
     if (configOptionEnabled(options, name)) out.push(name);
   }
   return out.join(",");
@@ -50,7 +50,6 @@ export function normalizePowerOptions(options: string): string {
 export function powerCardConfigError(card: CardConfig): string | null {
   if (card.type !== "power") return null;
   const config = decodePowerCardConfigV1(card);
-  if (!config.installedComponents) return "Include at least one Power component.";
   for (const [label, value, component] of [
     ["Home power", config.homeEntity, 2],
     ["Solar power", config.solarEntity, 1],
@@ -60,7 +59,7 @@ export function powerCardConfigError(card: CardConfig): string | null {
   ] as const) {
     if ((config.installedComponents & component) && value && !validPowerEntity(value)) return "Choose a sensor entity (sensor.*) for " + label + ".";
   }
-  if (String(card.options || "").split(",").some(option => /^(invert_(grid|battery)|exclude_(solar|home|grid|battery))=/.test(option)))
+  if (String(card.options || "").split(",").some(option => /^(invert_(grid|battery)|exclude_(solar|grid|battery))=/.test(option)))
     return "Power polarity and component options must be flags, not values.";
   return null;
 }

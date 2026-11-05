@@ -2673,12 +2673,6 @@
           "omitDefault": true
         },
         {
-          "name": "exclude_home",
-          "label": "Exclude Home component",
-          "kind": "flag",
-          "omitDefault": true
-        },
-        {
           "name": "exclude_grid",
           "label": "Exclude Grid component",
           "kind": "flag",
@@ -2742,7 +2736,6 @@
           "invert_grid",
           "invert_battery",
           "exclude_solar",
-          "exclude_home",
           "exclude_grid",
           "exclude_battery"
         ],

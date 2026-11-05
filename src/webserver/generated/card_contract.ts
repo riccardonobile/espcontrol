@@ -4213,12 +4213,6 @@ export const CARD_CONTRACT_CARDS: Readonly<Record<string, CardTypeSpec>> = {
         "omitDefault": true
       },
       {
-        "name": "exclude_home",
-        "label": "Exclude Home component",
-        "kind": "flag",
-        "omitDefault": true
-      },
-      {
         "name": "exclude_grid",
         "label": "Exclude Grid component",
         "kind": "flag",
@@ -4282,7 +4276,6 @@ export const CARD_CONTRACT_CARDS: Readonly<Record<string, CardTypeSpec>> = {
         "invert_grid",
         "invert_battery",
         "exclude_solar",
-        "exclude_home",
         "exclude_grid",
         "exclude_battery"
       ],
@@ -5027,7 +5020,6 @@ export const CARD_CONTRACT_OPTION_NAMES: Readonly<Record<string, string>> = {
   "date_time_mode": "date_time_mode",
   "exclude_battery": "exclude_battery",
   "exclude_grid": "exclude_grid",
-  "exclude_home": "exclude_home",
   "exclude_solar": "exclude_solar",
   "fan_light_entity": "fan_light_entity",
   "fan_tabs": "fan_tabs",

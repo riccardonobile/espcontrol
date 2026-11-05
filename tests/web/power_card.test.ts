@@ -93,22 +93,28 @@ export function runPowerCardTests(): void {
   equal(powerCardConfigError({ ...card, options: card.options + ",invert_grid=true" }) !== null, true);
   equal(powerCardConfigError({ ...card, options: card.options.replace("sensor.soc", "number.soc") }) !== null, true);
   equal(powerStoredConfigError(encoded), null);
-  for (let mask=1;mask<16;mask++) {
+  for (let mask=0;mask<16;mask++) {
     const names=["solar","home","grid","battery"];
     const excluded=names.filter((_,i)=>!(mask&(1<<i))).map(name=>"exclude_"+name);
     const partial={...card,precision:"2",options:normalizePowerOptions(card.options+","+excluded.join(","))};
-    equal(decodePowerCardConfigV1(partial).installedComponents,mask);
+    equal(decodePowerCardConfigV1(partial).installedComponents,mask|2);
     equal(powerCardConfigError(partial),null);
     const before={...partial};normalizeSavedConfigPower(partial,normalizePowerOptions);equal(partial,before);
     equal(partial.precision,"2"); // obsolete precision is accepted and round-trips
     const raw=[partial.entity,partial.label,partial.icon,partial.icon_on,partial.sensor,partial.unit,partial.type,partial.precision,partial.options].join(";");
-    equal(decodePowerCardConfigV1(parseRawButtonConfig(raw)).installedComponents,mask);
+    equal(decodePowerCardConfigV1(parseRawButtonConfig(raw)).installedComponents,mask|2);
     equal(powerStoredConfigError(raw,false,4096),null);
     const native=encodePanelConfig({deviceProfile:"esp32-p4-86",buttons:{1:raw},subpages:{},settings:{button_order:"1"}});
     const restored=decodePanelConfigBackupPayload(createPanelConfigBackupPayload(native));
-    equal(decodePowerCardConfigV1(parseRawButtonConfig(decodePanelConfig(restored).buttons[1]!)).installedComponents,mask);
+    equal(decodePowerCardConfigV1(parseRawButtonConfig(decodePanelConfig(restored).buttons[1]!)).installedComponents,mask|2);
   }
-  equal(powerCardConfigError({...card,options:card.options+",exclude_solar,exclude_home,exclude_grid,exclude_battery"})!==null,true);
+  const legacyExcludedHome={...card,options:card.options+",exclude_solar,exclude_home,exclude_grid,exclude_battery"};
+  equal(decodePowerCardConfigV1(legacyExcludedHome).installedComponents,2);
+  equal(powerCardConfigError(legacyExcludedHome),null);
+  normalizeSavedConfigPower(legacyExcludedHome,normalizePowerOptions);
+  equal(legacyExcludedHome.entity,card.entity);
+  equal(legacyExcludedHome.options.includes("exclude_home"),false);
+  equal(decodePowerCardConfigV1(legacyExcludedHome).installedComponents,2);
   equal(powerCardConfigError({...card,options:card.options+",exclude_solar=true"})!==null,true);
   equal(powerCardConfigError({...card,entity:""}),null);
   const canonical = { ...card };

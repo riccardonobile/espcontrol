@@ -20,7 +20,7 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
       const config = decodePowerCardConfigV1(card);
       const optionLabel = (name: string) => cardContractOptions("power").find(option => option.name === name)!.label;
       const sensors = [
-        { key: "entity", label: "Home power", value: config.homeEntity, note: "Positive consumption. Optional sensor reporting W or kW.", component: "home", bit: 2 },
+        { key: "entity", label: "Home power", value: config.homeEntity, note: "Home is always included. Positive consumption; optional sensor reporting W or kW. Leave empty for an unmeasured Home.", component: "", bit: 2 },
         { key: "solar_entity", label: optionLabel("solar_entity"), value: config.solarEntity, note: "Positive production; W or kW. Leave empty if installed but unmeasured.", component: "solar", bit: 1 },
         { key: "grid_entity", label: optionLabel("grid_entity"), value: config.gridEntity, note: "Positive importing, negative exporting; W or kW. Sensor optional.", component: "grid", bit: 4 },
         { key: "battery_entity", label: optionLabel("battery_entity"), value: config.batteryEntity, note: "Positive discharging, negative charging; W or kW. Sensor optional.", component: "battery", bit: 8 },
@@ -37,9 +37,6 @@ export function registerPowerCardTypes(registry: CardRegistry, fields: Pick<Cont
           componentField.className = "sp-field";
           componentField.appendChild(present.row);
           panel.appendChild(componentField);
-          if (sensor.component === "home") helpers.requireField(present.input,
-            "Include at least one Power component.", undefined,
-            () => decodePowerCardConfigV1(card).installedComponents !== 0);
         }
         const field = helpers.entityField(sensor.label, helpers.idPrefix + "power-" + sensor.key,
           sensor.value, "sensor." + (sensor.key === "entity" ? "home_power" : sensor.key.replace("_entity", "")),
