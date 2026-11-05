@@ -29,12 +29,14 @@ enum class Family : uint8_t {
   OPTION_SELECT,
   PUSH,
   SCREEN_LOCK,
+  SCREENSAVER,
   SENSOR,
   SLIDER,
   SUBPAGE,
   VACUUM,
   WEATHER,
   WEBHOOK,
+  POWER,
   UNKNOWN,
 };
 

@@ -77,6 +77,7 @@ inline void apply_icon_width_compensation(lv_obj_t *obj, int zoom = 256) {
 inline void apply_slot_text_width_compensation(const BtnSlot &s, int percent) {
   (void) percent;
   apply_text_width_compensation(s.text_lbl);
+  apply_text_width_compensation(s.secondary_lbl);
   apply_text_width_compensation(s.sensor_container);
   apply_text_width_compensation(s.subpage_lbl);
 }
@@ -359,30 +360,27 @@ inline void set_grid_card_cell(lv_obj_t *btn,
 // ── Button visuals ────────────────────────────────────────────────────
 
 // Apply on/off background colors to a button's checked/pressed/default states
+inline void bind_card_text_contrast_events(lv_obj_t *btn);
+
 inline void apply_button_colors(lv_obj_t *btn, bool has_on, uint32_t on_val,
                                 bool has_off, uint32_t off_val) {
   if (has_on) {
     lv_obj_set_style_bg_color(btn, lv_color_hex(on_val),
       static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_CHECKED));
+    lv_obj_set_style_text_color(btn, lv_color_hex(display_text_color_for_bg(on_val)),
+      static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_CHECKED));
     lv_obj_set_style_bg_color(btn, lv_color_hex(on_val),
+      static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_PRESSED));
+    lv_obj_set_style_text_color(btn, lv_color_hex(display_text_color_for_bg(on_val)),
       static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_PRESSED));
   }
   if (has_off) {
     lv_obj_set_style_bg_color(btn, lv_color_hex(off_val),
       static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_DEFAULT));
+    lv_obj_set_style_text_color(btn, lv_color_hex(display_text_color_for_bg(off_val)),
+      static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_DEFAULT));
   }
-}
-
-inline uint32_t card_pattern_highlight_color(uint32_t color) {
-  uint8_t r = (color >> 16) & 0xFF;
-  uint8_t g = (color >> 8) & 0xFF;
-  uint8_t b = color & 0xFF;
-  r = static_cast<uint8_t>(r + ((255 - r) * 35 / 100));
-  g = static_cast<uint8_t>(g + ((255 - g) * 35 / 100));
-  b = static_cast<uint8_t>(b + ((255 - b) * 35 / 100));
-  return (static_cast<uint32_t>(r) << 16) |
-         (static_cast<uint32_t>(g) << 8) |
-         static_cast<uint32_t>(b);
+  if (has_on || has_off) bind_card_text_contrast_events(btn);
 }
 
 inline void apply_button_on_pattern(lv_obj_t *btn, const std::string &options,
@@ -408,15 +406,30 @@ inline void apply_card_descendant_text_color(lv_obj_t *obj, lv_color_t color) {
   for (int32_t i = 0; i < count; i++) {
     lv_obj_t *child = lv_obj_get_child(obj, i);
     if (!child) continue;
-    lv_obj_set_style_text_color(child, color, LV_PART_MAIN);
+    // A component-owned foreground (such as forecast temperatures) keeps its
+    // colour while ordinary labels follow the card's pressed/checked contrast.
+    if (!lv_obj_has_flag(child, LV_OBJ_FLAG_USER_2))
+      lv_obj_set_style_text_color(child, color, LV_PART_MAIN);
     apply_card_descendant_text_color(child, color);
   }
 }
 
 inline void sync_card_checked_text_color(lv_obj_t *btn) {
   if (!btn) return;
-  apply_card_descendant_text_color(
-    btn, lv_obj_get_style_text_color(btn, LV_PART_MAIN));
+  const lv_color_t text_color = lv_obj_get_style_text_color(btn, LV_PART_MAIN);
+  apply_card_descendant_text_color(btn, text_color);
+}
+
+inline void card_text_contrast_event_cb(lv_event_t *event) {
+  const auto code = lv_event_get_code(event);
+  if (code == LV_EVENT_PRESSED || code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
+    sync_card_checked_text_color(static_cast<lv_obj_t *>(lv_event_get_target(event)));
+  }
+}
+
+inline void bind_card_text_contrast_events(lv_obj_t *btn) {
+  lv_obj_remove_event_cb_with_user_data(btn, card_text_contrast_event_cb, nullptr);
+  lv_obj_add_event_cb(btn, card_text_contrast_event_cb, LV_EVENT_ALL, nullptr);
 }
 
 inline void set_card_checked_state(lv_obj_t *btn, bool checked) {
@@ -441,15 +454,77 @@ inline void set_wrapped_button_label_text(lv_obj_t *label, const std::string &te
   lv_obj_align(label, LV_ALIGN_BOTTOM_LEFT, 0, 0);
 }
 
+// Generic secondary-label plumbing from PR #2162. Optional value/chevron
+// bounds are used by information cards; ordinary labels keep their layout.
+inline void layout_button_label_with_secondary(
+    BtnSlot &s, bool reserve_value = false, bool navigation = false) {
+  if (!s.text_lbl) return;
+  configure_button_label_wrap(s.text_lbl);
+  if (reserve_value && s.sensor_lbl) {
+    // LVGL's DOT mode can still wrap when height is content-sized. Keep the
+    // native measurement font on one line, reserving the adjacent unit.
+    const auto *value_font = lv_obj_get_style_text_font(s.sensor_lbl, LV_PART_MAIN);
+    if (value_font) lv_obj_set_height(s.sensor_lbl, value_font->line_height);
+  }
+  lv_obj_update_layout(s.btn);
+  const lv_font_t *font = lv_obj_get_style_text_font(s.text_lbl, LV_PART_MAIN);
+  const lv_coord_t line = font && font->line_height > 0 ? font->line_height : 16;
+  const lv_coord_t gutter = navigation && s.subpage_lbl
+    ? lv_obj_get_width(s.subpage_lbl) + 6 : 0;
+  const lv_coord_t width = std::max<lv_coord_t>(1, lv_obj_get_content_width(s.btn) - gutter);
+  lv_obj_set_width(s.text_lbl, width);
+  const bool secondary_visible = s.secondary_lbl &&
+    !lv_obj_has_flag(s.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
+  if (secondary_visible) {
+    lv_obj_set_width(s.secondary_lbl, width);
+    lv_obj_set_style_text_font(s.secondary_lbl, font, LV_PART_MAIN);
+    lv_label_set_long_mode(s.secondary_lbl, LV_LABEL_LONG_DOT);
+    lv_obj_align(s.secondary_lbl, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+  }
+  lv_obj_align(s.text_lbl, LV_ALIGN_BOTTOM_LEFT, 0, secondary_visible ? -line - 2 : 0);
+  if (!secondary_visible && !reserve_value) return;
+  if (reserve_value && s.sensor_container) {
+    // Retain existing fonts. Bound the shared primary label to the space left
+    // below the numeric row instead of overlapping it on small grid spans.
+    const lv_coord_t available = lv_obj_get_content_height(s.btn) -
+      lv_obj_get_height(s.sensor_container) - (secondary_visible ? line : 0) - 6;
+    const lv_coord_t existing_max = lv_obj_get_style_max_height(s.text_lbl, LV_PART_MAIN);
+    lv_obj_set_style_max_height(s.text_lbl,
+      std::min(existing_max, std::max<lv_coord_t>(1, available)), LV_PART_MAIN);
+    lv_obj_set_height(s.text_lbl, LV_SIZE_CONTENT);
+    if (available < line * 2) lv_label_set_long_mode(s.text_lbl, LV_LABEL_LONG_DOT);
+    // Content sizing keeps the unit adjacent to the number, as on native
+    // Sensor cards. A fixed-width value label would push the unit to the edge.
+    lv_obj_set_width(s.sensor_container, LV_SIZE_CONTENT);
+    lv_obj_update_layout(s.unit_lbl);
+    lv_obj_set_width(s.sensor_lbl, LV_SIZE_CONTENT);
+    lv_obj_set_style_max_width(s.sensor_lbl,
+      std::max<lv_coord_t>(1, width - lv_obj_get_width(s.unit_lbl) -
+        lv_obj_get_style_pad_column(s.sensor_container, LV_PART_MAIN)), LV_PART_MAIN);
+    lv_label_set_long_mode(s.sensor_lbl, LV_LABEL_LONG_DOT);
+  }
+  if (navigation && s.subpage_lbl) {
+    lv_obj_clear_flag(s.subpage_lbl, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(s.subpage_lbl);
+  }
+  lv_obj_move_foreground(s.text_lbl);
+  if (secondary_visible) lv_obj_move_foreground(s.secondary_lbl);
+}
+
 inline void set_subpage_chevron_visible(BtnSlot &s, bool visible,
                                         int x_offset = 0,
                                         int y_offset = 2,
                                         int text_width_percent = 94) {
   if (!s.subpage_lbl) return;
-  (void) visible;
-  (void) x_offset;
-  (void) y_offset;
-  (void) text_width_percent;
-  lv_obj_add_flag(s.subpage_lbl, LV_OBJ_FLAG_HIDDEN);
-  if (s.text_lbl) configure_button_label_wrap(s.text_lbl);
+  if (visible) {
+    lv_obj_clear_flag(s.subpage_lbl, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_align(s.subpage_lbl, LV_ALIGN_BOTTOM_RIGHT, x_offset, y_offset);
+    lv_obj_move_foreground(s.subpage_lbl);
+  } else {
+    lv_obj_add_flag(s.subpage_lbl, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (s.text_lbl) {
+    configure_button_label_wrap(s.text_lbl);
+    if (visible) lv_obj_set_width(s.text_lbl, lv_pct(text_width_percent));
+  }
 }
