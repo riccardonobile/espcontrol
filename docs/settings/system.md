@@ -78,6 +78,19 @@ Choose **Export** and keep the downloaded file somewhere safe. It includes cards
 
 Backups do not include Wi-Fi login details, the Home Assistant encryption key, or the touchscreen PIN. They can contain passwords from Wifi Sharing cards and private card settings, so keep the file private.
 
+### Automatic Backups
+
+Firmware with the backup API supports `GET /api/v1/backup`. Download a JSON backup without opening the setup page:
+
+```sh
+curl --fail --show-error --output espcontrol-backup.json.tmp http://PANEL_ADDRESS/api/v1/backup &&
+  mv espcontrol-backup.json.tmp espcontrol-backup.json
+```
+
+Replace `PANEL_ADDRESS` with your panel's hostname or IP address. If web authentication is enabled, add `--digest --user 'USERNAME:PASSWORD'`. A scheduler such as cron can run the command regularly; use dated filenames to retain older copies.
+
+The file contains the saved cards, subpages, panel name and supported device settings, and can be restored using **Import** below. It has the same credential exclusions as a browser backup. Unsaved browser edits are excluded. The panel returns an error while configuration is starting or unavailable; the command above keeps the previous backup when a download fails. The export date is included once the panel's clock has synchronized.
+
 ### Restore a Backup
 
 1. Choose **Import** and select your saved file.
@@ -109,6 +122,8 @@ Updates preserve saved settings. An **Update available** badge on the collapsed 
 Check the [release list](https://github.com/jtenniswood/espcontrol/releases) and the matching assets for your panel. Documentation follows the current source, so a documented option may require firmware newer than your installed release.
 
 Built-in updates install released binaries. For custom ESPHome YAML, turn **Auto Update** off and use [manual ESPHome updates](/getting-started/manual-esphome-setup). Ethernet builds with `disable_updates: "true"` also use ESPHome OTA or USB.
+
+**JC1060P470 V3** also rejects browser OTA uploads; use its [native ESPHome OTA instructions](/screens/jc1060p470-v3).
 
 **JC8012P4A1 V3** rejects browser OTA uploads; follow the [V3 native ESPHome OTA instructions](/screens/jc8012p4a1-v3).
 

@@ -6,7 +6,7 @@ EspControlApp owns long-lived firmware services while YAML continues to supply
 device-specific wiring.
 """
 import esphome.codegen as cg
-from esphome.components.esp32 import VARIANT_ESP32S3, get_esp32_variant
+from esphome.components.esp32 import VARIANT_ESP32P4, VARIANT_ESP32S3, get_esp32_variant
 from esphome.components import text
 from esphome.components.lvgl.defines import add_lv_use
 import esphome.config_validation as cv
@@ -95,6 +95,10 @@ async def to_code(config):
     if CORE.config.get("preferences", {}).get("rtc_storage", False):
         raise cv.Invalid("EspControl reset requires flash preferences; remove preferences.rtc_storage")
     cg.add_define("USE_OTA_STATE_LISTENER")
+    if (get_esp32_variant() == VARIANT_ESP32P4 and
+            config.get(CONF_PANEL_CONFIG, {}).get(CONF_DEVICE_PROFILE) == "esp32-p4-86"):
+        cg.add_define("ESPCONTROL_RESTART_ON_PRIMARY_CORE")
+        cg.add_build_flag("-Wl,--wrap=esp_restart")
     for operation in ("begin", "end", "abort"):
         cg.add_build_flag(f"-Wl,--wrap=esp_ota_{operation}")
     if "esp32_hosted" in CORE.config:
@@ -134,6 +138,10 @@ async def to_code(config):
                 for source in button_sources[CONF_SUBPAGE_CHUNKS]
             ]
             cg.add(var.set_panel_config_button(slot, button, *subpages))
+
+    if panel_config is not None and "web_server" in CORE.config:
+        from .backup import register_backup
+        await register_backup(panel_config, cg, CORE.config)
 
     for update_config in CORE.config.get("update", []):
         update_entity = await cg.get_variable(update_config[CONF_ID])

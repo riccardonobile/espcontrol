@@ -104,6 +104,8 @@ export function createWebStyles(dragAnimation: boolean): string {
         ".sp-btn>.sp-btn-label,.sp-btn>.sp-btn-label-row{margin-top:auto}" +
         ".sp-media-group-active{box-shadow:inset 0 0 0 3px var(--accent)}" +
         ".sp-btn-label{display:block;max-height:var(--btn-label-max-height);overflow:hidden;word-break:break-word;min-height:0}" +
+        ".sp-btn.sp-weather-wind-card>.sp-btn-label{max-height:none}" +
+        ".sp-weather-wind-speed{display:block;margin-top:.2em}" +
         ".sp-editable-title{cursor:text;pointer-events:auto}.sp-editable-title:focus-visible{outline:2px solid currentColor;outline-offset:2px}" +
         ".sp-card-name-input{display:block;box-sizing:border-box;width:100%;min-width:0;margin:0;padding:0;border:0;border-bottom:1px solid currentColor;border-radius:0;outline:none;background:transparent;color:inherit;font:inherit;line-height:inherit;user-select:text}" +
         ".sp-image-label-stack:has(.sp-card-name-input){min-width:5em;max-width:100%;font-size:var(--btn-label);line-height:1.2;color:#fff}" +
@@ -117,12 +119,13 @@ export function createWebStyles(dragAnimation: boolean): string {
         ".sp-clock-left-mid{justify-content:center;align-items:flex-start}" +
         ".sp-clock-centered{justify-content:center;align-items:center}" +
         ".sp-forecast-preview{white-space:nowrap;gap:0}" +
+        ".sp-btn.sp-rainfall-card>.sp-btn-label{max-height:none}.sp-rainfall-value{display:block;margin-top:.2em}" +
         ".sp-weather-daily-card{font-size:var(--btn-label)}" +
         ".sp-weather-days{display:grid;width:100%;height:100%;min-height:0;align-items:stretch;overflow:hidden;gap:1.25em}" +
         ".sp-weather-day{min-width:0;min-height:0;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:.2em;font-size:var(--btn-label);white-space:nowrap}" +
         ".sp-weather-day[hidden]{display:none}.sp-weather-day .mdi{font-size:var(--btn-icon);line-height:1;margin-bottom:auto}" +
         ".sp-weather-grid .sp-weather-day{justify-content:center}.sp-weather-grid .sp-weather-day .mdi{margin-bottom:var(--weather-icon-gap)}" +
-        ".sp-weather-temperature-high{white-space:nowrap;font-size:var(--btn-small-text);color:var(--card-text-color,var(--preview-text-primary));opacity:.7}" +
+        ".sp-weather-wind-speed,.sp-rainfall-value,.sp-weather-temperature-high{white-space:nowrap;font-size:var(--btn-small-text);color:var(--card-text-color,var(--preview-text-primary));opacity:.7}" +
         ".sp-sensor-value{font-size:var(--btn-icon);line-height:1;font-weight:300}" +
         ".sp-sensor-unit{font-size:var(--btn-label);line-height:1;color:var(--card-text-color,var(--preview-text-primary))}" +
         ".sp-power-card .sp-sensor-preview{min-width:0;max-width:100%;overflow:hidden;flex-shrink:0}" +
@@ -446,12 +449,6 @@ export function createWebStyles(dragAnimation: boolean): string {
         ".sp-delete-btn:hover,.sp-hide-btn:hover,.sp-cancel-btn:hover{background:var(--border);color:var(--text)}" +
         ".sp-save-btn{background:var(--accent);color:#fff}" +
         ".sp-save-btn:hover{background:var(--accent-hover)}" +
-        ".sp-transfer-copy-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;" +
-        "border:1px solid var(--border);background:var(--surface2);color:var(--text2);" +
-        "transition:background .25s,color .25s,border-color .25s,opacity .25s}" +
-        ".sp-transfer-copy-btn:hover{background:var(--border);border-color:var(--text3);color:var(--text)}" +
-        ".sp-transfer-copy-btn.sp-copied{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-hover)}" +
-        ".sp-transfer-copy-btn.sp-copied:hover{background:var(--accent-soft);border-color:var(--accent-hover);color:var(--accent-hover)}" +
         ".sp-edit-subpage-btn{background:var(--accent);color:#fff}" +
         ".sp-edit-subpage-btn:hover{background:var(--accent-hover)}" +
         ".sp-btn-row--save{margin-top:24px;justify-content:flex-end}" +
@@ -518,6 +515,7 @@ export function createWebStyles(dragAnimation: boolean): string {
         ".sp-disclosure-chevron{display:inline-flex;width:20px;height:20px;color:var(--text3);transition:transform .25s ease;flex-shrink:0}" +
         ".sp-disclosure-chevron svg{width:100%;height:100%}" +
         ".sp-disclosure-body{display:none;padding:15px 14px 14px}" +
+        ".sp-disclosure-body.sp-weather-source-fields{padding-bottom:28px}" +
         ".sp-media-card-settings .sp-disclosure-body{padding:14px}" +
         ".sp-disclosure.sp-open .sp-disclosure-chevron{transform:rotate(180deg)}" +
         ".sp-disclosure.sp-open .sp-disclosure-body{display:block}" +
