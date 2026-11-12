@@ -52,6 +52,8 @@ if args.native_surface:
         function('create_grid_card_button', (headers / 'button_grid_subpages.h').read_text(encoding='utf-8')),
         'namespace espcontrol::cards {\n' + function('sensor_driver_apply_background',
             (headers / 'button_grid_sensor_driver.h').read_text(encoding='utf-8')) + '\n}',
+        function('power_flow_style_status', power),
+        function('power_flow_layout_status', power),
         function('power_flow_apply_surfaces', power),
     ))
     template = Path(__file__).parent.parent / 'native_power_surface/power_surface_render_test.cpp.in'

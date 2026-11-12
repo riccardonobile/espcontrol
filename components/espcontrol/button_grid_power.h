@@ -219,6 +219,8 @@ struct PowerFlowUi : PowerFlowNodes {
   ControlModalShell shell{};
   lv_obj_t *dashboard = nullptr, *diagram = nullptr, *back_area = nullptr;
   lv_obj_t *area = nullptr, *status = nullptr;
+  lv_point_t status_center{};
+  int status_max_width = 0;
   BtnSlot sidebar[4]{}, back_slot{};
   espcontrol::power::FlowDashboardGrid grid{};
   lv_coord_t columns[6]{}, rows[5]{};
@@ -298,9 +300,46 @@ inline void power_flow_limit_unmeasured(PowerFlowNodes &ui, PowerCardCtx *ctx, s
   lv_obj_set_style_max_width(ui.detail_rows[i], width, LV_PART_MAIN);
   lv_obj_set_style_max_width(ui.details[i], std::max(1, width - soc_width), LV_PART_MAIN);
 }
+// Native modal-chip surface/muted-text roles, on the existing label itself.
+// No button, pressed state, corner mask, child container or extra draw depth.
+inline void power_flow_style_status(lv_obj_t *label, const DisplayProfile &display,
+                                    const ThemePalette &theme) {
+  if (!label) return;
+  lv_obj_set_style_bg_color(label, lv_color_hex(display_correct_color(theme.surface_primary, display)), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(label, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_text_color(label, lv_color_hex(theme.text_muted), LV_PART_MAIN);
+}
+inline void power_flow_layout_status() {
+  auto &ui = power_flow_ui();
+  if (!ui.card || !ui.status || !ui.details[3] || ui.status_max_width <= 0) return;
+  const auto *font = lv_obj_get_style_text_font(ui.details[3], LV_PART_MAIN);
+  if (!font) return;
+  // The actual path viewport, not the modal/screen, owns the center. Reserve
+  // the fixed side-node envelopes even when an optional component is absent.
+  // These bounds are saved when the production viewport/geometry is assigned.
+  // Reading just-set object coordinates here would use stale LVGL bounds;
+  // forcing synchronous layout would deepen the formerly exhausted draw stack.
+  const int cx = ui.status_center.x, cy = ui.status_center.y;
+  constexpr int pad_x = 12, pad_y = 6;
+  const int width = ui.status_max_width;
+  lv_point_t text;
+  lv_text_get_size(&text, lv_label_get_text(ui.status), font, 0, 0,
+                   std::max(1, width - 2 * pad_x), LV_TEXT_FLAG_NONE);
+  const int w = std::min(width, static_cast<int>(text.x) + 2 * pad_x);
+  const int h = static_cast<int>(text.y) + 2 * pad_y;
+  lv_obj_set_style_text_font(ui.status, font, LV_PART_MAIN);
+  lv_obj_set_style_pad_all(ui.status, pad_y, LV_PART_MAIN);
+  lv_obj_set_style_pad_left(ui.status, pad_x, LV_PART_MAIN);
+  lv_obj_set_style_pad_right(ui.status, pad_x, LV_PART_MAIN);
+  lv_obj_set_style_radius(ui.status, h / 2, LV_PART_MAIN);
+  lv_label_set_long_mode(ui.status, LV_LABEL_LONG_WRAP);
+  lv_obj_set_size(ui.status, w, h);
+  lv_obj_set_pos(ui.status, cx - w / 2, cy - h / 2);
+}
 inline void power_flow_apply_surfaces(const ThemePalette &theme) {
   auto &ui = power_flow_ui();
   if (!ui.card) return;
+  power_flow_style_status(ui.status, ui.card->display, theme);
   const bool large = ui.grid.large && ui.back_area;
   // The existing diagram is a background-only native Sensor surface. Keep
   // foregrounds outside its corner-mask layer: LVGL 9.5's RGB565 compositing
@@ -438,16 +477,14 @@ inline void power_flow_layout() {
   const int node_y = diagram_content.y1 + viewport.y - panel_content.y1;
   lv_obj_set_size(ui.area, width, height);
   lv_obj_set_pos(ui.area, node_x, node_y);
+  ui.status_center = {node_x + width / 2, node_y + height / 2};
+  const int side_width = geometry.envelope_width > 0
+    ? static_cast<int>(geometry.envelope_width) : side_node_w;
+  ui.status_max_width = std::max(1, static_cast<int>(2 * std::min(
+    width / 2.0 - geometry.nodes[2].x - side_width / 2.0,
+    geometry.nodes[1].x - side_width / 2.0 - width / 2.0)) - 12);
   // Large views use the native Back card; compact views retain the shell arrow.
   power_flow_set_visible(ui.shell.close_btn, !large);
-  lv_label_set_long_mode(ui.status, LV_LABEL_LONG_CLIP);
-  lv_obj_set_size(ui.status, large ? lv_obj_get_content_width(ui.diagram)
-    : std::max<int>(1, panel_w - layout.inset * 2 - layout.back_size - layout.title_gap), text_h);
-  lv_obj_set_pos(ui.status, large ? diagram_content.x1 - panel_content.x1
-    : layout.inset + layout.back_size + layout.title_gap,
-    large ? diagram_content.y1 - panel_content.y1 : layout.back_inset_y);
-  if (text_font) lv_obj_set_style_text_font(ui.status, text_font, LV_PART_MAIN);
-  lv_obj_set_style_text_color(ui.status, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
   for (size_t i = 0; i < 7; ++i) {
     for (size_t j = 0; j < espcontrol::power::FLOW_POINT_COUNT; ++j)
       ui.paths[i].points[j] = {espcontrol::power::flow_coordinate<lv_value_precise_t>(geometry.paths[i][j].x),
@@ -508,6 +545,7 @@ inline void power_flow_layout() {
   if (text_font) lv_obj_set_style_text_font(ui.soc, text_font, LV_PART_MAIN);
   lv_obj_set_height(ui.soc, text_h);
   lv_obj_set_style_text_color(ui.soc, lv_color_hex(current_theme().text_muted), LV_PART_MAIN);
+  power_flow_layout_status();
   if (large) {
     for (auto &slot : ui.sidebar) {
       apply_standard_sensor_number_style(slot, ui.card->display);
@@ -614,6 +652,9 @@ inline void power_flow_update(PowerCardCtx *ctx) {
     ? "Readings only" : active || !calc.idle() ? "" : "Idle";
   power_set_text(ui.status, espcontrol_i18n(state));
   power_flow_set_visible(ui.status, *state != 0);
+  // Every displayed calculation state suppresses all paths in edge_active().
+  // Active/valid flows have no chip, including during the 200 ms batching window.
+  power_flow_layout_status();
   if (diagnose) power_flow_diagnostic_stage("model.update.end", ui.diagnostic_updates);
 }
 inline lv_obj_t *power_flow_label(lv_obj_t *parent, const lv_font_t *font) {
@@ -786,6 +827,8 @@ inline void power_flow_open(PowerCardCtx *ctx) {
   power_flow_diagnostic_stage("all.nodes.ready");
   ui.status = power_flow_label(ui.shell.panel, label_font);
   if (!ui.status) { power_flow_hide(); return; }
+  lv_obj_remove_style_all(ui.status);
+  lv_obj_set_style_text_align(ui.status, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
   // An explicit owner is required even in compact views: generic modal chrome
   // cannot distinguish passive Sensor surfaces from other neutral roles.
   if (!register_theme_refresh(ui.diagram, [](void *, const ThemePalette &theme) {
