@@ -7,6 +7,19 @@ namespace espcontrol::cards {
 inline bool power_driver_matches(const Context &context) {
   return context.runtime.driver == card_runtime::CardDriverId::POWER;
 }
+// Power navigates to a modal. Ordinary Subpage markers remain hidden by the
+// upstream helper; reuse the slot's native marker only for this card family.
+inline void power_driver_show_chevron(BtnSlot &slot, const GridConfig &grid) {
+  if (!slot.subpage_lbl) return;
+  lv_obj_clear_flag(slot.subpage_lbl, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_align(slot.subpage_lbl, LV_ALIGN_BOTTOM_RIGHT,
+    grid.subpage_chevron_x, grid.subpage_chevron_y);
+  lv_obj_move_foreground(slot.subpage_lbl);
+  if (slot.text_lbl) {
+    configure_button_label_wrap(slot.text_lbl);
+    lv_obj_set_width(slot.text_lbl, lv_pct(grid.subpage_chevron_text_width_percent));
+  }
+}
 inline bool power_driver_setup_visual(BtnSlot &slot, const ParsedCfg &config,
                                        const Context &context, const CardPalette &,
                                        const GridConfig &grid, int col_span) {
@@ -15,8 +28,7 @@ inline bool power_driver_setup_visual(BtnSlot &slot, const ParsedCfg &config,
   lv_obj_add_flag(slot.btn, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_clear_flag(slot.btn, LV_OBJ_FLAG_CHECKABLE);
   lv_obj_clear_state(slot.btn, LV_STATE_CHECKED);
-  set_subpage_chevron_visible(slot, true, grid.subpage_chevron_x,
-    grid.subpage_chevron_y, grid.subpage_chevron_text_width_percent);
+  power_driver_show_chevron(slot, grid);
   lv_obj_add_flag(slot.icon_lbl, LV_OBJ_FLAG_HIDDEN);
   lv_obj_clear_flag(slot.sensor_container, LV_OBJ_FLAG_HIDDEN);
   lv_obj_clear_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
@@ -50,8 +62,7 @@ inline bool power_driver_refresh_layout(BtnSlot &slot, const Context &context,
       lv_obj_add_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_clear_flag(slot.secondary_lbl, LV_OBJ_FLAG_HIDDEN);
   }
-  set_subpage_chevron_visible(slot, true, grid.subpage_chevron_x,
-    grid.subpage_chevron_y, grid.subpage_chevron_text_width_percent);
+  power_driver_show_chevron(slot, grid);
   layout_button_label_with_secondary(slot, col_span >= 2, true);
   return true;
 }

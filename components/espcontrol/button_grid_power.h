@@ -209,8 +209,6 @@ struct PowerFlowNodes {
   lv_obj_t *names[4]{};
   lv_obj_t *icons[4]{};
   lv_obj_t *values[4]{};
-  lv_obj_t *measurements[4]{};
-  lv_obj_t *units[4]{};
   lv_obj_t *details[4]{};
   lv_obj_t *detail_rows[4]{};
   lv_obj_t *soc = nullptr;
@@ -537,8 +535,7 @@ inline void power_flow_update_nodes(PowerFlowNodes &ui, PowerCardCtx *ctx) {
   const auto &calc = ctx->data.model.calculation;
   for (size_t i = 0; i < 4; ++i) {
     power_flow_set_visible(ui.nodes[i], calc.capabilities.includes(static_cast<espcontrol::power::Node>(i)));
-    power_set_text(ui.values[i], power_reading_text(calc.nodes[i], ctx->precision, !ui.units[i]));
-    power_set_text(ui.units[i], calc.nodes[i].valid() ? "W" : "");
+    power_set_text(ui.values[i], power_reading_text(calc.nodes[i], ctx->precision));
     std::string detail = power_node_detail(calc, i);
     power_flow_set_visible(ui.detail_rows[i], ui.legacy_rows || i >= 2 || !detail.empty());
     if (i == 3) {

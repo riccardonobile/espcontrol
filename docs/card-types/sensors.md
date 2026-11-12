@@ -46,6 +46,8 @@ Choose **Power** to show instantaneous Home consumption in **watts (W)**. Tap th
 on the panel to open **Power Flow**. The label defaults to **Power Dashboard**;
 the secondary line summarizes Battery and Grid activity. Power is a navigation
 card: tapping opens the view without toggling an entity or calling a service.
+Use the standard [Custom Colours controls](/features/appearance#active-colour) to
+change the Power card; Power Flow keeps the native theme's information-card surface.
 
 Power needs **at least two grid columns** on the main grid and subpages. The
 editor only expands into free space; move neighboring cards yourself if needed.

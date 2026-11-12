@@ -340,21 +340,28 @@ int main(){
   assert(!(slot.btn->flags&LV_OBJ_FLAG_CHECKABLE));
   assert(slot.btn->bg==0x313131); // native card, never the sensor surface
   // Execute the actual main-grid subpage-entry driver, not Power's arrow.
+  // Upstream deliberately hides Subpage chevrons, even when the legacy flag
+  // is enabled. Only Power may expose its own navigation marker.
   Context navigation;navigation.runtime.driver=card_runtime::CardDriverId::SUBPAGE;
   GridConfig grid{};grid.subpage_chevrons_enabled=false;grid.subpage_chevron_x=4;grid.subpage_chevron_y=-2;
   assert(navigation_driver_refresh_layout(slot,cfg,navigation,grid));
   assert(slot.subpage_lbl->flags&LV_OBJ_FLAG_HIDDEN);
   grid.subpage_chevrons_enabled=true;
   assert(navigation_driver_refresh_layout(slot,cfg,navigation,grid));
-  assert(!(slot.subpage_lbl->flags&LV_OBJ_FLAG_HIDDEN));
-  assert(slot.subpage_lbl->x==4&&slot.subpage_lbl->y==-2);
+  assert(slot.subpage_lbl->flags&LV_OBJ_FLAG_HIDDEN);
+  assert(slot.subpage_lbl->x==0&&slot.subpage_lbl->y==2);
   auto *subpage_screen=lv_obj_create(nullptr);
   lv_obj_set_user_data(slot.btn,subpage_screen);
   assert(navigation_driver_handle_main_click(navigation,cfg,slot.btn));
   assert(loaded_screen==subpage_screen);
   lv_scr_load_anim(slot.btn,LV_SCR_LOAD_ANIM_NONE,0,0,false);assert(loaded_screen==slot.btn);
   lv_obj_set_user_data(slot.btn,nullptr);lv_obj_del(subpage_screen);
+  grid.subpage_chevrons_enabled=false;
+  power_driver_refresh_layout(slot,context,grid,2);
+  assert(!(slot.subpage_lbl->flags&LV_OBJ_FLAG_HIDDEN));
+  assert(slot.subpage_lbl->x==4&&slot.subpage_lbl->y==-2);
   power_driver_refresh_layout(slot,context,GridConfig{},2);
+  assert(slot.subpage_lbl->x==0&&slot.subpage_lbl->y==2);
   assert(slot.secondary_lbl->font==slot.text_lbl->font);
   assert(slot.text_lbl->w==slot.secondary_lbl->w&&slot.text_lbl->w<slot.btn->w);
   assert(slot.text_lbl->max_h<=slot.btn->h-slot.sensor_container->h-slot.text_lbl->font->line_height-6);
