@@ -25,9 +25,12 @@
 #include "panel_config_storage_backend.h"
 #include "panel_config_endpoint_policy.h"
 #include "panel_config_storage_selection.h"
+#include "panel_config_storage_migration.h"
 #include "panel_config_write_endpoint.h"
 #include "panel_config_http_context.h"
 #include "panel_identity_endpoint.h"
+#include "panel_backup_endpoint.h"
+#include "screensaver_pin_endpoint.h"
 #include "button_grid.h"
 
 extern "C" void espcontrol_register_web_server_handlers(
@@ -36,6 +39,8 @@ extern "C" void espcontrol_register_web_server_handlers(
   if (server == nullptr) return;
   espcontrol::reset::register_handlers(*server);
   espcontrol::register_panel_identity_endpoint(*server);
+  espcontrol::backup::register_panel_backup_endpoint(*server);
+  espcontrol::register_screensaver_pin_endpoint(*server);
   register_local_sensor_endpoint(*server);
   register_local_action_endpoint(*server);
   espcontrol::configuration::register_panel_config_capabilities_endpoint(*server);
@@ -149,6 +154,7 @@ bool EspControlApp::create_native_configuration_runtime() {
                configuration::PanelConfigTextBindings::MAX_SUBPAGE_CHUNKS>
         legacy_subpages{};
     for (size_t subpage = 0; subpage < sources.subpages.size(); ++subpage) {
+      if (sources.subpages[subpage] == nullptr) continue;
       legacy_sources.subpages[subpage].bind(sources.subpages[subpage]);
       legacy_subpages[subpage] = &legacy_sources.subpages[subpage];
     }
@@ -223,6 +229,7 @@ void EspControlApp::apply_boot_configuration() {
 }
 
 void EspControlApp::setup() {
+  screensaver_pin().setup();
   home_assistant_endpoint_.setup();
   esphome::artwork_image::TransferObserver::instance().set(
       [this](const std::string &origin) -> uint32_t {
@@ -312,8 +319,31 @@ void EspControlApp::initialize_native_configuration() {
         heap_caps_malloc(panel_config_memory_size,
                          MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
 #endif
-    if (runtime.memory == nullptr ||
-        !runtime.backend.begin(runtime.memory,
+    if (runtime.memory == nullptr) {
+      ESP_LOGE(TAG, "Native configuration memory is unavailable");
+      native_configuration_initialized_ = true;
+      register_panel_config_endpoints();
+      return;
+    }
+    if (panel_config_card_images_storage_ && !storage.used_nvs_fallback) {
+      configuration::EspIdfPanelConfigBlobStorage original;
+      // If NVS cannot open, its reads fail and migration stops unless the
+      // destination already has a valid document. Never import stale text.
+      original.begin_read_only();
+      const configuration::StoreStatus migrated =
+          configuration::migrate_panel_config_storage<PANEL_CONFIG_STORAGE_SLOT_CAPACITY>(
+              original, runtime.blobs, runtime.slot_capacity, runtime.memory,
+              runtime.slot_capacity * 5);
+      if (migrated != configuration::StoreStatus::OK &&
+          migrated != configuration::StoreStatus::EMPTY) {
+        ESP_LOGE(TAG, "Native storage migration failed (%u); preserving NVS configuration",
+                 static_cast<unsigned>(migrated));
+        native_configuration_initialized_ = true;
+        register_panel_config_endpoints();
+        return;
+      }
+    }
+    if (!runtime.backend.begin(runtime.memory,
                                runtime.slot_capacity * 2,
                                runtime.slot_capacity)) {
       ESP_LOGE(TAG, "Native configuration memory is unavailable");
@@ -373,9 +403,15 @@ void EspControlApp::loop() {
   register_panel_config_endpoints();
 }
 
+void EspControlApp::on_safe_shutdown() {
+  // ESPHome runs all safe-shutdown hooks before any on_shutdown hook. mDNS
+  // shuts down before this AFTER_WIFI component, freeing outstanding query
+  // handles, so release our discovery query while the service is still alive.
+  home_assistant_endpoint_.shutdown();
+}
+
 void EspControlApp::on_shutdown() {
   esphome::artwork_image::TransferObserver::instance().set({}, {});
-  home_assistant_endpoint_.shutdown();
   cards::set_card_runtime_registry_service(nullptr);
   core_.stop();
 }

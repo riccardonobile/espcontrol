@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstring>
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -207,8 +208,16 @@ inline void ha_reset_deferred_state_requests() {
 }
 #define ESPCONTROL_HA_DEFERRED_HELPERS_DEFINED 1
 
+// A card family can clear its live snapshot with the same disconnect event;
+// the HA coordinator continues to own replay and reconnect subscriptions.
+inline void (*&ha_retained_state_invalidated_handler())() {
+  static void (*handler)() = nullptr;
+  return handler;
+}
+
 inline void ha_invalidate_retained_state() {
   ha_read_coordinator().invalidate_retained_state();
+  if (auto handler = ha_retained_state_invalidated_handler()) handler();
   ha_log_subscription_diagnostics("client-disconnected");
 }
 
@@ -241,13 +250,19 @@ inline void ha_reannounce_state_subscriptions() {
   ha_log_subscription_diagnostics("grid-reannounce");
 }
 
+template<typename String>
+inline void ha_set_action_string(String &field, const char *value) {
+  const char *text = value != nullptr ? value : "";
+  field = String(text, std::strlen(text));
+}
+
 inline bool ha_action_begin(esphome::api::HomeassistantActionRequest &req,
                             const char *service,
                             bool is_event,
                             size_t data_count,
                             uint32_t call_id = 0) {
   if (!ha_api_available() || service == nullptr || service[0] == '\0') return false;
-  req.service = decltype(req.service)(service);
+  ha_set_action_string(req.service, service);
   req.is_event = is_event;
   if (call_id != 0) req.call_id = call_id;
   req.data.init(data_count);
@@ -258,24 +273,24 @@ inline void ha_action_add_data(esphome::api::HomeassistantActionRequest &req,
                                const char *key,
                                const char *value) {
   auto &kv = req.data.emplace_back();
-  kv.key = decltype(kv.key)(key ? key : "");
-  kv.value = decltype(kv.value)(value ? value : "");
+  ha_set_action_string(kv.key, key);
+  ha_set_action_string(kv.value, value);
 }
 
 inline void ha_action_add_data_template(esphome::api::HomeassistantActionRequest &req,
                                         const char *key,
                                         const char *value) {
   auto &kv = req.data_template.emplace_back();
-  kv.key = decltype(kv.key)(key ? key : "");
-  kv.value = decltype(kv.value)(value ? value : "");
+  ha_set_action_string(kv.key, key);
+  ha_set_action_string(kv.value, value);
 }
 
 inline void ha_action_add_variable(esphome::api::HomeassistantActionRequest &req,
                                    const char *key,
                                    const char *value) {
   auto &kv = req.variables.emplace_back();
-  kv.key = decltype(kv.key)(key ? key : "");
-  kv.value = decltype(kv.value)(value ? value : "");
+  ha_set_action_string(kv.key, key);
+  ha_set_action_string(kv.value, value);
 }
 
 inline void ha_action_add_entity(esphome::api::HomeassistantActionRequest &req,

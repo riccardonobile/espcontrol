@@ -91,7 +91,7 @@ export function registerImageCardTypes(
         syncIconField();
     }
     function renderImageModalSettings(this: any, panel?: any, b?: any, helpers?: any) {
-        var modeField: any = helpers.selectField("Expanded Image", helpers.idPrefix + "image-modal-mode", imageModalModeOptions(), imageModalMode(b));
+        var modeField: any = helpers.selectField("Image fit", helpers.idPrefix + "image-modal-mode", imageModalModeOptions(), imageModalMode(b));
         panel.appendChild(modeField.field);
         modeField.select.addEventListener("change", function (this: any) {
             setImageModalMode(b, this.value);
@@ -181,7 +181,7 @@ export function registerImageCardTypes(
             });
             nameField.field.setAttribute("data-sp-card-primary", "name");
             renderImageLabelSettings(panel, b, helpers);
-            var modalSettingsDisclosure: any = helpers.disclosureSection("Modal Settings", helpers.idPrefix + "image-modal-settings", false);
+            var modalSettingsDisclosure: any = helpers.disclosureSection("Image Settings", helpers.idPrefix + "image-modal-settings", false);
             renderImageModalSettings(modalSettingsDisclosure.section, b, helpers);
             panel.appendChild(modalSettingsDisclosure.panel);
             const refreshSettings = helpers.disclosureSection("Refresh Settings", helpers.idPrefix + "image-refresh-settings", false);
@@ -189,10 +189,12 @@ export function registerImageCardTypes(
             panel.appendChild(refreshSettings.panel);
         },
         renderPreview: function (this: any, b?: any, helpers?: any) {
-            var tertiaryColor: any = PREVIEW_THEME_COLORS[previewEffectiveTheme(state)].surfaceSecondary;
+            var customBackground: any = helpers && helpers.cardBackgroundColor || "";
+            var tertiaryColor: any = customBackground || PREVIEW_THEME_COLORS[previewEffectiveTheme(state)].surfaceSecondary;
             var label: any = imageLabelEnabled(b) ? String((b && b.label) || "Camera").trim() : "";
             var iconName: any = b && b.icon && b.icon !== "Auto" ? iconSlug(b.icon) : "camera";
-            var icon: any = imageIconEnabled(b) ? '<span class="sp-image-preview-icon mdi mdi-' + iconName + '"></span>' : "";
+            var iconColor: any = customBackground ? ' style="color:' + helpers.escHtml(helpers.cardTextColor) + '"' : "";
+            var icon: any = imageIconEnabled(b) ? '<span class="sp-image-preview-icon mdi mdi-' + iconName + '"' + iconColor + '></span>' : "";
             return {
                 buttonClass: "sp-image-card",
                 iconHtml: '<span class="sp-image-preview" style="background:#' + helpers.escHtml(tertiaryColor) + '">' +

@@ -156,6 +156,8 @@ int main() {
   assert(screen_lock.entity.empty() && screen_lock.label.empty() && screen_lock.sensor.empty());
   assert(screen_lock.unit.empty() && screen_lock.precision.empty() && screen_lock.options.empty());
   assert(screen_lock.icon == "Lock" && screen_lock.icon_on == "Lock Open");
+  screen_lock.options = "unknown=1,screensaver_on_lock,screensaver_on_lock";
+  assert(normalize_saved_config_static(screen_lock) && screen_lock.options == "screensaver_on_lock");
   Config light_switch{"light_switch", "stale", "unit", "2", "unknown=1", "Custom", "light.kitchen", "Kitchen", "Custom"};
   assert(normalize_saved_config_static(light_switch));
   assert(light_switch.sensor.empty() && light_switch.unit.empty());
@@ -348,6 +350,7 @@ int main() {
     [&](Config &config, bool was_legacy) {
       weather_fields_called = was_legacy;
       config.label.clear();
+      config.sensor.clear();
     },
     [&](const std::string &, const Config &config) {
       weather_options_called = config.sensor.empty() && config.precision == "tomorrow";
@@ -629,6 +632,9 @@ function main() {
     sensor: "", unit: "", precision: "", options: "",
   });
   const internal = { type: "internal", entity: "relay_1", sensor: "push", options: "unknown=1" };
+  screenLock.options = "unknown=1,screensaver_on_lock,screensaver_on_lock";
+  generatedStatic.normalizeSavedConfigStatic(screenLock);
+  assert.strictEqual(screenLock.options, "screensaver_on_lock");
   assert.strictEqual(generatedStatic.normalizeSavedConfigStatic(internal), true);
   assert.deepStrictEqual(internal, { type: "internal", entity: "relay_1", sensor: "push", options: "" });
   const slider = { type: "slider", sensor: "stale", unit: "%", precision: "2", options: "unknown=1" };
@@ -737,7 +743,7 @@ function main() {
   let weatherOptionsCalled = false;
   assert.strictEqual(generatedWeather.normalizeSavedConfigWeather(
     legacyWeather, true,
-    (config, wasLegacy) => { weatherFieldsCalled = wasLegacy; config.label = ""; },
+    (config, wasLegacy) => { weatherFieldsCalled = wasLegacy; config.label = ""; config.sensor = ""; },
     (_options, config) => { weatherOptionsCalled = config.sensor === "" && config.precision === "tomorrow"; return "large_numbers"; },
   ), true);
   assert(weatherFieldsCalled && weatherOptionsCalled);

@@ -5,6 +5,8 @@ description: Compare supported EspControl touchscreens by size, card capacity, c
 
 # Choose a Home Assistant Touchscreen
 
+![EspControl touchscreen panels showing colourful control cards, temperatures, media, and radar images](/images/screens-hero.jpg)
+
 EspControl turns a supported ESP32 touchscreen into a dedicated Home Assistant controller. Choose the **4-inch S3 for a compact, lower-cost panel** or a **7- or 10.1-inch P4 for more controls at once**. All use the same browser-based card editor.
 
 You need a working Home Assistant installation, a supported screen, a suitable power supply, and a USB data cable for the first install. EspControl has its own interface; it cannot display or import your existing Lovelace dashboard cards.
@@ -37,12 +39,12 @@ All standard browser installs use **2.4 GHz WiFi**. The JC1060P470 and P4 86 Pan
 
 Use the model's USB programming port and a data-capable cable for installation. For everyday power, check the exact board's labelled input, voltage, required current, and connector before buying a supply. USB connector shape does not establish support for another voltage or power input.
 
-The Waveshare **ESP32-P4-86-Panel-ETH-2RO** supports USB-C power or its separate DC 6–30 V input, as documented in the [manufacturer's power guidance](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-4B/FAQ). This specification applies to that exact board, not the Guition panels. An Ethernet socket does not by itself establish PoE support. Battery measurement is only documented for [compatible JC8012P4A1 battery hardware](/features/battery).
+The Waveshare **ESP32-P4-86-Panel-ETH-2RO** supports USB-C power or its separate DC 6–30 V input, as documented in the [manufacturer's power guidance](https://docs.waveshare.com/ESP32-P4-WIFI6-Touch-LCD-4B/FAQ). This specification applies to that exact board, not the Guition panels. An Ethernet socket does not by itself establish PoE support. Battery measurement is only documented for [compatible JC8012P4A1 battery hardware](/settings/system#battery).
 
 ## Identify the Hardware Revision Before Installing
 
 - **10.1-inch JC8012P4A1:** check chip information first. ESP32-P4 v3.x production silicon needs [V3 firmware](/screens/jc8012p4a1-v3), regardless of the case date. Otherwise, rear-case markings `2627` or lower use [V1](/screens/jc8012p4a1-v1), and `2628` or higher use [V2](/screens/jc8012p4a1-v2).
-- **7-inch JC1060P470:** a case marked `V2`, or a screen-board date `2622` or higher, identifies [V2](/screens/jc1060p470-v2). An unmarked case with an earlier board date identifies [V1](/screens/jc1060p470-v1). Follow the [identification guide](/screens/jc1060p470) if uncertain.
+- **7-inch JC1060P470:** check chip information first: ESP32-P4 v3.1–v3.99 production silicon uses [V3](/screens/jc1060p470-v3) (v3.2 tested). For older silicon, a case marked `V2`, or a screen-board date `2622` or higher, identifies [V2](/screens/jc1060p470-v2). An unmarked case with an earlier board date identifies [V1](/screens/jc1060p470-v1). Follow the [identification guide](/screens/jc1060p470) if uncertain.
 - **4-inch P4:** EspControl targets **ESP32-P4-86-Panel-ETH-2RO**. Other rear boards or similarly named camera variants are not automatically supported.
 
 Matching screen size, resolution, or processor is not sufficient. The common Cheap Yellow Display and other unlisted boards do not have ready-to-install EspControl firmware.

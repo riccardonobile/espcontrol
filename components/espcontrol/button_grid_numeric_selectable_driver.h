@@ -72,14 +72,14 @@ inline bool numeric_selectable_driver_setup_visual(
   } else if (context.runtime.driver == Driver::LIGHT_TEMPERATURE) {
     setup_light_temp_visual(
       slot, config,
-      palette.has_on ? palette.on_val : DEFAULT_ACCENT_COLOR);
+      card_slider_fill_color(palette));
     numeric_selectable_driver_track_slider_cleanup(slot);
   } else if (numeric_selectable_driver_fan_action(context)) {
     setup_fan_card(slot, config);
   } else {
     setup_slider_visual(
       slot, config,
-      palette.has_on ? palette.on_val : DEFAULT_ACCENT_COLOR);
+      card_slider_fill_color(palette));
     numeric_selectable_driver_track_slider_cleanup(slot);
   }
   return true;
@@ -240,20 +240,25 @@ inline bool numeric_selectable_driver_bind_subpage(
     slot, config, context, environment.palette, environment.display);
 
   if (bindings.select) {
-    lv_obj_add_event_cb(slot.btn, [](lv_event_t *event) {
+    bind_navigation_button_action(slot.btn, [](lv_event_t *event) {
       OptionSelectCtx *select = static_cast<OptionSelectCtx *>(
         lv_event_get_user_data(event));
       if (select) option_select_open_modal(select);
-    }, LV_EVENT_CLICKED, bindings.select);
+    }, bindings.select);
   } else if (bindings.fan) {
     if (environment.add_parent_indicator) {
       environment.add_parent_indicator(config.entity);
     }
-    lv_obj_add_event_cb(slot.btn, [](lv_event_t *event) {
+    const auto action = [](lv_event_t *event) {
       FanCardCtx *fan = static_cast<FanCardCtx *>(
         lv_event_get_user_data(event));
       if (fan) fan_card_handle_click(fan);
-    }, LV_EVENT_CLICKED, bindings.fan);
+    };
+    if (card_runtime_main_click_opens_modal(context)) {
+      bind_navigation_button_action(slot.btn, action, bindings.fan);
+    } else {
+      lv_obj_add_event_cb(slot.btn, action, LV_EVENT_CLICKED, bindings.fan);
+    }
   } else if (context.runtime.driver == Driver::LIGHT_TEMPERATURE) {
     if (!config.entity.empty() && environment.add_parent_indicator) {
       environment.add_parent_indicator(config.entity);
