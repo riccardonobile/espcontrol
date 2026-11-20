@@ -37,6 +37,12 @@ If saving or importing a backup fails, try opening `http://YOUR-DISPLAY-IP/?espc
 - Make sure the display and Home Assistant are on the **same WiFi network** (not a guest network or a different VLAN).
 - In Home Assistant, go to **Settings > Devices & Services > Add Integration** and search for **ESPHome**. Enter the device's IP address manually.
 
+## The Screen Shows "Home Assistant disconnected"
+
+On an already configured display, this warning appears after 60 seconds with a network connection but no Home Assistant connection. It stays visible at reduced brightness instead of entering the screensaver and clears automatically when Home Assistant reconnects.
+
+Open **Settings > Devices & Services > ESPHome** in Home Assistant and check the display for an encryption key or connection alert. Complete any repair prompt shown there. The warning can also appear while Home Assistant is offline; it does not specifically diagnose an incorrect key. If the network drops, the usual network reconnect screen takes over.
+
 ## Home Assistant Says "Connection Requires Encryption"
 
 - Update both Home Assistant and ESPHome Device Builder to 2026.8 or newer. These versions pass a display's unique API encryption key between Home Assistant and Device Builder when the display is adopted or rebuilt.
@@ -49,19 +55,19 @@ If saving or importing a backup fails, try opening `http://YOUR-DISPLAY-IP/?espc
 - P4 panels use a separate ESP32-C6 WiFi processor. Mismatched or outdated C6
   firmware can cause repeated disconnects, failed initial setup, or a panel that
   disappears from Home Assistant after restarting.
-- Use the [C6 WiFi recovery installer](/getting-started/c6-recovery) to reinstall
-  EspControl and repair the C6 over USB without depending on WiFi.
-- This recovery is for P4 panels only, not the ESP32-S3 4848S040.
+- If the panel stays reachable, check [WiFi firmware updates](/settings/system#esp32-c6-wifi-co-processor-updates) in **System > Firmware**.
+- If it cannot stay connected, collect a [USB startup log](/reference/collect-usb-logs) and [open a GitHub issue](https://github.com/jtenniswood/espcontrol/issues/new) with the panel model, hardware revision, and firmware version.
 
 ## The Web Page Looks Broken or Unstyled
 
 - The setup page loads hosted web resources through your **browser**. Check that the browser can reach them, even if the panel itself is on a restricted IoT network.
+- The WiFi hotspot setup page works entirely offline. If it does not open automatically, browse to `http://192.168.4.1` while connected to the hotspot.
 - Force-refresh the page or try a private window. If loading still fails, try the [embedded-editor fallback](#web-configuration-changes-won-t-save).
 
 ## WiFi Does Not Connect
 
 - Use 2.4 GHz WiFi, check the password, and move closer to the access point during setup.
-- If saved WiFi cannot reconnect, wait up to **90 seconds** for the `ESP_xxxxxx` setup hotspot, then repeat [WiFi setup](/getting-started/install#connect-to-wifi).
+- If saved WiFi cannot reconnect, wait up to **90 seconds** for the `EspControl_XXXX` setup hotspot, then repeat [WiFi setup](/getting-started/install#connect-to-wifi).
 - Ethernet-only custom builds have no WiFi hotspot. Check the wired connection and DHCP lease instead.
 - For repeated P4 disconnections, use the [P4 WiFi checks](#a-p4-panel-has-unreliable-wifi).
 
@@ -71,8 +77,9 @@ Confirm the firmware matches the exact panel revision and use a known-good power
 
 ## I Want to Start Over
 
-- Save a backup, then use **Settings > System > Factory Reset**. Partial reset keeps WiFi and the Home Assistant encryption key; Complete reset clears those saved credentials too.
-- Both keep installed firmware and compiled defaults. A normal reflash is not a guaranteed reset. Follow [Reset the display](/features/backup#reset-the-display) for the full procedure and older-firmware limitations.
+- Save a backup, then use **System > Factory Reset**. Partial reset keeps WiFi and the Home Assistant encryption key; Complete reset clears those saved credentials too and keeps any WiFi networks compiled into the firmware disabled, so newly provisioned credentials remain selected after reboot.
+- To complete a full reset, type **RESET** in the confirmation dialog. It explains that saved WiFi and the Home Assistant API key will be erased. Reconnect through the setup hotspot to save your network again.
+- Both keep installed firmware and compiled defaults. A normal reflash is not a guaranteed reset. Follow [Reset the display](/settings/system#reset-the-display) for the full procedure and older-firmware limitations.
 
 ## I Need Help With a Bug
 

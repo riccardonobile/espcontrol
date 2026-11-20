@@ -26,7 +26,7 @@ export interface PreviewInteractionsDependencies {
     readonly shell: Pick<ControlsShellFeature, "isConfigLocked">;
     readonly requestApi: Pick<ApplicationApiFeature, "postText">;
     readonly grid: Pick<GridFeature, "ctx" | "serializeGrid">;
-    readonly selection: Pick<ButtonSettingsSelectionFeature, "hideSettingsOverlay" | "selectClockBarItem">;
+    readonly selection: Pick<ButtonSettingsSelectionFeature, "clearCardSelection" | "hideSettingsOverlay" | "selectClockBarItem">;
     readonly placement: Pick<PreviewGridPlacementFeature, "findDuplicatePlacement" | "getCellFromEvent" | "moveSelectedToCell" | "moveToCell" | "placeSlotAt">;
     readonly contextMenu: PreviewContextMenuFeature;
     readonly renderPreview: () => void;
@@ -54,7 +54,7 @@ export function createPreviewInteractionsFeature(
     const { entityName } = dependencies.entityState;
     const { isConfigLocked } = dependencies.shell;
     const { ctx, serializeGrid } = dependencies.grid;
-    const { hideSettingsOverlay, selectClockBarItem } = dependencies.selection;
+    const { clearCardSelection, hideSettingsOverlay, selectClockBarItem } = dependencies.selection;
     const { findDuplicatePlacement, getCellFromEvent, moveSelectedToCell, moveToCell, placeSlotAt } = dependencies.placement;
     const { renderPreview, renderButtonSettings } = dependencies;
     const { showClockBar, showEmpty, showCard, showBack } = dependencies.contextMenu;
@@ -76,6 +76,70 @@ export function createPreviewInteractionsFeature(
         saveSubpageConfig,
         subpageFirstFreeSlot,
     } = dependencies.codec;
+    function editCardTitle(title: HTMLElement) {
+        if (title.querySelector("input")) return;
+        const card = title.closest<HTMLElement>("[data-slot]");
+        const slot = Number(card?.dataset.slot);
+        const c = ctx();
+        const homeSlot = state.editingSubpage;
+        const button = c.buttons[slot - 1];
+        const back = slot === -2 && c.isSub ? getSubpage(homeSlot) : null;
+        if (!button && !back) return;
+        const input = title.ownerDocument.createElement("input");
+        input.type = "text";
+        input.className = "sp-card-name-input";
+        input.setAttribute("aria-label", "Card name");
+        input.dataset.homeSlot = String(homeSlot || "");
+        input.value = back ? back.backLabel || "Back" : button.label || "";
+        input.placeholder = title.textContent || "Card name";
+        let finished = false;
+        function finish(save: boolean) {
+            if (finished) return;
+            finished = true;
+            const current = ctx();
+            if (save && !isConfigLocked() && current.isSub === c.isSub &&
+                state.editingSubpage === homeSlot && current.grid.includes(slot)) {
+                const label = input.value.trim();
+                if (back) {
+                    getSubpage(homeSlot).backLabel = label || "Back";
+                    saveSubpageConfig(homeSlot);
+                } else {
+                    const live = current.buttons[slot - 1];
+                    if (live && live.label !== label) {
+                        live.label = label;
+                        const draft = state.settingsDraft;
+                        if (draft && draft.slot === slot && draft.isSub === c.isSub &&
+                            (!c.isSub || draft.homeSlot === homeSlot)) draft.button.label = label;
+                        if (c.isSub) saveSubpageConfig(homeSlot);
+                        else configPersistence.saveButtonConfig(slot);
+                    }
+                }
+                renderButtonSettings();
+            }
+            // Remove before rendering so the preview does not restore this editor.
+            input.remove();
+            renderPreview();
+        }
+        input.addEventListener("keydown", (event) => {
+            event.stopPropagation();
+            if (event.isComposing) return;
+            if (event.key === "Enter" || event.key === "Escape") {
+                event.preventDefault();
+                finish(event.key === "Enter");
+                (els.previewMain as HTMLElement).querySelector<HTMLElement>('[data-slot="' + slot + '"] .sp-editable-title')?.focus();
+            }
+        });
+        input.addEventListener("blur", () => {
+            // A preview refresh temporarily detaches and then refocuses the input.
+            window.setTimeout(() => {
+                if (input.isConnected && input.ownerDocument.activeElement !== input) finish(false);
+            }, 0);
+        });
+        if (card) card.draggable = false;
+        title.replaceChildren(input);
+        input.focus();
+        input.select();
+    }
     // ── Preview event delegation & drag ────────────────────────────────────
     function clearPlaceholder(this: any) {
         if (runtime.previewPlaceholder) {
@@ -88,8 +152,115 @@ export function createPreviewInteractionsFeature(
         if (selection && selection.removeAllRanges)
             selection.removeAllRanges();
     }
+    function setupBoxSelection(wrap: HTMLElement, grid: HTMLElement) {
+        const document = grid.ownerDocument;
+        const box = document.createElement("div");
+        box.className = "sp-selection-box";
+        box.setAttribute("aria-hidden", "true");
+
+        wrap.addEventListener("pointerdown", start => {
+            const target = start.target as Element;
+            // The icon build scans quoted literals for glyph names.
+            const isMouse = /^mouse$/.test(start.pointerType);
+            if (!start.isPrimary || !isMouse || start.button !== 0 ||
+                isConfigLocked() || grid.classList.contains("sp-grid-loading") ||
+                target.closest("[data-pos], .sp-topbar")) return;
+
+            // Preserve the starting selection before the document's mousedown handler can clear it.
+            start.preventDefault();
+            const page = state.editingSubpage;
+            const toggle = start.metaKey || start.ctrlKey;
+            const extend = toggle || start.shiftKey;
+            const initial = new Set<number>(extend ? ctx().selected : []);
+            const listeners = new AbortController();
+            const options = { signal: listeners.signal };
+            let pointer = start;
+            let selected: number[] = [];
+            // Device events can replace all the cards during a drag.
+            const refresh = new MutationObserver(update);
+            wrap.setPointerCapture(start.pointerId);
+
+            function finish() {
+                refresh.disconnect();
+                listeners.abort();
+                box.remove();
+                if (wrap.hasPointerCapture(start.pointerId)) wrap.releasePointerCapture(start.pointerId);
+            }
+            function cancel() {
+                const dragging = box.isConnected;
+                finish();
+                if (dragging) renderPreview();
+            }
+            function update() {
+                if (state.editingSubpage !== page || isConfigLocked() || grid.classList.contains("sp-grid-loading")) {
+                    cancel();
+                    return;
+                }
+                if (!box.isConnected && Math.hypot(pointer.clientX - start.clientX, pointer.clientY - start.clientY) < 4) return;
+
+                const left = Math.min(start.clientX, pointer.clientX);
+                const top = Math.min(start.clientY, pointer.clientY);
+                const right = Math.max(start.clientX, pointer.clientX);
+                const bottom = Math.max(start.clientY, pointer.clientY);
+                selected = [];
+                // Read all bounds before updating outlines. Back and empty cells are outside group actions.
+                const cards = Array.from(grid.querySelectorAll<HTMLElement>(".sp-btn[data-slot]"), card => {
+                    const slot = Number(card.dataset.slot);
+                    const rect = card.getBoundingClientRect();
+                    const hit = left < rect.right && right > rect.left && top < rect.bottom && bottom > rect.top;
+                    const wasSelected = initial.has(slot);
+                    const include = slot > 0 && (toggle ? hit !== wasSelected : hit || wasSelected);
+                    if (include) selected.push(slot);
+                    return { card, include };
+                });
+                for (const { card, include } of cards) card.classList.toggle("sp-selected", include);
+                Object.assign(box.style, {
+                    left: left + "px", top: top + "px", width: (right - left) + "px", height: (bottom - top) + "px",
+                });
+                if (!box.isConnected) {
+                    wrap.appendChild(box);
+                    refresh.observe(grid, { childList: true });
+                }
+            }
+
+            wrap.addEventListener("pointermove", event => {
+                if (event.pointerId !== start.pointerId) return;
+                pointer = event;
+                update();
+            }, options);
+            wrap.addEventListener("pointerup", event => {
+                if (event.pointerId !== start.pointerId) return;
+                pointer = event;
+                update();
+                if (listeners.signal.aborted) return;
+                const dragging = box.isConnected;
+                finish();
+                if (!dragging) {
+                    if (!extend && !grid.contains(target)) clearCardSelection();
+                    return;
+                }
+
+                const c = ctx();
+                c.setSelected(selected);
+                c.setLastClicked(selected.at(-1) ?? -1);
+                state.clockBarSelectedItem = "";
+                hideSettingsOverlay();
+                renderPreview();
+            }, options);
+            const cancelPointer = (event: PointerEvent) => {
+                if (event.pointerId === start.pointerId) cancel();
+            };
+            wrap.addEventListener("pointercancel", cancelPointer, options);
+            wrap.addEventListener("lostpointercapture", cancelPointer, options);
+            window.addEventListener("blur", cancel, options);
+            document.addEventListener("keydown", event => {
+                if (event.key === "Escape") cancel();
+            }, { ...options, capture: true });
+        });
+    }
     function setupPreviewEvents(this: any) {
         var container: any = els.previewMain;
+        setupBoxSelection(els.previewWrap, container);
         var pendingCellIdx: any = -1;
         state.clockBarDragItem = "";
         if (els.topbar) {
@@ -147,11 +318,27 @@ export function createPreviewInteractionsFeature(
             if (e.shiftKey || e.ctrlKey || e.metaKey)
                 e.preventDefault();
         });
+        container.addEventListener("keydown", (event: KeyboardEvent) => {
+            const title = (event.target as HTMLElement).closest<HTMLElement>(".sp-editable-title");
+            if (title && event.target === title && !isConfigLocked() && (event.key === "Enter" || event.key === " ")) {
+                event.preventDefault();
+                event.stopPropagation();
+                editCardTitle(title);
+            }
+        });
         // Click delegation
         container.addEventListener("click", function (this: any, e?: any) {
             if (isConfigLocked()) {
                 e.preventDefault();
                 e.stopPropagation();
+                return;
+            }
+            if (e.target.closest(".sp-card-name-input")) return;
+            var title: HTMLElement | null = e.target.closest(".sp-editable-title");
+            if (title && !e.shiftKey && !e.ctrlKey && !e.metaKey && !runtime.didDrag) {
+                e.preventDefault();
+                e.stopPropagation();
+                editCardTitle(title);
                 return;
             }
             if (e.target.closest(".sp-subpage-badge")) {
@@ -200,6 +387,7 @@ export function createPreviewInteractionsFeature(
                 e.preventDefault();
                 return;
             }
+            if (e.target.closest(".sp-card-name-input")) return;
             var target: any = e.target.closest("[data-pos]");
             if (!target)
                 return;
@@ -219,6 +407,10 @@ export function createPreviewInteractionsFeature(
         });
         // Drag delegation
         container.addEventListener("dragstart", function (this: any, e?: any) {
+            if (e.target.closest(".sp-resize-handle,.sp-resizing,.sp-card-name-input")) {
+                e.preventDefault();
+                return;
+            }
             if (isConfigLocked()) {
                 e.preventDefault();
                 return;

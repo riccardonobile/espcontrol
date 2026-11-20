@@ -1,16 +1,15 @@
 ---
-title: EspControl Icon Reference
-description: Browse all available icons for your EspControl cards.
+title: Icon Gallery for Home Assistant Panels
+description: Browse EspControl icons for Home Assistant touchscreen dashboards. Search by name or category to preview icons for lights, climate, sensors, security, and energy.
+outline: false
 ---
 
-# Icon Reference
+<script setup>
+import IconGallery from '../.vitepress/theme/components/IconGallery.vue'
+</script>
 
-Click any icon to copy its name to the clipboard, then paste it into the icon field on your panel's web page.
+# Icon Gallery for Home Assistant Panels
 
-This reference uses the same icon list as the app's icon picker. Choose **Auto** to let the card select its icon automatically; the cog shown here is its fallback preview.
+Browse the icons available for cards on your EspControl touchscreen. Search for names like **Ceiling Light**, **Water Leak**, or **Smart Outlet**, or narrow the gallery by category. Click an icon to copy its name, then paste it into the [card icon picker](/features/setup#set-up-your-first-controls).
 
 <IconGallery />
-
-## Missing an Icon?
-
-If the icon you need isn't in the list, [open an issue](https://github.com/jtenniswood/espcontrol/issues) with the icon name and what you'd use it for, and we'll look into adding it.

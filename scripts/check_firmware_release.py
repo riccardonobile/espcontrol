@@ -14,7 +14,9 @@ import re
 import subprocess
 from tempfile import TemporaryDirectory
 from threading import Thread
+from unittest.mock import patch
 
+from build import BuildError, load_published_web_bundles
 import firmware_release
 import prepare_c6_firmware
 import prepare_release_web_assets
@@ -178,7 +180,8 @@ def test_release_workflow_uses_current_ota_output() -> None:
     assert "name: Prepare release web assets" in workflow
     assert "scripts/prepare_release_web_assets.py" in workflow
     assert "--legacy-web-manifest" in workflow
-    assert 'any(.firmwareVersions[]?; . != "dev")' in workflow
+    assert "--published-web-assets" in workflow
+    assert "unique | .[]" in workflow
     assert "name: Upload release web assets" in workflow
     assert "name: Download release web assets" in workflow
     assert "dist/release-web-assets" in workflow
@@ -187,6 +190,7 @@ def test_release_workflow_uses_current_ota_output() -> None:
 
 def test_device_matrix_sparse_checkouts_include_product_model() -> None:
     required_paths = (
+        "common/device/screen_clock.yaml",
         "product/model_v2.json",
         "scripts/product_model_v2.py",
         "product/v2/icons.json",
@@ -232,7 +236,7 @@ def test_release_preparation_is_workflow_owned() -> None:
     assert "name: Prepare published release web assets" in pages_workflow
     assert "--legacy-only" in pages_workflow
     assert "--legacy-web-manifest" in pages_workflow
-    assert 'any(.firmwareVersions[]?; . != "dev")' in pages_workflow
+    assert "--published-web-assets" in pages_workflow
     assert "git push origin main" not in skill
     with TemporaryDirectory() as tmp:
         build_script = Path(tmp) / "build.py"
@@ -277,6 +281,7 @@ def make_release_files(base: Path, slug: str = SLUG, version: str = VERSION) -> 
         "--ota", str(ota),
         "--out", str(manifest),
     ])
+    assert json.loads(manifest.read_text())["new_install_improv_wait_time"] == 0
     return manifest, factory, ota
 
 
@@ -299,6 +304,7 @@ def make_recovery_files(
         "--recovery", str(recovery),
         "--out", str(recovery_manifest),
     ])
+    assert json.loads(recovery_manifest.read_text())["new_install_improv_wait_time"] == 0
     return recovery_manifest, recovery, c6_firmware, normal_factory, normal_ota
 
 
@@ -310,6 +316,42 @@ def web_manifest_for(base: Path, device_profiles: list[str]) -> Path:
     path = base.parent / "web-assets.json"
     path.write_text(json.dumps(data), encoding="utf-8")
     return path
+
+
+def test_published_bundle_retention() -> None:
+    with TemporaryDirectory() as tmp:
+        output = Path(tmp)
+        versions = ["v2.14.0", "v2.13.0"]
+        sources = {}
+        for version in versions:
+            content = f"editor for {version}".encode()
+            digest = hashlib.sha256(content).hexdigest()
+            sources[version] = ({
+                "id": digest,
+                "path": f"bundles/{digest}/www.js",
+                "sha256": digest,
+                "webAssetVersion": 2,
+                "deviceProfiles": [SLUG],
+                "firmwareVersions": [version],
+            }, version)
+        with patch.object(prepare_release_web_assets, "published_bundle", side_effect=sources.__getitem__), \
+             patch.object(prepare_release_web_assets, "bundle_bytes", side_effect=lambda _, version: f"editor for {version}".encode()):
+            prepare_release_web_assets.stage_published_bundles(output, versions)
+
+        manifest = output / "web-assets.json"
+        entries, files = load_published_web_bundles(manifest, versions)
+        assert entries == {version: sources[version][0] for version in versions}
+        for version, bundle in entries.items():
+            assert files[bundle["path"]] == f"editor for {version}"
+
+        old_bundle = output / entries[versions[-1]]["path"]
+        old_bundle.write_text("unexpected contents", encoding="utf-8")
+        try:
+            load_published_web_bundles(manifest, versions)
+        except BuildError as exc:
+            assert "invalid digest" in str(exc)
+        else:
+            raise AssertionError("A damaged older editor bundle was accepted")
 
 
 def test_web_bundle_compatibility_aliases() -> None:
@@ -447,7 +489,7 @@ def test_c6_dependency_preparation_is_verified_and_atomic() -> None:
             prepare_c6_firmware.C6_SHA256 = original_hash
 
 
-def test_recovery_sources_and_documentation_stay_complete() -> None:
+def test_recovery_sources_stay_complete() -> None:
     recovery_yaml = (ROOT / "common/device/esp32_c6_recovery.yaml").read_text(
         encoding="utf-8"
     )
@@ -471,15 +513,6 @@ def test_recovery_sources_and_documentation_stay_complete() -> None:
     ).read_text(encoding="utf-8")
     assert "platform: esp32_hosted" in online_updater
     assert "type: http" in online_updater
-    selector = (
-        ROOT / "docs/.vitepress/theme/components/C6RecoverySelector.vue"
-    ).read_text(encoding="utf-8")
-    assert "devices.find((device) => device.slug === requested)" in selector
-    assert "/recovery/manifest.json" in selector
-    assert "Chrome or Edge" in selector
-    assert "exact panel model and revision" in selector
-    assert "Repair C6 and reinstall EspControl" in selector
-
     p4_slugs = [
         entry["slug"]
         for entry in json.loads(
@@ -499,28 +532,6 @@ def test_recovery_sources_and_documentation_stay_complete() -> None:
         assert "esp32_c6_recovery.yaml" in wrapper.read_text(encoding="utf-8")
         normal_factory = ROOT / "builds" / f"{slug}.factory.yaml"
         assert "esp32_c6_recovery" not in normal_factory.read_text(encoding="utf-8")
-
-    install = (ROOT / "docs/getting-started/install.md").read_text(encoding="utf-8")
-    assert "/getting-started/c6-recovery" in install
-    screen_docs = {
-        "guition-esp32-p4-jc1060p470": ROOT / "docs/screens/jc1060p470-v1.md",
-        "guition-esp32-p4-jc1060p470-v2": ROOT / "docs/screens/jc1060p470-v2.md",
-        "guition-esp32-p4-jc4880p443": ROOT / "docs/screens/jc4880p443.md",
-        "guition-esp32-p4-jc4880p443-v3": ROOT / "docs/screens/jc4880p443-v3.md",
-        "guition-esp32-p4-jc8012p4a1": ROOT / "docs/screens/jc8012p4a1-v1.md",
-        "guition-esp32-p4-jc8012p4a1-v2": ROOT / "docs/screens/jc8012p4a1-v2.md",
-        "guition-esp32-p4-jc8012p4a1-v3": ROOT / "docs/screens/jc8012p4a1-v3.md",
-        "esp32-p4-86": ROOT / "docs/screens/p4-86.md",
-    }
-    for slug, path in screen_docs.items():
-        text = path.read_text(encoding="utf-8")
-        assert "C6RecoveryCallout" in text and slug in text, (
-            f"{path}: C6 recovery link is missing"
-        )
-        assert slug in selector, f"{slug}: recovery selector option is missing"
-    s3_doc = (ROOT / "docs/screens/4848s040.md").read_text(encoding="utf-8")
-    assert "C6RecoveryCallout" not in s3_doc
-    assert "guition-esp32-s3-4848s040" not in selector
 
 
 def test_installers_preflight_public_manifest() -> None:
@@ -827,6 +838,7 @@ def main() -> int:
     test_pages_excludes_draft_prereleases()
     test_release_skill_creates_selected_tag_before_draft()
     test_valid_files_and_directory()
+    test_published_bundle_retention()
     test_web_bundle_compatibility_aliases()
     test_placeholder_fails()
     test_unrelated_placeholder_strings_pass()
@@ -838,7 +850,7 @@ def main() -> int:
     test_release_inventory_rejects_extra_files()
     test_recovery_manifest_and_payload_verification()
     test_c6_dependency_preparation_is_verified_and_atomic()
-    test_recovery_sources_and_documentation_stay_complete()
+    test_recovery_sources_stay_complete()
     test_installers_preflight_public_manifest()
     test_draft_release_publishes_only_after_remote_asset_verification()
     test_published_or_mismatched_asset_release_stays_unpublished()

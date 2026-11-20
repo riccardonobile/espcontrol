@@ -4,6 +4,7 @@ export interface ClockBarPostApiFeature {
     postClockBrightnessDay(value?: any): void;
     postClockBrightnessNight(value?: any): void;
     postClockScreensaver(on?: any): any;
+    postClockDate(on?: any): any;
     postClockBar(on?: any): void;
     postClockBarTemperatureEntities(value?: any): any;
     postClockBarTime(on?: any): void;
@@ -18,6 +19,7 @@ export interface ClockBarPostApiFeature {
     postAlarmDelayExitAnnouncement(value?: any): void;
     postAlarmDelayBeepVolume(value?: any): void;
     postAlarmDelayFinalCountdown(value?: any): void;
+    postClockBarTemperaturePrecision(value: number): void;
     postTemperatureDegreeSymbol(on?: any): void;
     postSubpageChevron(on?: any): void;
 }
@@ -37,6 +39,9 @@ export function createClockBarPostApiFeature(
     }
     function postClockScreensaver(this: any, on?: any) {
         return postSwitchWithObjectIds(entityName("screen_saver_clock"), entityObjectIds("screen_saver_clock"), on);
+    }
+    function postClockDate(on?: any) {
+        return postSwitchWithObjectIds(entityName("screen_saver_show_date"), entityObjectIds("screen_saver_show_date"), on);
     }
     var CLOCK_BAR_UNAVAILABLE: any = "Clock bar setting is not available on this firmware. Update the device firmware, then reload this page.";
     function postClockBar(this: any, on?: any) {
@@ -88,6 +93,10 @@ export function createClockBarPostApiFeature(
     function postAlarmDelayFinalCountdown(this: any, value?: any) {
         postNumberWithObjectIds(entityName("alarm_delay_final_countdown"), entityObjectIds("alarm_delay_final_countdown"), value);
     }
+    function postClockBarTemperaturePrecision(value: number) {
+        postNumberWithObjectIds(entityName("clock_bar_temperature_precision"), entityObjectIds("clock_bar_temperature_precision"), value,
+            "Temperature precision is not available on this firmware. Update the device firmware, then reload this page.");
+    }
     var TEMPERATURE_DEGREE_SYMBOL_UNAVAILABLE: any = "Temperature degree symbol setting is not available on this firmware. Update the device firmware, then reload this page.";
     function postTemperatureDegreeSymbol(this: any, on?: any) {
         postSwitchWithObjectIds(entityName("screen_temperature_degree_symbol"), entityObjectIds("screen_temperature_degree_symbol"), on, TEMPERATURE_DEGREE_SYMBOL_UNAVAILABLE);
@@ -100,6 +109,7 @@ export function createClockBarPostApiFeature(
         postClockBrightnessDay,
         postClockBrightnessNight,
         postClockScreensaver,
+        postClockDate,
         postClockBar,
         postClockBarTemperatureEntities,
         postClockBarTime,
@@ -114,6 +124,7 @@ export function createClockBarPostApiFeature(
         postAlarmDelayExitAnnouncement,
         postAlarmDelayBeepVolume,
         postAlarmDelayFinalCountdown,
+        postClockBarTemperaturePrecision,
         postTemperatureDegreeSymbol,
         postSubpageChevron,
     };

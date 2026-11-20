@@ -10,8 +10,9 @@ Usage:
     python scripts/build.py icons         # sync icons only
     python scripts/build.py i18n          # sync firmware translations only
     python scripts/build.py www           # build www.js only
+    python scripts/build.py portal        # build offline WiFi setup pages only
     python scripts/build.py www --retain-current-bundle  # retain a release bundle
-    python scripts/build.py www --legacy-web-manifest PATH  # use the published bundle as the legacy bundle
+    python scripts/build.py www --legacy-web-manifest PATH  # retain the published bundles
     python scripts/build.py www --temporary-output DIR  # isolated fresh bundles
     python scripts/build.py icons --check # check icons only
     python scripts/build.py --self-test    # verify transactional publishing
@@ -38,8 +39,9 @@ from product_model_v2 import load_product_model_v2, source_directory, source_pat
 
 ROOT = Path(__file__).resolve().parent.parent
 MDI_VERSION = "7.4.47"
+MATERIAL_SYMBOL_SLUG_PREFIX = "material-symbol-"
 MDI_CSS_URL = f"https://cdn.jsdelivr.net/npm/@mdi/font@{MDI_VERSION}/css/materialdesignicons.css"
-MDI_WEB_FONT = ROOT / "common" / "assets" / "fonts" / f"materialdesignicons-webfont-{MDI_VERSION}.ttf"
+ASSET_ICON_FONT = ROOT / "common" / "assets" / "fonts" / "espcontrol-icons.ttf"
 INTER_WEB_FONT = ROOT / "node_modules" / "vitepress" / "dist" / "client" / "theme-default" / "fonts" / "inter-roman-latin.woff2"
 ROBOTO_WEB_FONT = ROOT / "common" / "assets" / "fonts" / "roboto-latin.woff2"
 SUPPORT_BUTTON_IMAGE = ROOT / "common" / "assets" / "images" / "buy-me-a-coffee-button.png"
@@ -48,9 +50,8 @@ WEB_BUNDLE_RETENTION = ROOT / "docs" / "public" / "webserver" / "bundle-retentio
 
 # Keep this list aligned with the GitHub Pages release catalogue in pages.yml.
 # The current source bundle is intentionally restricted to development firmware
-# (and the release being prepared). Stable firmware keeps using the retained
-# bundle from the latest published source until that firmware contains the
-# matching generated icon glyphs.
+# (and the release being prepared). Stable firmware uses its published bundle
+# so it keeps the generated icon glyphs and device profiles it shipped with.
 WEB_ASSET_SUPPORTED_FIRMWARE_VERSIONS = (
     "dev",
     "v2.10.0",
@@ -61,8 +62,7 @@ WEB_ASSET_SUPPORTED_FIRMWARE_VERSIONS = (
 )
 WEB_ASSET_CURRENT_FIRMWARE_VERSION = None
 # Local fallback for builds that do not have the currently published manifest.
-# Release and Pages workflows pass --legacy-web-manifest so this rotates with
-# the published release instead of remaining pinned here.
+# Release and Pages workflows supply the exact published bundles.
 WEB_ASSET_LEGACY_BUNDLE_ID = "42f3fd87eb8cbfab59943a7643a19416ded29eddb8608498ada20e95b416fd49"
 WEB_ASSET_LEGACY_BUNDLE_PATH = f"bundles/{WEB_ASSET_LEGACY_BUNDLE_ID}/www.js"
 
@@ -71,19 +71,19 @@ WEB_ASSET_LEGACY_BUNDLE_PATH = f"bundles/{WEB_ASSET_LEGACY_BUNDLE_ID}/www.js"
 # possible without reaching the MDI CDN. Product Model icon codepoints are
 # read directly from product/v2/icons.json below.
 WEB_FIXED_MDI_ICON_CODEPOINTS = {
-    "alarm": "F0020", "album": "F0025", "api": "F109B", "arrow-expand-all": "F004C",
+    "alarm": "F0020", "album": "F0025", "alert": "F0026", "api": "F109B", "arrow-expand-all": "F004C",
     "arrow-top-right": "F005C", "blur": "F00B5", "calendar": "F00ED", "calendar-clock": "F00F0",
     "calendar-month": "F0E17", "cancel": "F073A", "card": "F0B6F", "card-outline": "F0B76",
     "chip": "F061A", "clipboard-outline": "F014C", "clock": "F0954", "code-json": "F0626",
     "content-copy": "F018F", "content-cut": "F0190", "content-paste": "F0192", "counter": "F0199",
     "decimal": "F10A1", "domain": "F01D7", "drag": "F01DB", "eye-off-outline": "F06D1",
-    "eye-outline": "F06D0", "factory": "F020F", "file": "F0214", "flag": "F023B", "folder-plus": "F0257",
+    "eye-outline": "F06D0", "eyedropper": "F020A", "factory": "F020F", "file": "F0214", "flag": "F023B", "folder-plus": "F0257",
     "form-dropdown": "F1400", "format-text": "F0284", "function": "F0295", "gesture-tap-button": "F12A8",
-    "grid": "F02C1", "home-automation": "F07D1", "home-import-outline": "F0F9C", "hook": "F06E2",
+    "grid": "F02C1", "group": "F02C3", "home-automation": "F07D1", "home-import-outline": "F0F9C", "hook": "F06E2",
     "information-outline": "F02FD", "keyboard-return": "F0311", "label": "F0315", "lightbulb-on": "F06E8",
     "link": "F0337", "loading": "F0772", "map-clock": "F0D1E", "map-marker-path": "F0D20",
     "map-marker-question": "F0F07", "movie": "F0381", "movie-open": "F0FCE", "network": "F06F3",
-    "note": "F039A", "numeric": "F03A0", "pencil": "F03EB", "plex": "F06BA", "podcast": "F0994",
+    "note": "F039A", "numeric": "F03A0", "palette": "F03D8", "pencil": "F03EB", "plex": "F06BA", "podcast": "F0994",
     "post": "F1008", "restore": "F099B", "script": "F0BC1", "script-text-play": "F1727",
     "security": "F0483", "select": "F0485", "spotify": "F04C7", "svg": "F0721", "switch": "F04E4", "sync": "F04E6",
     "tab": "F04E9", "target": "F04FE", "text": "F09A8", "timer": "F13AB",
@@ -143,6 +143,8 @@ SAVED_CONFIG_SUBPAGE_TS = ROOT / "src" / "webserver" / "generated" / "saved_conf
 SAVED_CONFIG_SUBPAGE_H = ROOT / "components" / "espcontrol" / "button_grid_saved_config_subpage_generated.h"
 SAVED_CONFIG_SWITCH_TS = ROOT / "src" / "webserver" / "generated" / "saved_config_switch.ts"
 SAVED_CONFIG_SWITCH_H = ROOT / "components" / "espcontrol" / "button_grid_saved_config_switch_generated.h"
+SAVED_CONFIG_POWER_TS = ROOT / "src" / "webserver" / "generated" / "saved_config_power.ts"
+SAVED_CONFIG_POWER_H = ROOT / "components" / "espcontrol" / "button_grid_saved_config_power_generated.h"
 CARD_DOCS_DIR = ROOT / "docs" / "generated" / "cards"
 DEVICE_CAPABILITIES_JSON = ROOT / "docs" / "public" / "device-profiles.json"
 DEVICE_DOCS_DIR = ROOT / "docs" / "generated" / "screens"
@@ -607,6 +609,10 @@ def gen_i18n_header():
         ])
         seen_sources = set()
         for key, source in english.items():
+            # Static card labels can also be arbitrary HA names/options. Keep
+            # label_ entries available only through explicit key-based lookup.
+            if key.startswith("label_"):
+                continue
             if source in seen_sources:
                 continue
             seen_sources.add(source)
@@ -1294,6 +1300,7 @@ SAVED_CONFIG_STATIC_CARD_TYPES = (
     "light_temperature",
     "push",
     "screen_lock",
+    "screensaver",
     "slider",
 )
 
@@ -1349,6 +1356,29 @@ def saved_config_declarative_field_lines(field, rule, language):
     raise BuildError(f"unsupported declarative saved-config policy {policy!r} for {field}")
 
 
+def saved_config_static_field_lines(data, card_type, field, rule, language):
+    if field != "options" or rule["policy"] != "keep":
+        return saved_config_declarative_field_lines(field, rule, language)
+    card = data["cards"][card_type]
+    options = card.get("options", [])
+    if card["normalization"]["unknownOptions"] != "drop" or any(option["kind"] != "flag" for option in options):
+        raise BuildError(f"static saved-config card {card_type} only supports retained flag options")
+    names = card["normalization"]["canonicalOptionOrder"]
+    if language == "ts":
+        return [f"    config.options = {json.dumps(names)}.filter(name => configOptionEnabled(config.options, name)).join(\",\");\n"]
+    lines = ["    std::string normalized_options;\n"]
+    for name in names:
+        token = json.dumps("," + name + ",")
+        lines.extend([
+            f"    if ((\",\" + config.options + \",\").find({token}) != std::string::npos) {{\n",
+            '      if (!normalized_options.empty()) normalized_options += ",";\n',
+            f"      normalized_options += {json.dumps(name)};\n",
+            "    }\n",
+        ])
+    lines.append("    config.options = normalized_options;\n")
+    return lines
+
+
 def gen_saved_config_static_ts(data):
     lines = [
         "// =============================================================================\n",
@@ -1356,12 +1386,13 @@ def gen_saved_config_static_ts(data):
         "// Generated by scripts/build.py from product/v2/card_contract.json.\n",
         "// =============================================================================\n",
         'import type { CardConfig } from "../contracts/types";\n\n',
+        'import { configOptionEnabled } from "../model/config_primitives";\n\n',
         "export function normalizeSavedConfigStatic(config: CardConfig): boolean {\n",
     ]
     for card_type, normalization in saved_config_static_normalizations(data):
         lines.append(f"  if (config.type === {json.dumps(card_type)}) {{\n")
         for field in data["fields"]:
-            lines.extend(saved_config_declarative_field_lines(field, normalization["fields"][field], "ts"))
+            lines.extend(saved_config_static_field_lines(data, card_type, field, normalization["fields"][field], "ts"))
         lines.append("    return true;\n  }\n")
     lines.append("  return false;\n}\n")
     return "".join(lines)
@@ -1369,7 +1400,7 @@ def gen_saved_config_static_ts(data):
 
 def gen_saved_config_static_h(data):
     lines = [
-        "#pragma once\n\n",
+        "#pragma once\n\n#include <string>\n\n",
         "// =============================================================================\n",
         "// GENERATED SAVED-CONFIG STATIC CARD HELPERS - do not edit by hand\n",
         "// Generated by scripts/build.py from product/v2/card_contract.json.\n",
@@ -1380,7 +1411,7 @@ def gen_saved_config_static_h(data):
     for card_type, normalization in saved_config_static_normalizations(data):
         lines.append(f"  if (config.type == {json.dumps(card_type)}) {{\n")
         for field in data["fields"]:
-            lines.extend(saved_config_declarative_field_lines(field, normalization["fields"][field], "cpp"))
+            lines.extend(saved_config_static_field_lines(data, card_type, field, normalization["fields"][field], "cpp"))
         lines.append("    return true;\n  }\n")
     lines.append("  return false;\n}\n")
     return "".join(lines)
@@ -2442,6 +2473,42 @@ def gen_saved_config_subpage_h(data):
     return "".join(lines)
 
 
+def gen_saved_config_power(data, language):
+    normalization = data["cards"]["power"]["normalization"]
+    if normalization.get("optionHook") != "normalize_power_options":
+        raise BuildError("power saved-config card requires the authored option hook")
+    lines = [
+        "// GENERATED SAVED-CONFIG POWER HELPERS - do not edit by hand\n",
+        "// Generated by scripts/build.py from product/v2/card_contract.json.\n",
+    ]
+    if language == "ts":
+        lines.extend([
+            'import type { CardConfig } from "../contracts/types";\n\n',
+            "export function normalizeSavedConfigPower(\n",
+            "  config: CardConfig, normalizeOptions: (options: string) => string,\n",
+            "): boolean {\n",
+            '  if (config.type !== "power") return false;\n',
+        ])
+    else:
+        lines.extend([
+            "#pragma once\n\n",
+            "template<typename Config, typename OptionHook>\n",
+            "inline bool normalize_saved_config_power(Config &config, OptionHook normalize_options) {\n",
+            '  if (config.type != "power") return false;\n',
+        ])
+    for field in data["fields"]:
+        rule = normalization["fields"][field]
+        if rule.get("policy") == "hook":
+            if field != "options" or rule.get("hook") != "normalize_power_options":
+                raise BuildError("unsupported Power saved-config hook")
+            lines.append('  config.options = normalizeOptions(config.options || "");\n' if language == "ts"
+                         else "  config.options = normalize_options(config.options);\n")
+        else:
+            lines.extend(saved_config_declarative_field_lines(field, rule, language))
+    lines.append("  return true;\n}\n")
+    return "".join(lines)
+
+
 def saved_config_switch_normalization(data):
     normalization = data["cards"][""].get("normalization")
     if not normalization:
@@ -2524,6 +2591,7 @@ def gen_saved_config_shadow_ts(data):
         "// Test-only shadow code: production normalization does not call this module.\n"
         "// =============================================================================\n"
         "import type { CardConfig, CardNormalizationSpec, MigrationActionSpec, NormalizationCondition } from \"../contracts/types\";\n"
+        "import { normalizeMediaControlTabs } from \"../model/media_control_tabs\";\n"
         "\n"
         f"export const SAVED_CONFIG_SHADOW_PILOT_POLICIES: Readonly<Record<string, CardNormalizationSpec>> = {json.dumps(policies, indent=2)};\n"
         f"const VACUUM_MIGRATIONS: Readonly<Record<string, MigrationActionSpec>> = {json.dumps(migrations, indent=2)};\n"
@@ -2677,9 +2745,13 @@ def gen_saved_config_shadow_ts(data):
         "  else if (MEDIA_STATE_DISPLAY_MODES.indexOf(config.sensor as typeof MEDIA_STATE_DISPLAY_MODES[number]) < 0 || config.precision !== \"state\") config.precision = \"\";\n"
         "  const out: string[] = []; const maxVolume = normalizedMediaVolume(optionValue(source, \"volume_max\"));\n"
         "  if (config.sensor === \"control_modal\") {\n"
+        "    const powerEntity = optionValue(source, \"power_entity\").trim(); if (powerEntity) out.push(\"power_entity=\" + encodeOptionValue(powerEntity));\n"
+        "    const tabs = normalizeMediaControlTabs(optionValue(source, \"media_tabs\"), !!powerEntity).join(\"|\"); if (tabs !== normalizeMediaControlTabs(\"\", !!powerEntity).join(\"|\")) out.push(\"media_tabs=\" + encodeOptionValue(tabs));\n"
+        "    const speakerGroupEntity = optionValue(source, \"speaker_group_entity\").trim(); if (speakerGroupEntity) out.push(\"speaker_group_entity=\" + encodeOptionValue(speakerGroupEntity));\n"
         "    if (optionValue(source, \"label_display\").trim() === \"label\") out.push(\"label_display=label\"); if (optionValue(source, \"number_display\").trim() === \"volume\") out.push(\"number_display=volume\"); if (maxVolume !== MEDIA_VOLUME_DEFAULT) out.push(\"volume_max=\" + maxVolume);\n"
         "  } else if (config.sensor === \"cover_art\") {\n"
         "    if (optionPresent(source, \"cover_art_details\")) out.push(\"cover_art_details\"); const secondaryEntity = optionValue(source, \"cover_art_secondary_entity\").trim(); if (secondaryEntity) out.push(\"cover_art_secondary_entity=\" + encodeOptionValue(secondaryEntity)); const speakerGroupEntity = optionValue(source, \"speaker_group_entity\").trim(); if (speakerGroupEntity) out.push(\"speaker_group_entity=\" + encodeOptionValue(speakerGroupEntity)); if (maxVolume !== MEDIA_VOLUME_DEFAULT) out.push(\"volume_max=\" + maxVolume);\n"
+        "    const powerEntity = optionValue(source, \"power_entity\").trim(); if (powerEntity) out.push(\"power_entity=\" + encodeOptionValue(powerEntity)); const tabs = normalizeMediaControlTabs(optionValue(source, \"media_tabs\"), !!powerEntity).join(\"|\"); if (tabs !== normalizeMediaControlTabs(\"\", !!powerEntity).join(\"|\")) out.push(\"media_tabs=\" + encodeOptionValue(tabs));\n"
         "  } else if (config.sensor === \"playlist\") {\n"
         "    for (const [name, defaultValue] of [[\"playlist_content_id\", \"\"], [\"playlist_content_type\", \"playlist\"], [\"playlist_player_source\", \"\"]] as const) { const value = optionValue(source, name).trim() || defaultValue; if (value && value !== defaultValue) out.push(name + \"=\" + encodeOptionValue(value)); }\n"
         "  } else if (config.sensor === \"volume\" || config.sensor === \"position\") {\n"
@@ -2875,6 +2947,9 @@ def gen_saved_config_shadow_h(data):
         "  else if (!saved_config_shadow_string_in(config.sensor, SAVED_CONFIG_SHADOW_MEDIA_STATE_DISPLAY_MODES, sizeof(SAVED_CONFIG_SHADOW_MEDIA_STATE_DISPLAY_MODES) / sizeof(SAVED_CONFIG_SHADOW_MEDIA_STATE_DISPLAY_MODES[0])) || config.precision != \"state\") config.precision.clear();\n",
         "  std::string out; const int max_volume = saved_config_shadow_media_volume(cfg_option_value(source, \"volume_max\"));\n",
         "  if (config.sensor == \"control_modal\") {\n",
+        "    const std::string power_entity = saved_config_shadow_trim(cfg_option_value(source, \"power_entity\")); if (!power_entity.empty()) saved_config_shadow_append_option(out, \"power_entity\", power_entity);\n",
+        "    const std::string tabs = espcontrol::media::normalize_control_tabs_value(cfg_option_value(source, \"media_tabs\"), !power_entity.empty()); if (tabs != espcontrol::media::normalize_control_tabs_value(\"\", !power_entity.empty())) saved_config_shadow_append_option(out, \"media_tabs\", tabs);\n",
+        "    const std::string speaker_group_entity = saved_config_shadow_trim(cfg_option_value(source, \"speaker_group_entity\")); if (!speaker_group_entity.empty()) saved_config_shadow_append_option(out, \"speaker_group_entity\", speaker_group_entity);\n",
         "    if (saved_config_shadow_trim(cfg_option_value(source, \"label_display\")) == \"label\") saved_config_shadow_append_option(out, \"label_display\", \"label\");\n",
         "    if (saved_config_shadow_trim(cfg_option_value(source, \"number_display\")) == \"volume\") saved_config_shadow_append_option(out, \"number_display\", \"volume\");\n",
         "    if (max_volume != SAVED_CONFIG_SHADOW_MEDIA_VOLUME_DEFAULT) saved_config_shadow_append_option(out, \"volume_max\", std::to_string(max_volume));\n",
@@ -2885,6 +2960,7 @@ def gen_saved_config_shadow_h(data):
         "    const std::string speaker_group_entity = saved_config_shadow_trim(cfg_option_value(source, \"speaker_group_entity\"));\n",
         "    if (!speaker_group_entity.empty()) saved_config_shadow_append_option(out, \"speaker_group_entity\", speaker_group_entity);\n",
         "    if (max_volume != SAVED_CONFIG_SHADOW_MEDIA_VOLUME_DEFAULT) saved_config_shadow_append_option(out, \"volume_max\", std::to_string(max_volume));\n",
+        "    const std::string power_entity = saved_config_shadow_trim(cfg_option_value(source, \"power_entity\")); if (!power_entity.empty()) saved_config_shadow_append_option(out, \"power_entity\", power_entity); const std::string tabs = espcontrol::media::normalize_control_tabs_value(cfg_option_value(source, \"media_tabs\"), !power_entity.empty()); if (tabs != espcontrol::media::normalize_control_tabs_value(\"\", !power_entity.empty())) saved_config_shadow_append_option(out, \"media_tabs\", tabs);\n",
         "  } else if (config.sensor == \"playlist\") {\n",
         "    const std::string content_id = saved_config_shadow_trim(cfg_option_value(source, \"playlist_content_id\"));\n",
         "    const std::string content_type = saved_config_shadow_trim(cfg_option_value(source, \"playlist_content_type\"));\n",
@@ -3104,7 +3180,7 @@ def gen_card_contract_h(data):
         cpp_string_array("CARD_CONTRACT_CLIMATE_NUMBER_DISPLAY_MODES", contract_card_option_values(cards, "climate", "number_display")),
         cpp_string_array("CARD_CONTRACT_CLIMATE_TEMPERATURE_STEPS", contract_card_option_values(cards, "climate", "temperature_step")),
         cpp_string_array("CARD_CONTRACT_CLIMATE_PRECISION_VALUES", climate_behavior["precisionValues"]),
-        cpp_string_array("CARD_CONTRACT_WEATHER_FORECAST_PRECISIONS", large_numbers["weather"]["precisions"]),
+        cpp_string_array("CARD_CONTRACT_WEATHER_FORECAST_PRECISIONS", [value for value in contract_card_option_values(cards, "weather", "weather_mode") if value and value not in ("wind", "rainfall", "pressure", "humidity", "visibility", "temperature")]),
         "".join(
             f"constexpr const char *{option_constant_name(name)} = {json.dumps(value)};\n"
             for name, value in option_names.items()
@@ -3376,7 +3452,6 @@ def gen_card_contract_h(data):
         "\n",
         "inline bool card_contract_large_numbers_supported(const std::string &type, const std::string &precision) {\n",
         "  if (type == \"sensor\") return precision != \"icon\" && precision != \"text\";\n",
-        "  if (type == \"weather\") return precision == \"today\" || precision == \"tomorrow\";\n",
         "  return type == \"\" || type == \"action\" || type == \"calendar\" || type == \"clock\" ||\n",
         "         type == \"climate\" || type == \"media\" || type == \"subpage\" ||\n",
         "         type == \"timezone\";\n",
@@ -3523,6 +3598,8 @@ def sync_card_contract(check_only=False):
         (SAVED_CONFIG_SUBPAGE_H, gen_saved_config_subpage_h(data)),
         (SAVED_CONFIG_SWITCH_TS, gen_saved_config_switch_ts(data)),
         (SAVED_CONFIG_SWITCH_H, gen_saved_config_switch_h(data)),
+        (SAVED_CONFIG_POWER_TS, gen_saved_config_power(data, "ts")),
+        (SAVED_CONFIG_POWER_H, gen_saved_config_power(data, "cpp")),
         (CARD_DOCS_DIR / "capabilities.md", gen_card_capability_docs(data)),
     ]
     dirty = []
@@ -3694,8 +3771,8 @@ def embedded_web_mdi_styles():
     stylesheet or font after the editor has started. This matters when a display
     is reachable on the local network but cannot reach the Internet.
     """
-    if not MDI_WEB_FONT.exists():
-        raise BuildError(f"Missing bundled web icon font: {MDI_WEB_FONT.relative_to(ROOT)}")
+    if not ASSET_ICON_FONT.exists():
+        raise BuildError(f"Missing bundled web icon font: {ASSET_ICON_FONT.relative_to(ROOT)}")
     if not INTER_WEB_FONT.exists():
         raise BuildError(f"Missing bundled web interface font: {INTER_WEB_FONT.relative_to(ROOT)}")
     if not ROBOTO_WEB_FONT.exists():
@@ -3713,7 +3790,7 @@ def embedded_web_mdi_styles():
     interface_font_data = base64.b64encode(INTER_WEB_FONT.read_bytes()).decode("ascii")
     preview_font_data = base64.b64encode(ROBOTO_WEB_FONT.read_bytes()).decode("ascii")
     support_button_image_data = base64.b64encode(SUPPORT_BUTTON_IMAGE.read_bytes()).decode("ascii")
-    icon_font_data = base64.b64encode(MDI_WEB_FONT.read_bytes()).decode("ascii")
+    icon_font_data = base64.b64encode(ASSET_ICON_FONT.read_bytes()).decode("ascii")
     css = [
         "@font-face{font-family:'Roboto';src:url(data:font/woff2;base64,",
         preview_font_data,
@@ -3724,10 +3801,10 @@ def embedded_web_mdi_styles():
         "@font-face{font-family:'Inter';src:url(data:font/woff2;base64,",
         interface_font_data,
         ") format('woff2');font-weight:100 900;font-style:normal;font-display:swap}",
-        "@font-face{font-family:'Material Design Icons';src:url(data:font/ttf;base64,",
+        "@font-face{font-family:'EspControl Icons';src:url(data:font/ttf;base64,",
         icon_font_data,
         ") format('truetype');font-weight:normal;font-style:normal;font-display:block}",
-        ".mdi{display:inline-block;font-family:'Material Design Icons';font-weight:normal;font-style:normal;line-height:1;text-rendering:auto;-webkit-font-smoothing:antialiased}",
+        ".mdi{display:inline-block;font-family:'EspControl Icons';font-weight:normal;font-style:normal;line-height:1;text-rendering:auto;-webkit-font-smoothing:antialiased}",
         ".mdi::before{display:inline-block}",
     ]
     css.extend(
@@ -3776,7 +3853,7 @@ def check_firmware_icon_literals(data):
 
 
 def check_mdi_versions():
-    """Make sure the browser CSS and device font URLs stay on the same MDI version."""
+    """Check any MDI references against the pinned fallback release."""
     files = [
         ROOT / "src" / "webserver" / "application" / "app.ts",
         ROOT / "common" / "assets" / "icons.yaml",
@@ -3798,17 +3875,29 @@ def check_mdi_versions():
 
 
 def validate_icon_data(data):
-    """Verify icons.json matches the pinned Material Design Icons release."""
+    """Verify legacy MDI codepoints and reserved slots for Google-only icons."""
     errors = []
     errors.extend(check_duplicate_icon_fields(data))
     errors.extend(check_mdi_versions())
     errors.extend(check_firmware_icon_literals(data))
 
     mdi_codepoints = load_mdi_codepoints()
+    material_symbols = load_json(ROOT / "common" / "assets" / "material_symbols.json")
+    material_slots = set()
     for item in icon_items(data):
         mdi = item["mdi"]
-        expected = mdi_codepoints.get(mdi)
         actual = item["codepoint"].upper()
+        if mdi.startswith(MATERIAL_SYMBOL_SLUG_PREFIX):
+            symbol = material_symbols.get(mdi, "")
+            if not re.fullmatch(r"[a-z0-9_]+", symbol) or mdi != MATERIAL_SYMBOL_SLUG_PREFIX + symbol.replace("_", "-"):
+                errors.append(f"{item['name']} needs a matching Material Symbols entry for {mdi}")
+            if not re.fullmatch(r"F4[0-9A-F]{3}", actual):
+                errors.append(f"{item['name']} must use a Material Symbols slot from F4000 to F4FFF")
+            elif actual in material_slots:
+                errors.append(f"{item['name']} reuses Material Symbols slot {actual}")
+            material_slots.add(actual)
+            continue
+        expected = mdi_codepoints.get(mdi)
         if expected is None:
             errors.append(f"{item['name']} references missing mdi-{mdi}")
         elif actual != expected:
@@ -3839,7 +3928,7 @@ def assert_icon_data_valid(data):
     if not errors:
         return
 
-    print(f"Icon data does not match Material Design Icons {MDI_VERSION}:")
+    print("Icon catalog contains invalid entries:")
     for error in errors:
         print(f"  {error}")
     raise BuildError("Icon validation failed.")
@@ -3866,7 +3955,9 @@ def gen_icon_glyphs(data):
             continue
         seen_codepoints.add(icon["codepoint"])
         cp = icon["codepoint"]
-        lines.append(f'- "\\U{cp:>08s}"  # mdi-{icon["mdi"]}\n')
+        slug = icon["mdi"]
+        comment = slug if slug.startswith(MATERIAL_SYMBOL_SLUG_PREFIX) else f"mdi-{slug}"
+        lines.append(f'- "\\U{cp:>08s}"  # {comment}\n')
     return "".join(lines)
 
 
@@ -4010,7 +4101,7 @@ def load_timezone_options():
     return options
 
 
-def load_legacy_web_bundle(manifest_path):
+def load_published_web_bundles(manifest_path, firmware_versions):
     path = Path(manifest_path)
     try:
         manifest = json.loads(path.read_text(encoding="utf-8"))
@@ -4019,33 +4110,35 @@ def load_legacy_web_bundle(manifest_path):
     bundles = manifest.get("bundles") if isinstance(manifest, dict) else None
     if not isinstance(bundles, list):
         raise BuildError(f"Legacy web asset manifest {path} has no bundle entries")
-    bundle = next(
-        (
-            candidate
-            for candidate in bundles
-            if isinstance(candidate, dict)
-            and isinstance(candidate.get("firmwareVersions"), list)
-            and any(
-                isinstance(version, str) and version != "dev"
-                for version in candidate["firmwareVersions"]
-            )
-        ),
-        None,
-    )
-    if bundle is None:
-        raise BuildError(
-            f"Legacy web asset manifest {path} has no published firmware bundle"
-        )
-    bundle_id = bundle.get("id")
-    bundle_path = bundle.get("path")
-    if (
-        not isinstance(bundle_id, str)
-        or not re.fullmatch(r"[0-9a-f]{64}", bundle_id)
-        or bundle.get("sha256") != bundle_id
-        or bundle_path != f"bundles/{bundle_id}/www.js"
-    ):
-        raise BuildError(f"Legacy web asset manifest {path} has an invalid current bundle")
-    return bundle_id, bundle_path
+    entries_by_version = {}
+    files = {}
+    for bundle in bundles:
+        if not isinstance(bundle, dict) or not isinstance(bundle.get("firmwareVersions"), list):
+            raise BuildError(f"Legacy web asset manifest {path} contains an invalid bundle")
+        bundle_id = bundle.get("id")
+        bundle_path = bundle.get("path")
+        if (
+            not isinstance(bundle_id, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", bundle_id)
+            or bundle.get("sha256") != bundle_id
+            or bundle_path != f"bundles/{bundle_id}/www.js"
+        ):
+            raise BuildError(f"Legacy web asset manifest {path} contains an invalid bundle path")
+        if bundle_path not in files:
+            try:
+                data = (path.parent / bundle_path).read_bytes()
+            except OSError as exc:
+                raise BuildError(f"Could not read published web bundle {bundle_path}") from exc
+            if hashlib.sha256(data).hexdigest() != bundle_id:
+                raise BuildError(f"Published web bundle {bundle_path} has an invalid digest")
+            files[bundle_path] = data.decode("utf-8")
+        for version in bundle["firmwareVersions"]:
+            if version in entries_by_version:
+                raise BuildError(f"Duplicate published web bundle for {version}")
+            entries_by_version[version] = bundle
+    if set(entries_by_version) != set(firmware_versions):
+        raise BuildError(f"Legacy web asset manifest {path} does not match the release catalogue")
+    return entries_by_version, files
 
 
 def build_www(
@@ -4089,10 +4182,6 @@ def build_www(
     bridge_text = (build_root / "www.js").read_text()
     bundle_sha256 = hashlib.sha256(bundle_text.encode("utf-8")).hexdigest()
     bundle_relative_path = Path("bundles") / bundle_sha256 / "www.js"
-    legacy_bundle_id = WEB_ASSET_LEGACY_BUNDLE_ID
-    legacy_bundle_path = WEB_ASSET_LEGACY_BUNDLE_PATH
-    if legacy_web_manifest is not None:
-        legacy_bundle_id, legacy_bundle_path = load_legacy_web_bundle(legacy_web_manifest)
     current_firmware_versions = ["dev"]
     if WEB_ASSET_CURRENT_FIRMWARE_VERSION is not None:
         if WEB_ASSET_CURRENT_FIRMWARE_VERSION not in WEB_ASSET_SUPPORTED_FIRMWARE_VERSIONS:
@@ -4112,20 +4201,34 @@ def build_www(
         "deviceProfiles": list(devices),
         "firmwareVersions": current_firmware_versions,
     }
-    legacy_bundle = {
-        "id": legacy_bundle_id,
-        "sha256": legacy_bundle_id,
-        "path": legacy_bundle_path,
-        "deviceProfiles": list(devices),
-        "firmwareVersions": legacy_firmware_versions,
-    }
+    bundles_by_path = {current_bundle["path"]: current_bundle}
+    legacy_files = {}
+    if legacy_web_manifest is None:
+        legacy_bundle = bundles_by_path.setdefault(WEB_ASSET_LEGACY_BUNDLE_PATH, {
+            "id": WEB_ASSET_LEGACY_BUNDLE_ID,
+            "sha256": WEB_ASSET_LEGACY_BUNDLE_ID,
+            "path": WEB_ASSET_LEGACY_BUNDLE_PATH,
+            "deviceProfiles": list(devices),
+            "firmwareVersions": [],
+        })
+        legacy_bundle["firmwareVersions"].extend(legacy_firmware_versions)
+    else:
+        published_bundles, legacy_files = load_published_web_bundles(
+            legacy_web_manifest, legacy_firmware_versions,
+        )
+        for version in legacy_firmware_versions:
+            bundle = published_bundles[version]
+            entry = bundles_by_path.setdefault(
+                bundle["path"], {**bundle, "firmwareVersions": []},
+            )
+            entry["firmwareVersions"].append(version)
+        legacy_files.pop(current_bundle["path"], None)
     manifest_text = json.dumps({
         "schemaVersion": 1,
         "bundles": [
-            {**current_bundle, "webAssetVersion": 2},
-            {**current_bundle, "webAssetVersion": 1},
-            {**legacy_bundle, "webAssetVersion": 2},
-            {**legacy_bundle, "webAssetVersion": 1},
+            {**bundle, "webAssetVersion": asset_version}
+            for bundle in bundles_by_path.values()
+            for asset_version in (2, 1)
         ],
     }, indent=2) + "\n"
 
@@ -4139,6 +4242,7 @@ def build_www(
         (build_root / bundle_relative_path, bundle_text),
         (build_root / "web-assets.json", manifest_text),
     ])
+    outputs.extend((build_root / path, source) for path, source in legacy_files.items())
 
     output_root = build_root if output_dir is not None else WWW_OUTPUT_DIR
     if retain_current_bundle and output_dir is None:
@@ -4207,6 +4311,26 @@ def build_www(
 # Main
 # ===========================================================================
 
+def sync_captive_portal(check_only=False):
+    result = subprocess.run(
+        ["node", str(ROOT / "scripts/captive_portal_assets.js")],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    if result.returncode:
+        raise BuildError(result.stderr or "Captive portal asset generation failed")
+    dirty = []
+    for relative, generated in json.loads(result.stdout).items():
+        path = ROOT / relative
+        if path.exists() and path.read_text() == generated:
+            continue
+        dirty.append(Path(relative))
+        if check_only:
+            print(f"Stale captive portal asset: {relative}; run python3 scripts/build.py portal")
+        else:
+            write_generated_text(path, generated)
+    return dirty
+
+
 def main():
     global GENERATED_TRANSACTION
     args = sys.argv[1:]
@@ -4250,6 +4374,7 @@ def main():
     try:
         for cmd in commands:
             if cmd == "all":
+                portal_dirty = sync_captive_portal(check_only=check_only)
                 entity_dirty = sync_entity_names(check_only=check_only)
                 i18n_dirty = sync_i18n(check_only=check_only)
                 contract_dirty = sync_card_contract(check_only=check_only)
@@ -4260,16 +4385,24 @@ def main():
                     retain_current_bundle=retain_current_bundle,
                     legacy_web_manifest=legacy_web_manifest,
                 )
-                if check_only and (entity_dirty or i18n_dirty or contract_dirty or device_dirty or icon_dirty or www_dirty):
+                if check_only and (portal_dirty or entity_dirty or i18n_dirty or contract_dirty or device_dirty or icon_dirty or www_dirty):
                     exit_code = 1
-                elif not entity_dirty and not i18n_dirty and not contract_dirty and not device_dirty and not icon_dirty and not www_dirty:
+                elif not portal_dirty and not entity_dirty and not i18n_dirty and not contract_dirty and not device_dirty and not icon_dirty and not www_dirty:
                     print("All outputs are up to date.")
                 else:
                     total = (
                         len(entity_dirty) + len(i18n_dirty) + len(contract_dirty) + len(device_dirty) +
-                        len(icon_dirty) + len(www_dirty)
+                        len(icon_dirty) + len(www_dirty) + len(portal_dirty)
                     )
                     print(f"Updated {total} target(s).")
+            elif cmd == "portal":
+                dirty = sync_captive_portal(check_only=check_only)
+                if check_only and dirty:
+                    exit_code = 1
+                elif not dirty:
+                    print("Captive portal assets are in sync.")
+                else:
+                    print(f"Built {len(dirty)} captive portal asset(s).")
             elif cmd == "entities":
                 dirty = sync_entity_names(check_only=check_only)
                 if check_only and dirty:
@@ -4328,7 +4461,7 @@ def main():
                 print(f"Unknown command: {cmd}")
                 print(
                     "Usage: python scripts/build.py "
-                    "[all|entities|contract|devices|icons|i18n|www] [--check] "
+                    "[all|entities|contract|devices|icons|i18n|portal|www] [--check] "
                     "[--retain-current-bundle] [--legacy-web-manifest PATH]"
                 )
                 exit_code = 1

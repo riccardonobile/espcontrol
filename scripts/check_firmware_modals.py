@@ -403,7 +403,7 @@ def firmware_subpage_modal_wiring_errors(root: Path) -> list[str]:
         "create_light_control_context" not in body
         or "subscribe_light_control_state(" not in body
         or "light_control_open_modal(" not in body
-        or "LV_EVENT_CLICKED" not in body
+        or "bind_navigation_button_action(" not in body
     ):
         errors.append("components/espcontrol/button_grid_grid.h: open light control modals from subpage cards")
 
@@ -418,7 +418,7 @@ def firmware_subpage_modal_wiring_errors(root: Path) -> list[str]:
             "create_fan_card_context" not in body
             or "subscribe_fan_card_state(" not in body
             or "fan_control_open_modal(" not in body
-            or "LV_EVENT_CLICKED" not in body
+            or "bind_navigation_button_action(" not in body
         ):
             errors.append("components/espcontrol/button_grid_grid.h: open fan control modals from subpage cards")
 
@@ -715,6 +715,8 @@ def firmware_media_modal_power_tab_errors(root: Path) -> list[str]:
         return ["components/espcontrol/button_grid_media.h: keep the conditional media Power tab"]
 
     text = path.read_text(encoding="utf-8")
+    tabs_path = path.parent / "media_control_tabs.h"
+    if tabs_path.exists(): text += tabs_path.read_text(encoding="utf-8")
     required = (
         "POWER = 4",
         "media_control_power_supported",
@@ -722,14 +724,14 @@ def firmware_media_modal_power_tab_errors(root: Path) -> list[str]:
         "media_control_create_power_tab_content",
         "media_control_refresh_power",
         "previous_power_supported != power_supported",
-        "ui.tab == MediaControlTab::POWER && !media_control_power_supported(ctx)",
-        "ui.tab = MediaControlTab::CONTROLS",
-        "media_control_tab_count(",
+        "media_control_ensure_visible_tab(ctx)",
+        "ui.tab = visible.tabs[0]",
+        "visible_tabs.count",
         "MediaControlTabLayout tabs[5]",
     )
     if any(needle not in text for needle in required):
         return [
-            "components/espcontrol/button_grid_media.h: keep the conditional media Power tab, dynamic relayout, and safe Controls fallback"
+            "components/espcontrol/button_grid_media.h: keep the conditional media Power tab, dynamic relayout, and safe visible-tab fallback"
         ]
     return []
 
@@ -896,10 +898,11 @@ def firmware_climate_option_selection_errors(root: Path) -> list[str]:
     body = match.group("body")
     if (
         "climate_option_current_value(ctx, kind)" not in body
-        or "climate_lower(climate_trim(value))" not in body
-        or "climate_lower(climate_trim(current))" not in body
+        or "climate_hvac_service_value(value) == ctx->hvac_mode" not in body
+        or "return value == current;" not in body
+        or "climate_lower" in body
     ):
-        return [f"{rel}: match climate option state without case sensitivity"]
+        return [f"{rel}: match exact climate option values while normalizing HVAC enums"]
     return []
 
 
@@ -1260,9 +1263,9 @@ def expect_subpage_modal_wiring_errors(
             else (
                 "LightControlCtx *ctx = create_light_control_context();\n"
                 "subscribe_light_control_state(ctx);\n"
-                "lv_obj_add_event_cb(slot.btn, [](lv_event_t *event) {\n"
+                "bind_navigation_button_action(slot.btn, [](lv_event_t *event) {\n"
                 "  if (ctx) light_control_open_modal(ctx);\n"
-                "}, LV_EVENT_CLICKED, ctx);\n"
+                "}, ctx);\n"
             )
         )
         (path.parent / "button_grid_light_control_driver.h").write_text(
@@ -1274,9 +1277,9 @@ def expect_subpage_modal_wiring_errors(
             else (
                 "FanCardCtx *ctx = create_fan_card_context();\n"
                 "subscribe_fan_card_state(ctx);\n"
-                "lv_obj_add_event_cb(slot.btn, [](lv_event_t *event) {\n"
+                "bind_navigation_button_action(slot.btn, [](lv_event_t *event) {\n"
                 "  if (ctx) fan_control_open_modal(ctx);\n"
-                "}, LV_EVENT_CLICKED, ctx);\n"
+                "}, ctx);\n"
             )
         )
         (path.parent / "button_grid_fan_control_driver.h").write_text(
@@ -1510,10 +1513,10 @@ def valid_media_modal_power_tab_text() -> str:
         "inline void media_control_create_power_tab_content() {}\n"
         "inline void media_control_refresh_power() {}\n"
         "bool changed = previous_power_supported != power_supported;\n"
-        "if (ui.tab == MediaControlTab::POWER && !media_control_power_supported(ctx)) {\n"
-        "  ui.tab = MediaControlTab::CONTROLS;\n"
+        "media_control_ensure_visible_tab(ctx);\n"
+        "  ui.tab = visible.tabs[0];\n"
         "}\n"
-        "int count = media_control_tab_count(progress_supported, power_supported);\n"
+        "int count = visible_tabs.count;\n"
         "MediaControlTabLayout tabs[5] = {};\n"
     )
 
@@ -2185,19 +2188,7 @@ def run_self_test() -> int:
         (),
     )
     expect_climate_option_selection_errors(
-        "climate option selection is case-sensitive",
-        (
-            "inline bool climate_option_selected(ClimateControlCtx *ctx,\n"
-            "                                    const std::string &kind,\n"
-            "                                    const std::string &value) {\n"
-            "  if (!ctx) return false;\n"
-            "  return value == climate_option_current_value(ctx, kind);\n"
-            "}\n"
-        ),
-        ("match climate option state without case sensitivity",),
-    )
-    expect_climate_option_selection_errors(
-        "climate option selection ignores attribute case",
+        "climate custom options lose case distinctions",
         (
             "inline bool climate_option_selected(ClimateControlCtx *ctx,\n"
             "                                    const std::string &kind,\n"
@@ -2205,6 +2196,20 @@ def run_self_test() -> int:
             "  if (!ctx) return false;\n"
             "  std::string current = climate_option_current_value(ctx, kind);\n"
             "  return climate_lower(climate_trim(value)) == climate_lower(climate_trim(current));\n"
+            "}\n"
+        ),
+        ("match exact climate option values while normalizing HVAC enums",),
+    )
+    expect_climate_option_selection_errors(
+        "climate option selection keeps custom IDs and HVAC normalization",
+        (
+            "inline bool climate_option_selected(ClimateControlCtx *ctx,\n"
+            "                                    const std::string &kind,\n"
+            "                                    const std::string &value) {\n"
+            "  if (!ctx) return false;\n"
+            '  if (kind == "hvac") return climate_hvac_service_value(value) == ctx->hvac_mode;\n'
+            "  std::string current = climate_option_current_value(ctx, kind);\n"
+            "  return value == current;\n"
             "}\n"
         ),
         (),
@@ -2285,9 +2290,9 @@ def run_self_test() -> int:
     expect_media_modal_power_tab_errors(
         "media Power tab loses safe fallback",
         valid_media_modal_power_tab_text().replace(
-            "  ui.tab = MediaControlTab::CONTROLS;\n", ""
+            "  ui.tab = visible.tabs[0];\n", ""
         ),
-        ("safe Controls fallback",),
+        ("safe visible-tab fallback",),
     )
     valid_playback_modes = valid_media_modal_playback_mode_text()
     expect_media_modal_playback_mode_errors(

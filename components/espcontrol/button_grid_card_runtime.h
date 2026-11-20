@@ -61,7 +61,9 @@ inline Family family_for_runtime_type(espcontrol::card_runtime::CardTypeId type)
     case Type::OPTION_SELECT: return Family::OPTION_SELECT;
     case Type::PUSH: return Family::PUSH;
     case Type::SCREEN_LOCK: return Family::SCREEN_LOCK;
+    case Type::SCREENSAVER: return Family::SCREENSAVER;
     case Type::SENSOR: return Family::SENSOR;
+    case Type::POWER: return Family::POWER;
     case Type::SLIDER:
     case Type::LIGHT_BRIGHTNESS: return Family::SLIDER;
     case Type::SUBPAGE: return Family::SUBPAGE;
@@ -186,6 +188,7 @@ inline bool card_runtime_main_click_opens_modal(
     case Driver::MEDIA_VOLUME:
     case Driver::MEDIA_COVER_ART:
     case Driver::OPTION_SELECT:
+    case Driver::POWER:
       return true;
     case Driver::FAN:
       return context.runtime.type == Type::FAN_PRESET;
@@ -324,6 +327,14 @@ constexpr const char *card_runtime_option_name_temperature_step() {
 
 constexpr const char *card_runtime_option_name_volume_max() {
   return CARD_CONTRACT_OPTION_NAME_VOLUME_MAX;
+}
+
+constexpr const char *card_runtime_option_name_media_tabs() {
+  return CARD_CONTRACT_OPTION_NAME_MEDIA_TABS;
+}
+
+constexpr const char *card_runtime_option_name_power_entity() {
+  return CARD_CONTRACT_OPTION_NAME_POWER_ENTITY;
 }
 
 constexpr const char *card_runtime_option_name_speaker_group_entity() {

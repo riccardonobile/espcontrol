@@ -1,4 +1,4 @@
-![EspControl on a 7-inch touchscreen: home screen with temperature, clock, and control tiles](docs/public/images/home_screen_hero.jpg)
+![EspControl touchscreens showing colourful Home Assistant controls, temperature, weather, and media cards](docs/public/images/home_screen_hero.jpg)
 
 # EspControl
 
@@ -35,7 +35,7 @@ EspControl works with devices and helpers that are already in Home Assistant, in
 
 If Home Assistant can see it, EspControl is designed to make it easier to put that control or information on a touchscreen.
 
-![Web-based card configuration on the 4-inch 4848S040](docs/public/images/4848s040-buttons.png)
+![EspControl touchscreen panels showing colourful controls, temperatures, media, and radar images](docs/public/images/screens-hero.jpg)
 
 ## How It Works
 
@@ -56,10 +56,10 @@ EspControl supports several low-cost ESP32 touchscreens. Larger screens give you
 
 | | 10.1" JC8012P4A1 | 7" JC1060P470 | 4.3" JC4880P443 | 4" ESP32-P4 86 Panel | 4" 4848S040 |
 |---|:-:|:-:|:-:|:-:|:-:|
-| Image | Image pending | ![7-inch JC1060P470](docs/public/images/jc1060p470-hero.jpg) | ![4.3-inch JC4880P443](docs/public/images/jc4880p443-hero.jpg) | Image pending | ![4-inch 4848S040](docs/public/images/4848s040-hero.jpg) |
+| Image | ![10.1-inch JC8012P4A1](docs/public/images/jc8012p4a1-hero.jpg) | ![7-inch JC1060P470](docs/public/images/jc1060p470-hero.jpg) | ![4.3-inch JC4880P443 in landscape](docs/public/images/jc4880p443-hero.jpg) | ![4-inch ESP32-P4 86 Panel](docs/public/images/p4-86-hero.jpg) | ![4-inch 4848S040](docs/public/images/4848s040-hero.jpg) |
 | Layout | 1280x800 landscape · 20 card slots | 1024x600 landscape · 15 card slots | 480x800 portrait · 6 card slots | 720x720 square · 9 card slots | 480x480 square · 9 card slots |
 | Processor | ESP32-P4 | ESP32-P4 | ESP32-P4 | ESP32-P4 | ESP32-S3 |
-| Panel | [AliExpress ~£40](https://s.click.aliexpress.com/e/_c4W6TYvp) | [AliExpress ~£40](https://s.click.aliexpress.com/e/_c335W0r5) | [AliExpress ~£24](https://s.click.aliexpress.com/e/_c32jr3eN) | [AliExpress ~£45](https://s.click.aliexpress.com/e/_c3O6ndAX) | [AliExpress ~£16](https://s.click.aliexpress.com/e/_c3sIhvBv) |
+| Panel | [AliExpress ~£40](https://s.click.aliexpress.com/e/_c4W6TYvp) | [AliExpress ~£40](https://s.click.aliexpress.com/e/_c335W0r5) | [AliExpress ~£24](https://s.click.aliexpress.com/e/_c32jr3eN) | [AliExpress ~£45](https://s.click.aliexpress.com/e/_c3O6ndAX) | [AliExpress US](https://s.click.aliexpress.com/e/_c4leTALh) / [AliExpress Global](https://s.click.aliexpress.com/e/_c4VWgWu3) |
 | 3D mount | [MakerWorld](https://makerworld.com/en/models/2490049-guition-p4-10inch-screen-stand#profileId-2736046) | [MakerWorld](https://makerworld.com/en/models/2387421-guition-esp32p4-jc1060p470-7inch-screen-desk-mount#profileId-2614995) | [MakerWorld](https://makerworld.com/en/models/2982320-desk-stand-for-4-3-inch-jc4880p443-esp32-screen#profileId-3346161) | [MakerWorld](https://makerworld.com/en/models/2720366-waveshare-esp32-p4-smart-86-box-screen-desk-stand#profileId-3013481) | [MakerWorld](https://makerworld.com/en/models/2581572-guition-esp32s3-4848s040-case-stand#profileId-2847301) |
 
 See the [screen guides](https://jtenniswood.github.io/espcontrol/getting-started/install) for full details on each model.

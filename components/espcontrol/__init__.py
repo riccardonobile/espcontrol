@@ -6,11 +6,12 @@ EspControlApp owns long-lived firmware services while YAML continues to supply
 device-specific wiring.
 """
 import esphome.codegen as cg
-from esphome.components.esp32 import VARIANT_ESP32S3, get_esp32_variant
+from esphome.components.esp32 import VARIANT_ESP32P4, VARIANT_ESP32S3, get_esp32_variant
 from esphome.components import text
+from esphome.components.lvgl.defines import add_lv_use
 import esphome.config_validation as cv
-from esphome.const import CONF_ID
-from esphome.core import CORE, CoroPriority, coroutine_with_priority
+from esphome.const import CONF_ID, __version__
+from esphome.core import CORE, CoroPriority, Version, coroutine_with_priority
 import os
 
 CODEOWNERS = ["@jtenniswood"]
@@ -31,6 +32,7 @@ CONF_WEB_AUTH_PASSWORD = "web_auth_password"
 espcontrol_ns = cg.global_ns.namespace("espcontrol")
 EspControlApp = espcontrol_ns.class_("EspControlApp", cg.Component)
 PanelIdentity = espcontrol_ns.class_("PanelIdentity", cg.Component)
+ResetBoot = espcontrol_ns.namespace("reset").class_("ResetBoot", cg.Component)
 
 PANEL_CONFIG_BUTTON_SCHEMA = cv.Schema(
     {
@@ -59,6 +61,7 @@ CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(EspControlApp),
         cv.GenerateID("identity_id"): cv.declare_id(PanelIdentity),
+        cv.GenerateID("reset_boot_id"): cv.declare_id(ResetBoot),
         cv.Optional(CONF_ACTION_RESPONSES, default=True): cv.boolean,
         cv.Optional(CONF_PANEL_CONFIG): PANEL_CONFIG_SCHEMA,
         cv.Optional(CONF_WEB_AUTH_USERNAME, default=""): cv.string_strict,
@@ -79,16 +82,33 @@ def _consume_endpoint_socket(config):
 CONFIG_SCHEMA = cv.All(CONFIG_SCHEMA, _consume_endpoint_socket)
 
 
+def register_power_flow_widgets():
+    # Power Flow creates native lines in C++, so YAML's widget discovery cannot
+    # find this dependency. Register it before LVGL emits its configuration.
+    add_lv_use("line")
+
+
 @coroutine_with_priority(CoroPriority.DIAGNOSTICS)
 async def to_code(config):
+    register_power_flow_widgets()
     # Run before safe_mode's early return and before any preference consumers.
     if CORE.config.get("preferences", {}).get("rtc_storage", False):
         raise cv.Invalid("EspControl reset requires flash preferences; remove preferences.rtc_storage")
     cg.add_define("USE_OTA_STATE_LISTENER")
+    if (get_esp32_variant() == VARIANT_ESP32P4 and
+            config.get(CONF_PANEL_CONFIG, {}).get(CONF_DEVICE_PROFILE) == "esp32-p4-86"):
+        cg.add_define("ESPCONTROL_RESTART_ON_PRIMARY_CORE")
+        cg.add_build_flag("-Wl,--wrap=esp_restart")
     for operation in ("begin", "end", "abort"):
         cg.add_build_flag(f"-Wl,--wrap=esp_ota_{operation}")
     if "esp32_hosted" in CORE.config:
-        cg.add_build_flag("-Wl,--wrap=esp_hosted_slave_ota_begin")
+        version = Version.parse(__version__)
+        # ESP-Hosted 3.x redirects the legacy API to the new linker symbol.
+        if (version.major, version.minor) >= (2026, 11):
+            cg.add_define("ESPCONTROL_HOSTED_OTA_V3")
+            cg.add_build_flag("-Wl,--wrap=eh_host_cp_ota_begin")
+        else:
+            cg.add_build_flag("-Wl,--wrap=esp_hosted_slave_ota_begin")
     cg.add_global(cg.RawStatement('#include "esphome/components/espcontrol/device_reset.h"'), prepend=True)
     compiled_networks = bool(CORE.config.get("wifi", {}).get("networks", []))
     # Directly configured ESPHome web authentication must protect our native
@@ -98,6 +118,8 @@ async def to_code(config):
     password = web_auth.get("password", config[CONF_WEB_AUTH_PASSWORD])
     cg.add(espcontrol_ns.namespace("reset").early_startup(
         compiled_networks, username, password))
+    reset_boot = cg.new_Pvariable(config["reset_boot_id"])
+    await cg.register_component(reset_boot, {})
     identity = cg.new_Pvariable(config["identity_id"])
     await cg.register_component(identity, config)
     cg.add(identity.set_web_auth_credentials(username, password))
@@ -122,6 +144,10 @@ async def to_code(config):
                 for source in button_sources[CONF_SUBPAGE_CHUNKS]
             ]
             cg.add(var.set_panel_config_button(slot, button, *subpages))
+
+    if panel_config is not None and "web_server" in CORE.config:
+        from .backup import register_backup
+        await register_backup(panel_config, cg, CORE.config)
 
     for update_config in CORE.config.get("update", []):
         update_entity = await cg.get_variable(update_config[CONF_ID])

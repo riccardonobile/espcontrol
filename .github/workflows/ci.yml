@@ -77,7 +77,7 @@ jobs:
       - uses: actions/setup-node@v7
         if: steps.icon_changes.outputs.changed == 'true'
         with:
-          node-version: 24
+          node-version: 26
 
       - name: Install dependencies
         if: steps.icon_changes.outputs.changed == 'true'
@@ -141,7 +141,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
 
       - name: Install pinned timezone data
         shell: bash
@@ -193,6 +193,9 @@ jobs:
           npm ci --prefer-offline --cache "${NPM_CACHE}"
           bash scripts/prune_actions_cache.sh "${NPM_CACHE}" "${ESPCONTROL_NPM_CACHE_MAX_MB}" --strategy reset
 
+      - name: Install Chromium for browser checks
+        run: npx playwright install --with-deps chromium
+
       - name: Run required check graph
         run: npm run check:ci -- --summary-json check-task-summary.json
 
@@ -222,7 +225,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
 
       - name: Install dependencies
         run: |

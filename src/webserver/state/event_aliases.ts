@@ -17,6 +17,7 @@ export const SSE_ALIAS_GROUPS = {
   alarmDelayExitAnnouncement: ["text-alarm_delay__exit_announcement", "text-alarm_delay_exit_announcement"],
   alarmDelayBeepVolume: ["number-alarm_delay__beep_volume", "number-alarm_delay_beep_volume"],
   alarmDelayFinalCountdown: ["number-alarm_delay__final_countdown", "number-alarm_delay_final_countdown", "number-alarm_delay_final_countdown_seconds"],
+  clockBarTemperaturePrecision: ["number-clock_bar__temperature_precision", "number-clock_bar_temperature_precision", "number-clock_bar_temperature_precision_setting"],
   temperatureDegreeSymbol: ["switch-screen__temperature_degree_symbol", "switch-screen_temperature_degree_symbol", "switch-temperature_degree_symbol_enabled"],
   subpageChevron: ["switch-screen__subpage_chevron", "switch-screen_subpage_chevron", "switch-subpage_chevrons_enabled"],
   screensaverTimeout: ["number-screensaver_timeout", "number-screen_saver__timeout", "number-screen_saver_timeout"],
@@ -25,6 +26,8 @@ export const SSE_ALIAS_GROUPS = {
   mediaPlayerSleepPrevention: ["switch-screen_saver__media_player_sleep_prevention", "switch-screen_saver_media_player_sleep_prevention", "switch-media_player_sleep_prevention_enabled"],
   mediaPlayerSleepPreventionEntity: ["text-media_player_sleep_prevention_entity"],
   coverArt: ["switch-screen_saver__cover_art", "switch-screen_saver_cover_art", "switch-screensaver_cover_art"],
+  cameraDimming: ["number-screen_saver__camera_dimming", "number-screen_saver_camera_dimming", "number-screensaver_camera_dimming"],
+  clockDate: ["switch-screen_saver__show_date", "switch-screen_saver_show_date", "switch-clock_screensaver_show_date"],
   clockOverlay: ["switch-screen_saver__clock_overlay", "switch-screen_saver_clock_overlay", "switch-clock_overlay_enabled"],
   metadataOverlay: ["switch-screen_saver__metadata_overlay", "switch-screen_saver_metadata_overlay", "switch-metadata_overlay_enabled"],
   coverArtEntity: ["text-screen_saver__cover_art_entity", "text-screen_saver_cover_art_entity", "text-cover_art_media_player_entity"],
@@ -76,6 +79,7 @@ export function applySseHandlerAliases(handlers: SseHandlers): void {
   addSseAliases(handlers, SSE_ALIAS_GROUPS.alarmDelayExitAnnouncement, "text-alarm_delay__exit_announcement");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.alarmDelayBeepVolume, "number-alarm_delay__beep_volume");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.alarmDelayFinalCountdown, "number-alarm_delay__final_countdown");
+  addSseAliases(handlers, SSE_ALIAS_GROUPS.clockBarTemperaturePrecision, "number-clock_bar__temperature_precision");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.temperatureDegreeSymbol, "switch-screen__temperature_degree_symbol");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.subpageChevron, "switch-screen__subpage_chevron");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.screensaverTimeout, "number-screensaver_timeout");
@@ -84,6 +88,8 @@ export function applySseHandlerAliases(handlers: SseHandlers): void {
   addSseAliases(handlers, SSE_ALIAS_GROUPS.mediaPlayerSleepPrevention, "switch-screen_saver__media_player_sleep_prevention");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.mediaPlayerSleepPreventionEntity, "text-media_player_sleep_prevention_entity");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.coverArt, "switch-screen_saver__cover_art");
+  addSseAliases(handlers, SSE_ALIAS_GROUPS.cameraDimming, "number-screen_saver__camera_dimming");
+  addSseAliases(handlers, SSE_ALIAS_GROUPS.clockDate, "switch-screen_saver__show_date");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.clockOverlay, "switch-screen_saver__clock_overlay");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.metadataOverlay, "switch-screen_saver__metadata_overlay");
   addSseAliases(handlers, SSE_ALIAS_GROUPS.coverArtEntity, "text-screen_saver__cover_art_entity");

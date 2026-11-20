@@ -1050,6 +1050,21 @@
     }
   },
   {
+    "name": "screensaver: force",
+    "input": "~,,Monitor,Auto,,,screensaver,,",
+    "expected": {
+      "entity": "",
+      "label": "",
+      "icon": "Monitor",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "screensaver",
+      "precision": "",
+      "options": ""
+    }
+  },
+  {
     "name": "screen_lock: toggle",
     "input": "~,,Lock,Lock%20Open,,,screen_lock,,",
     "expected": {
@@ -1245,6 +1260,171 @@
     }
   },
   {
+    "name": "weather: wind",
+    "input": "~weather.example,,Auto,Auto,,,weather,wind,",
+    "expected": {
+      "entity": "weather.example",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "wind",
+      "options": ""
+    }
+  },
+  {
+    "name": "weather: wind_sensors",
+    "input": "~sensor.wind_direction,,Auto,Auto,sensor.wind_speed,,weather,wind,wind_source%3Dsensors",
+    "expected": {
+      "entity": "sensor.wind_direction",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "sensor.wind_speed",
+      "unit": "",
+      "type": "weather",
+      "precision": "wind",
+      "options": "wind_source=sensors"
+    }
+  },
+  {
+    "name": "weather: rainfall_sensor",
+    "input": "~sensor.rainfall_today,,Auto,Auto,,,weather,rainfall,",
+    "expected": {
+      "entity": "sensor.rainfall_today",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "rainfall",
+      "options": ""
+    }
+  },
+  {
+    "name": "weather: rainfall_forecast",
+    "input": "~weather.example,,Auto,Auto,,,weather,rainfall,rainfall_source%3Dforecast",
+    "expected": {
+      "entity": "weather.example",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "rainfall",
+      "options": "rainfall_source=forecast"
+    }
+  },
+  {
+    "name": "weather: pressure_sensor",
+    "input": "~sensor.pressure,,Auto,Auto,,,weather,pressure,",
+    "expected": {
+      "entity": "sensor.pressure",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "pressure",
+      "options": ""
+    }
+  },
+  {
+    "name": "weather: pressure_forecast",
+    "input": "~weather.example,,Auto,Auto,,,weather,pressure,pressure_source%3Dforecast",
+    "expected": {
+      "entity": "weather.example",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "pressure",
+      "options": "pressure_source=forecast"
+    }
+  },
+  {
+    "name": "weather: humidity_sensor",
+    "input": "~sensor.humidity,,Auto,Auto,,,weather,humidity,",
+    "expected": {
+      "entity": "sensor.humidity",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "humidity",
+      "options": ""
+    }
+  },
+  {
+    "name": "weather: temperature_sensor",
+    "input": "~sensor.temperature,,Auto,Auto,,,weather,temperature,",
+    "expected": {
+      "entity": "sensor.temperature",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "temperature",
+      "options": ""
+    }
+  },
+  {
+    "name": "weather: humidity_forecast",
+    "input": "~weather.example,,Auto,Auto,,,weather,humidity,humidity_source%3Dforecast",
+    "expected": {
+      "entity": "weather.example",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "humidity",
+      "options": "humidity_source=forecast"
+    }
+  },
+  {
+    "name": "weather: temperature_forecast",
+    "input": "~weather.example,,Auto,Auto,,,weather,temperature,temperature_source%3Dforecast",
+    "expected": {
+      "entity": "weather.example",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "temperature",
+      "options": "temperature_source=forecast"
+    }
+  },
+  {
+    "name": "weather: visibility_forecast",
+    "input": "~weather.example,,Auto,Auto,,,weather,visibility,",
+    "expected": {
+      "entity": "weather.example",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "visibility",
+      "options": ""
+    }
+  },
+  {
     "name": "weather: today",
     "input": "~weather.example,,Auto,Auto,,,weather,today,",
     "expected": {
@@ -1271,6 +1451,21 @@
       "unit": "",
       "type": "weather",
       "precision": "tomorrow",
+      "options": ""
+    }
+  },
+  {
+    "name": "weather: daily",
+    "input": "~weather.example,,Auto,Auto,,,weather,daily,",
+    "expected": {
+      "entity": "weather.example",
+      "label": "",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "weather",
+      "precision": "daily",
       "options": ""
     }
   },
@@ -1362,6 +1557,36 @@
       "type": "weather",
       "precision": "tomorrow",
       "options": ""
+    }
+  },
+  {
+    "name": "power: model",
+    "input": "~sensor.home,Power%20Dashboard,Auto,Auto,,,power,,solar_entity%3Dsensor.solar%2Cgrid_entity%3Dsensor.grid%2Cbattery_entity%3Dsensor.battery%2Cbattery_soc_entity%3Dsensor.soc",
+    "expected": {
+      "entity": "sensor.home",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": "solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,battery_soc_entity=sensor.soc"
+    }
+  },
+  {
+    "name": "power: inverted",
+    "input": "~sensor.home,Power%20Dashboard,Auto,Auto,,,power,,solar_entity%3Dsensor.solar%2Cgrid_entity%3Dsensor.grid%2Cbattery_entity%3Dsensor.battery%2Cinvert_grid%2Cinvert_battery",
+    "expected": {
+      "entity": "sensor.home",
+      "label": "Power Dashboard",
+      "icon": "Auto",
+      "icon_on": "Auto",
+      "sensor": "",
+      "unit": "",
+      "type": "power",
+      "precision": "",
+      "options": "solar_entity=sensor.solar,grid_entity=sensor.grid,battery_entity=sensor.battery,invert_grid,invert_battery"
     }
   },
   {

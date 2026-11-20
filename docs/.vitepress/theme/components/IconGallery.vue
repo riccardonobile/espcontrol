@@ -1,568 +1,256 @@
-<template>
-  <div class="icon-gallery">
-    <input
-      v-model="search"
-      type="text"
-      class="icon-search"
-      placeholder="Search icons…"
-    />
-    <p class="icon-count">{{ totalFiltered }} icon{{ totalFiltered === 1 ? '' : 's' }}</p>
-    <div v-for="group in filteredGroups" :key="group.name" class="icon-group">
-      <h3 class="icon-group-title">{{ group.name }}</h3>
-      <div class="icon-grid">
-        <button
-          v-for="icon in group.icons"
-          :key="icon.name"
-          class="icon-card"
-          :class="{ copied: copiedName === icon.name }"
-          @click="copy(icon.name)"
-        >
-          <span class="icon-preview mdi" :class="'mdi-' + icon.mdi" />
-          <span class="icon-name">{{ copiedName === icon.name ? 'Copied!' : icon.name }}</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
+<script setup lang="ts">
+import { computed, onUnmounted, ref } from 'vue'
+import catalog from '../../../../product/v2/icons.json'
+import categoryGroups from './icon-gallery-categories.json'
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
-import { iconOptions, iconSlug } from '../../../../src/webserver/application/ui_primitives'
-
-const GROUP_ORDER = [
-  'Lighting',
-  'Climate & Air',
-  'Covers & Shading',
-  'Security & Access',
-  'Power & Energy',
-  'Weather',
-  'Appliances',
-  'Media & Entertainment',
-  'Files & Folders',
-  'Water & Outdoors',
-  'Network & Tech',
-  'Rooms & Furniture',
-  'Vehicles',
-  'Health',
-  'General',
-]
-
-const ICON_GROUPS = {
-  'Ceiling Light': 'Lighting',
-  'Ceiling Light Multiple Outline': 'Lighting',
-  'Ceiling Lights Multiple': 'Lighting',
-  'Chandelier': 'Lighting',
-  'Coach Lamp': 'Lighting',
-  'Coach Lamp Variant': 'Lighting',
-  'Desk Lamp': 'Lighting',
-  'Desk Lamp Off': 'Lighting',
-  'Desk Lamp On': 'Lighting',
-  'Downlight': 'Lighting',
-  'Floor Lamp': 'Lighting',
-  'Flood Light Down': 'Lighting',
-  'Lamp': 'Lighting',
-  'Lamp Outline': 'Lighting',
-  'Lava Lamp': 'Lighting',
-  'LED Strip': 'Lighting',
-  'LED Strip Variant': 'Lighting',
-  'LED Strip Variant Off': 'Lighting',
-  'Light Switch': 'Lighting',
-  'Lightbulb': 'Lighting',
-  'Lightbulb Auto': 'Lighting',
-  'Lightbulb Auto Outline': 'Lighting',
-  'Lightbulb Fluorescent Tube Outline': 'Lighting',
-  'Lightbulb Group': 'Lighting',
-  'Lightbulb Group Outline': 'Lighting',
-  'Lightbulb Night': 'Lighting',
-  'Lightbulb Night Outline': 'Lighting',
-  'Lightbulb Off': 'Lighting',
-  'Lightbulb On 50': 'Lighting',
-  'Lightbulb On Outline': 'Lighting',
-  'Lightbulb Outline': 'Lighting',
-  'Lightbulb Spot': 'Lighting',
-  'Lightbulb Spot Off': 'Lighting',
-  'Lightbulb Variant': 'Lighting',
-  'Lightbulb Variant Outline': 'Lighting',
-  'Home Lightbulb': 'Lighting',
-  'Home Lightbulb Outline': 'Lighting',
-  'Outdoor Lamp': 'Lighting',
-  'Palette': 'Lighting',
-  'Post Lamp': 'Lighting',
-  'Spotlight': 'Lighting',
-  'Spotlight Beam': 'Lighting',
-  'String Lights': 'Lighting',
-  'String Lights Off': 'Lighting',
-  'Track Light': 'Lighting',
-  'Track Light Off': 'Lighting',
-  'Vanity Light': 'Lighting',
-  'Wall Sconce': 'Lighting',
-
-  'Air Conditioner': 'Climate & Air',
-  'Air Filter': 'Climate & Air',
-  'Air Purifier': 'Climate & Air',
-  'Air Purifier Off': 'Climate & Air',
-  'Ceiling Fan': 'Climate & Air',
-  'Ceiling Fan Light': 'Climate & Air',
-  'Fan': 'Climate & Air',
-  'Fan Auto': 'Climate & Air',
-  'Fan Off': 'Climate & Air',
-  'Fan Speed 1': 'Climate & Air',
-  'Fan Speed 2': 'Climate & Air',
-  'Fan Speed 3': 'Climate & Air',
-  'Fire': 'Climate & Air',
-  'Fire Off': 'Climate & Air',
-  'Fireplace': 'Climate & Air',
-  'Heat Wave': 'Climate & Air',
-  'Heat Pump': 'Climate & Air',
-  'Heating Coil': 'Climate & Air',
-  'HVAC': 'Climate & Air',
-  'HVAC Off': 'Climate & Air',
-  'Humidifier': 'Climate & Air',
-  'Radiator': 'Climate & Air',
-  'Radiator Off': 'Climate & Air',
-  'Snowflake': 'Climate & Air',
-  'Snowflake Alert': 'Climate & Air',
-  'Snowflake Thermometer': 'Climate & Air',
-  'Thermometer': 'Climate & Air',
-  'Thermometer Alert': 'Climate & Air',
-  'Thermometer High': 'Climate & Air',
-  'Thermometer Low': 'Climate & Air',
-  'Thermometer Off': 'Climate & Air',
-  'Thermometer Water': 'Climate & Air',
-  'Thermostat': 'Climate & Air',
-  'Thermostat Auto': 'Climate & Air',
-  'Thermostat Box': 'Climate & Air',
-  'Home-Thermostat': 'Climate & Air',
-  'Arrow Up Down': 'Climate & Air',
-  'Swap Horizontal': 'Climate & Air',
-
-  'Awning': 'Covers & Shading',
-  'Awning Outline': 'Covers & Shading',
-  'Blinds': 'Covers & Shading',
-  'Blinds Horizontal': 'Covers & Shading',
-  'Blinds Horizontal Closed': 'Covers & Shading',
-  'Blinds Open': 'Covers & Shading',
-  'Arrow Down': 'Covers & Shading',
-  'Arrow Up': 'Covers & Shading',
-  'Chevron Left': 'Covers & Shading',
-  'Chevron Right': 'Covers & Shading',
-  'Chevron Down': 'Covers & Shading',
-  'Chevron Up': 'Covers & Shading',
-  'Curtains': 'Covers & Shading',
-  'Curtains Closed': 'Covers & Shading',
-  'Roller Shade': 'Covers & Shading',
-  'Roller Shade Closed': 'Covers & Shading',
-  'Stop': 'Covers & Shading',
-  'Swap Vertical': 'Covers & Shading',
-  'View Headline': 'Covers & Shading',
-  'Window Closed': 'Covers & Shading',
-  'Window Open': 'Covers & Shading',
-  'Window Shutter': 'Covers & Shading',
-  'Window Shutter Open': 'Covers & Shading',
-
-  'Alarm': 'Security & Access',
-  'Alarm Bell': 'Security & Access',
-  'Alarm Clock': 'Security & Access',
-  'Alarm Light': 'Security & Access',
-  'Bell': 'Security & Access',
-  'Camera': 'Security & Access',
-  'CCTV': 'Security & Access',
-  'Door': 'Security & Access',
-  'Door Open': 'Security & Access',
-  'Doorbell': 'Security & Access',
-  'Garage': 'Security & Access',
-  'Garage Open': 'Security & Access',
-  'Garage Open Variant': 'Security & Access',
-  'Garage Variant': 'Security & Access',
-  'Gate': 'Security & Access',
-  'Gate Open': 'Security & Access',
-  'Key': 'Security & Access',
-  'Lock': 'Security & Access',
-  'Lock Open': 'Security & Access',
-  'Lock Open Outline': 'Security & Access',
-  'Lock Open Variant': 'Security & Access',
-  'Lock Outline': 'Security & Access',
-  'Motion Sensor': 'Security & Access',
-  'Motion Sensor Off': 'Security & Access',
-  'Security': 'Security & Access',
-  'Shield Home': 'Security & Access',
-  'Shield Lock': 'Security & Access',
-  'Shield Off': 'Security & Access',
-  'Smoke Detector': 'Security & Access',
-
-  'Battery': 'Power & Energy',
-  'Battery 10%': 'Power & Energy',
-  'Battery 20%': 'Power & Energy',
-  'Battery 30%': 'Power & Energy',
-  'Battery 40%': 'Power & Energy',
-  'Battery 50%': 'Power & Energy',
-  'Battery 60%': 'Power & Energy',
-  'Battery 70%': 'Power & Energy',
-  'Battery 80%': 'Power & Energy',
-  'Battery 90%': 'Power & Energy',
-  'Battery Alert': 'Power & Energy',
-  'Battery Charging': 'Power & Energy',
-  'Battery Charging 100': 'Power & Energy',
-  'Battery Charging 70': 'Power & Energy',
-  'Battery High': 'Power & Energy',
-  'Battery Low': 'Power & Energy',
-  'Battery Medium': 'Power & Energy',
-  'Battery Off': 'Power & Energy',
-  'Battery Outline': 'Power & Energy',
-  'Battery Unknown': 'Power & Energy',
-  'Current AC': 'Power & Energy',
-  'Current DC': 'Power & Energy',
-  'Flash': 'Power & Energy',
-  'Gauge': 'Power & Energy',
-  'Gauge Empty': 'Power & Energy',
-  'Gauge Full': 'Power & Energy',
-  'Gauge Low': 'Power & Energy',
-  'Grid Export': 'Power & Energy',
-  'Grid Import': 'Power & Energy',
-  'Grid Off': 'Power & Energy',
-  'Lightning Bolt': 'Power & Energy',
-  'Meter Electric': 'Power & Energy',
-  'Meter Gas': 'Power & Energy',
-  'Power': 'Power & Energy',
-  'Power Plug': 'Power & Energy',
-  'Power Socket EU': 'Power & Energy',
-  'Power Socket UK': 'Power & Energy',
-  'Power Socket US': 'Power & Energy',
-  'Solar Panel': 'Power & Energy',
-  'Solar Panel Large': 'Power & Energy',
-  'Solar Power': 'Power & Energy',
-  'Solar Power Variant': 'Power & Energy',
-  'Transmission Tower': 'Power & Energy',
-  'Wall Outlet': 'Power & Energy',
-  'Wind Power': 'Power & Energy',
-  'Wind Turbine': 'Power & Energy',
-  'Wind Turbine Alert': 'Power & Energy',
-  'Wind Turbine Check': 'Power & Energy',
-
-  'Sun': 'Weather',
-  'Weather Cloudy': 'Weather',
-  'Weather Cloudy Alert': 'Weather',
-  'Weather Dust': 'Weather',
-  'Weather Fog': 'Weather',
-  'Weather Hail': 'Weather',
-  'Weather Hazy': 'Weather',
-  'Weather Hurricane': 'Weather',
-  'Weather Lightning': 'Weather',
-  'Weather Lightning Rainy': 'Weather',
-  'Weather Night': 'Weather',
-  'Weather Night Cloudy': 'Weather',
-  'Weather Partly Cloudy': 'Weather',
-  'Weather Partly Lightning': 'Weather',
-  'Weather Partly Rainy': 'Weather',
-  'Weather Partly Snowy': 'Weather',
-  'Weather Partly Snowy Rainy': 'Weather',
-  'Weather Pouring': 'Weather',
-  'Weather Rainy': 'Weather',
-  'Weather Snowy': 'Weather',
-  'Weather Snowy Heavy': 'Weather',
-  'Weather Snowy Rainy': 'Weather',
-  'Weather Sunny': 'Weather',
-  'Weather Sunny Alert': 'Weather',
-  'Weather Sunny Off': 'Weather',
-  'Weather Sunset': 'Weather',
-  'Weather Sunset Down': 'Weather',
-  'Weather Sunset Up': 'Weather',
-  'Weather Tornado': 'Weather',
-  'Weather Windy': 'Weather',
-  'Weather Windy Variant': 'Weather',
-
-  'Coffee Maker': 'Appliances',
-  'Countertop': 'Appliances',
-  'Dishwasher': 'Appliances',
-  'Dishwasher Off': 'Appliances',
-  'Dryer': 'Appliances',
-  'Dryer Off': 'Appliances',
-  'Fridge': 'Appliances',
-  'Iron': 'Appliances',
-  'Kettle': 'Appliances',
-  'Microwave': 'Appliances',
-  'Oven': 'Appliances',
-  'Washing Machine': 'Appliances',
-  'Washing Machine Off': 'Appliances',
-  'Silverware': 'Appliances',
-  'Chef Hat': 'Appliances',
-
-  'Cast': 'Media & Entertainment',
-  'Folder Account Outline': 'Files & Folders',
-  'Folder Home Outline': 'Files & Folders',
-  'Folder Key Outline': 'Files & Folders',
-  'Folder Open Outline': 'Files & Folders',
-  'Folder Outline': 'Files & Folders',
-  'Folder Music Outline': 'Media & Entertainment',
-  'Folder Play': 'Media & Entertainment',
-  'Gamepad': 'Media & Entertainment',
-  'Headphones': 'Media & Entertainment',
-  'Message Video': 'Media & Entertainment',
-  'Microphone': 'Media & Entertainment',
-  'Microphone Off': 'Media & Entertainment',
-  'Microsoft Xbox': 'Media & Entertainment',
-  'Monitor': 'Media & Entertainment',
-  'Movie Roll': 'Media & Entertainment',
-  'Music': 'Media & Entertainment',
-  'Music Box Multiple': 'Media & Entertainment',
-  'Music Note': 'Media & Entertainment',
-  'Music Note Quarter': 'Media & Entertainment',
-  'Nintendo Switch': 'Media & Entertainment',
-  'Pause': 'Media & Entertainment',
-  'Play': 'Media & Entertainment',
-  'Play Pause': 'Media & Entertainment',
-  'PlayStation': 'Media & Entertainment',
-  'Projector': 'Media & Entertainment',
-  'Projector Off': 'Media & Entertainment',
-  'Remote Back': 'Media & Entertainment',
-  'Remote Desktop': 'Media & Entertainment',
-  'Remote Down': 'Media & Entertainment',
-  'Remote Home': 'Media & Entertainment',
-  'Remote Left': 'Media & Entertainment',
-  'Remote OK': 'Media & Entertainment',
-  'Remote Right': 'Media & Entertainment',
-  'Remote Up': 'Media & Entertainment',
-  'Remote TV': 'Media & Entertainment',
-  'Speaker': 'Media & Entertainment',
-  'Speaker Multiple': 'Media & Entertainment',
-  'Speaker Off': 'Media & Entertainment',
-  'Speaker Pause': 'Media & Entertainment',
-  'Speaker Play': 'Media & Entertainment',
-  'Speaker Wireless': 'Media & Entertainment',
-  'Skip Next': 'Media & Entertainment',
-  'Skip Previous': 'Media & Entertainment',
-  'Television': 'Media & Entertainment',
-  'Television Off': 'Media & Entertainment',
-  'Volume High': 'Media & Entertainment',
-  'Volume Off': 'Media & Entertainment',
-
-  'Fountain': 'Water & Outdoors',
-  'Hot Tub': 'Water & Outdoors',
-  'Humidity Alert': 'Water & Outdoors',
-  'Lawnmower': 'Water & Outdoors',
-  'Leaf': 'Water & Outdoors',
-  'Pool': 'Water & Outdoors',
-  'Shower': 'Water & Outdoors',
-  'Sprinkler': 'Water & Outdoors',
-  'Sprinkler Variant': 'Water & Outdoors',
-  'Water': 'Water & Outdoors',
-  'Water Alert': 'Water & Outdoors',
-  'Water Boiler': 'Water & Outdoors',
-  'Water Boiler Off': 'Water & Outdoors',
-  'Water Percent': 'Water & Outdoors',
-  'Water Pump': 'Water & Outdoors',
-  'Water Pump Off': 'Water & Outdoors',
-  'Shower Head': 'Water & Outdoors',
-
-  'Application': 'Network & Tech',
-  'Bluetooth': 'Network & Tech',
-  'LAN': 'Network & Tech',
-  'Printer': 'Network & Tech',
-  'Printer 3D': 'Network & Tech',
-  'Robot Mower': 'Network & Tech',
-  'Robot Mower Outline': 'Network & Tech',
-  'Robot Vacuum': 'Network & Tech',
-  'Robot Vacuum Alert': 'Network & Tech',
-  'Robot Vacuum Off': 'Network & Tech',
-  'Robot Vacuum Variant': 'Network & Tech',
-  'Robot Vacuum Variant Alert': 'Network & Tech',
-  'Robot Vacuum Variant Off': 'Network & Tech',
-  'Router': 'Network & Tech',
-  'Router Network': 'Network & Tech',
-  'Wifi': 'Network & Tech',
-  'Vacuum': 'Network & Tech',
-  'Vacuum Outline': 'Network & Tech',
-
-  'Bathtub': 'Rooms & Furniture',
-  'Bathtub Outline': 'Rooms & Furniture',
-  'Bed': 'Rooms & Furniture',
-  'Bed King': 'Rooms & Furniture',
-  'Bed Queen': 'Rooms & Furniture',
-  'Chair Rolling': 'Rooms & Furniture',
-  'Desk': 'Rooms & Furniture',
-  'Sofa': 'Rooms & Furniture',
-  'Sofa Outline': 'Rooms & Furniture',
-  'Sofa Single Outline': 'Rooms & Furniture',
-  'Stove': 'Rooms & Furniture',
-  'Table': 'Rooms & Furniture',
-  'Table Chair': 'Rooms & Furniture',
-  'Toilet': 'Rooms & Furniture',
-  'Toy Brick': 'Rooms & Furniture',
-
-  'Car Electric': 'Vehicles',
-  'EV Charger': 'Vehicles',
-  'Airplane': 'Vehicles',
-
-  'Medication': 'Health',
-  'Medication Outline': 'Health',
-  'Pill': 'Health',
-  'Pill Multiple': 'Health',
-
-  'Account': 'General',
-  'Auto': 'General',
-  'Bird': 'General',
-  'Broom': 'General',
-  'Cat': 'General',
-  'Check': 'General',
-  'Circle Outline': 'General',
-  'Clock': 'General',
-  'Delete': 'General',
-  'Delete Empty': 'General',
-  'Delete Outline': 'General',
-  'Delete Variant': 'General',
-  'Dog': 'General',
-  'Dots Horizontal': 'General',
-  'Gesture Tap': 'General',
-  'Home': 'General',
-  'Mailbox': 'General',
-  'Minus': 'General',
-  'Package': 'General',
-  'Package Closed': 'General',
-  'Plus': 'General',
-  'Progress Clock': 'General',
-  'Recycle': 'General',
-  'Timer': 'General',
-  'Trash Can': 'General',
-  'Trash Can Outline': 'General',
-  'Video': 'Media & Entertainment',
-  'Video Outline': 'Media & Entertainment',
+function searchKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
-const icons = iconOptions.map(name => ({ name, mdi: iconSlug(name) }))
-const search = ref('')
-const copiedName = ref(null)
-let copyTimer = null
-
-function groupOf(icon) {
-  return ICON_GROUPS[icon.name] || 'General'
-}
-
-const filteredGroups = computed(() => {
-  const q = search.value.toLowerCase()
-  const matched = q
-    ? icons.filter(i => i.name.toLowerCase().includes(q))
-    : icons
-
-  const buckets = {}
-  for (const icon of matched) {
-    const g = groupOf(icon)
-    if (!buckets[g]) buckets[g] = []
-    buckets[g].push(icon)
-  }
-
-  return GROUP_ORDER
-    .filter(g => buckets[g])
-    .map(g => ({ name: g, icons: buckets[g] }))
-})
-
-const totalFiltered = computed(() =>
-  filteredGroups.value.reduce((sum, g) => sum + g.icons.length, 0)
+const categoryBySlug = new Map(
+  Object.entries(categoryGroups).flatMap(([category, slugs]) =>
+    slugs.map((slug) => [slug, category] as const),
+  ),
 )
 
-function copy(name) {
-  navigator.clipboard.writeText(name)
-  copiedName.value = name
-  clearTimeout(copyTimer)
-  copyTimer = setTimeout(() => { copiedName.value = null }, 1200)
+const icons = catalog.icons
+  .map(({ name, codepoint, mdi }) => ({
+    name,
+    category: categoryBySlug.get(mdi) ?? 'General',
+    glyph: String.fromCodePoint(Number.parseInt(codepoint, 16)),
+    searchKeys: [searchKey(name), searchKey(mdi.replace(/^material-symbol-/, ''))],
+  }))
+  .sort((first, second) => first.name.localeCompare(second.name, 'en'))
+
+const query = ref('')
+const selectedCategory = ref('')
+const categories = [...new Set(icons.map(({ category }) => category))].sort()
+const visibleIcons = computed(() => {
+  const terms = query.value.split(/\s+/).map(searchKey).filter(Boolean)
+  return icons.filter(({ category, searchKeys }) =>
+    (!selectedCategory.value || category === selectedCategory.value) &&
+    terms.every((term) => searchKeys.some((key) => key.includes(term))),
+  )
+})
+
+const copyFeedback = ref<{ name: string; copied: boolean }>()
+let feedbackTimer: ReturnType<typeof setTimeout> | undefined
+let copyRequest = 0
+
+function copyFromSelection(name: string) {
+  const previousFocus = document.activeElement
+  const field = document.createElement('textarea')
+  field.value = name
+  field.readOnly = true
+  field.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+  document.body.appendChild(field)
+  try {
+    field.focus({ preventScroll: true })
+    field.select()
+    return document.execCommand('copy')
+  } catch {
+    return false
+  } finally {
+    field.remove()
+    if (previousFocus instanceof HTMLElement) {
+      previousFocus.focus({ preventScroll: true })
+    }
+  }
 }
 
-onMounted(() => {
-  if (document.querySelector('link[href*="materialdesignicons"]')) return
-  const link = document.createElement('link')
-  link.rel = 'stylesheet'
-  link.href = 'https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css'
-  document.head.appendChild(link)
+async function copyIconName(name: string) {
+  const request = ++copyRequest
+  let copied = false
+  if (navigator.clipboard) {
+    try {
+      await navigator.clipboard.writeText(name)
+      copied = true
+    } catch {
+      // The selection fallback also works on the local HTTP preview.
+    }
+  }
+  if (request !== copyRequest) return
+  if (!copied) copied = copyFromSelection(name)
+  clearTimeout(feedbackTimer)
+  copyFeedback.value = { name, copied }
+  feedbackTimer = setTimeout(() => { copyFeedback.value = undefined }, 2000)
+}
+
+onUnmounted(() => {
+  copyRequest++
+  clearTimeout(feedbackTimer)
 })
 </script>
 
+<template>
+  <div class="icon-gallery">
+    <div class="icon-gallery__filters">
+      <div class="icon-gallery__field">
+        <span class="vpi-search icon-gallery__field-icon icon-gallery__search-icon" aria-hidden="true" />
+        <input
+          id="icon-gallery-search"
+          v-model="query"
+          type="search"
+          aria-label="Search icons"
+          placeholder="Try water leak or smart outlet"
+          autocomplete="off"
+          spellcheck="false"
+        >
+      </div>
+      <div class="icon-gallery__field">
+        <select id="icon-gallery-category" v-model="selectedCategory" aria-label="Category">
+          <option value="">All categories</option>
+          <option v-for="category in categories" :key="category" :value="category">
+            {{ category }}
+          </option>
+        </select>
+        <span class="vpi-chevron-down icon-gallery__field-icon icon-gallery__category-icon" aria-hidden="true" />
+      </div>
+    </div>
+    <p class="visually-hidden" role="status">
+      {{ visibleIcons.length }} of {{ icons.length }} icons
+    </p>
+    <p class="visually-hidden" role="status">
+      <template v-if="copyFeedback">
+        {{ copyFeedback.copied ? `Copied ${copyFeedback.name}` : `Could not copy ${copyFeedback.name}` }}
+      </template>
+    </p>
+    <ul v-if="visibleIcons.length" class="icon-gallery__grid" aria-label="Available icons" role="list">
+      <li v-for="icon in visibleIcons" :key="icon.name" class="icon-gallery__item">
+        <button
+          type="button"
+          class="icon-gallery__tile"
+          :aria-label="`Copy ${icon.name}`"
+          @click="copyIconName(icon.name)"
+        >
+          <span class="icon-gallery__glyph" aria-hidden="true">{{ icon.glyph }}</span>
+          <span v-if="copyFeedback?.name === icon.name">
+            {{ copyFeedback.copied ? 'Copied!' : 'Copy failed' }}
+          </span>
+          <span v-else>{{ icon.name }}</span>
+        </button>
+      </li>
+    </ul>
+    <p v-else>No icons match these filters.</p>
+  </div>
+</template>
+
 <style scoped>
+@font-face {
+  font-family: 'EspControl Icons';
+  src: url('../../../../common/assets/fonts/espcontrol-icons.ttf') format('truetype');
+  font-display: block;
+}
+
 .icon-gallery {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
-.icon-search {
-  width: 100%;
-  padding: 10px 14px;
-  font-size: 15px;
-  border: 1px solid var(--vp-c-border);
-  border-radius: 8px;
-  background: var(--vp-c-bg-soft);
-  color: var(--vp-c-text-1);
-  outline: none;
-  transition: border-color 0.2s;
-  font-family: inherit;
-}
-
-.icon-search:focus {
-  border-color: var(--vp-c-brand-1);
-}
-
-.icon-count {
-  font-size: 13px;
-  color: var(--vp-c-text-3);
-  margin: 8px 0 4px;
-}
-
-.icon-group {
-  margin-top: 1.25rem;
-}
-
-.icon-group-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--vp-c-text-1);
-  margin: 0 0 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--vp-c-border);
-}
-
-.icon-grid {
+.icon-gallery__filters {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
+  gap: 0.75rem;
 }
 
-.icon-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 8px 10px;
-  border: 1px solid var(--vp-c-border);
-  border-radius: 8px;
+.icon-gallery input,
+.icon-gallery select {
+  display: block;
+  width: 100%;
+  height: 3.25rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.5rem;
   background: var(--vp-c-bg-soft);
-  cursor: pointer;
-  transition: border-color 0.2s, transform 0.15s, background-color 0.2s;
-  font-family: inherit;
   color: var(--vp-c-text-1);
+  font-size: 1.125rem;
+  line-height: 1.5;
 }
 
-.icon-card:hover {
-  border-color: var(--vp-c-brand-1);
-  transform: translateY(-2px);
+.icon-gallery select {
+  appearance: none;
+  padding-inline-end: 2.65rem;
+  color: color-mix(in srgb, var(--vp-c-text-1) 72%, black);
+  font-size: 1rem;
 }
 
-.icon-card.copied {
-  border-color: var(--vp-c-green-2);
-  background: var(--vp-c-green-soft);
+.icon-gallery__field {
+  position: relative;
 }
 
-.icon-preview {
-  font-size: 32px;
-  line-height: 1;
-  color: var(--vp-c-text-1);
-}
-
-.icon-name {
-  font-size: 11px;
-  text-align: center;
-  line-height: 1.3;
+.icon-gallery__field-icon {
+  position: absolute;
+  inset-block: 0;
+  margin-block: auto;
   color: var(--vp-c-text-2);
-  word-break: break-word;
+  font-size: 1.25rem;
+  pointer-events: none;
 }
 
-.icon-card.copied .icon-name {
-  color: var(--vp-c-green-2);
-  font-weight: 600;
+.icon-gallery__search-icon {
+  inset-inline-start: 0.85rem;
 }
+
+.icon-gallery__category-icon {
+  inset-inline-end: 0.85rem;
+}
+
+.icon-gallery input {
+  padding-inline-start: 2.65rem;
+}
+
+.icon-gallery input::placeholder {
+  color: var(--vp-c-text-2);
+}
+
+.icon-gallery input:focus-visible,
+.icon-gallery select:focus-visible,
+.icon-gallery__tile:focus-visible {
+  outline: 2px solid var(--vp-c-brand-1);
+  outline-offset: 2px;
+}
+
+.icon-gallery__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 7.5rem), 1fr));
+  gap: 0.625rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.icon-gallery__item {
+  display: grid;
+}
+
+.icon-gallery__tile {
+  display: grid;
+  grid-template-rows: 2rem minmax(2.5em, 1fr);
+  place-items: center;
+  gap: 0.5rem;
+  min-height: 6.5rem;
+  padding: 0.75rem 0.5rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.5rem;
+  background: var(--vp-c-bg-soft);
+  font-size: 0.875rem;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.icon-gallery__tile:hover {
+  border-color: var(--vp-c-brand-1);
+}
+
+.icon-gallery__item + .icon-gallery__item {
+  margin-top: 0;
+}
+
+.icon-gallery__glyph {
+  font-family: 'EspControl Icons';
+  font-size: 2rem;
+  font-weight: normal;
+  line-height: 1;
+}
+
 </style>
